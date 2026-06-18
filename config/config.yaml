@@ -1,0 +1,343 @@
+# ============================================================================
+# config/config.yaml — Assignment 6: MARL Cops & Robbers (group adrl-001)
+# ----------------------------------------------------------------------------
+# SINGLE SOURCE OF TRUTH for every algorithm-relevant numeric/string parameter
+# (BRIEF §3.6 "no hardcoding"; CLAUDE.md §4). Local UI-styling literals
+# (button px, matplotlib dpi/alpha/fontsize) intentionally stay in their
+# rendering modules — see CLAUDE.md §4 for the config-vs-local test.
+#
+# SECRETS / PII LIVE ELSEWHERE (V3 secrets gate, A1-A5 PII deny-list):
+#   - transport secrets (tokens, App Password, RSA keys) -> .env  (git-ignored;
+#     placeholders in config/.env-example)
+#   - real student names/IDs + GitHub owner slug        -> players.local.yaml
+#     (git-ignored; placeholders in players.example.yaml)
+# Cover sheet adrl-001-ex06.pdf is git-ignored, Moodle-only (never asserted).
+#
+# Section tags cite the BRIEF § that mandates each key; bibliography refs
+# [1]-[11] follow BRIEF §10. Citation hazard (D10/§7): README uses ex06/BRIEF
+# numbering as PRIMARY (BRIEF [2]=VDN, [3]=QMIX, [7]=OLoRA, [11]=MCP spec).
+# ============================================================================
+
+# --- Project identity (BRIEF "Standing submission rules"; V3 version gate) ---
+version: "1.0.0"                  # V3 hard gate: version starts at stated "1.00"
+                                  # (3-segment A5-accepted mapping; ADR-0011)
+project:
+  group_code: "adrl-001"          # BRIEF: 8-char group code, no spaces
+  timezone: "Asia/Jerusalem"      # BRIEF §3.5 report timezone (IDT = +03:00 in June)
+  # github_repo / owner slug is PII-adjacent -> injected from players.local.yaml
+  # (key: github_repo) so the owner handle never lands in tracked content.
+
+# ============================================================================
+# GAME RULES (BRIEF §3 / §3.4 / §3.6) — the GRADED 5x5 match definition.
+# These are the §3.6-mandated keys; the referee reads them verbatim.
+# ============================================================================
+game:
+  grid_size: 5                    # §3 board is 5x5 for the graded match
+  max_moves: 25                   # §3 sub-game capped at <=25 moves
+  num_games: 6                    # §3 a full game = 6 sub-games
+  max_barriers: 5                 # §3.3 cop may place <=5 barriers per sub-game
+  scoring:                        # §3.4 Table 1 (REPORT-ONLY scoreboard; never
+                                  # the RL training signal — see `reward:` below)
+    cop_win: 20                   # §3.4 Cop wins (capture)
+    thief_win: 10                 # §3.4 Thief wins (evades 25 moves)
+    cop_loss: 5                   # §3.4 Cop loses (timeout)
+    thief_loss: 5                 # §3.4 Thief loses (captured)
+
+# ============================================================================
+# ENVIRONMENT (BRIEF §2.1 Dec-POMDP/POSG, §5.1 dynamic grid, §5.1 Table 2)
+# Custom CopsRobbersEnv tuple <N,S,A,T,R,Omega,O,gamma> (BRIEF eq 1, cite [1]).
+# step() returns LOCAL per-agent obs only; global state s via env.state() ONLY
+# (CTDE train/exec split — the single most-graded modeling requirement, §4/§6.1).
+# ============================================================================
+env:
+  num_cops: 1                     # §3 GRADED match = 1 cop vs 1 thief (faithful).
+                                  # Curriculum 4x4 stage may set 2 (ADR-D1-D) so
+                                  # the QMIX mixer is genuinely multi-agent for the
+                                  # §7.2 credit-assignment learning curves. Does
+                                  # NOT change the graded game rules (human gate).
+  move_resolution: "simultaneous" # ADR-001 (human sign-off): both moves resolved
+                                  # from the same pre-move state, applied together.
+                                  # Alt: cop_first | thief_first.
+  capture_on_swap: true           # ADR-001: a cop<->thief one-tick cell swap counts
+                                  # as a CAPTURE (prevents a degenerate thief exploit).
+  reward_mode: "dec_pomdp"        # §2.1 cooperative shared-R proxy (default) | posg
+                                  # (role-specific R_i for the §7.2 POSG contrast).
+  transition_noise: 0.0           # T(s'|s,a) slip prob; 0.0 for grading reproducibility
+  obs_noise: 0.0                  # O flip prob on the other-visible channel; 0.0 default
+  spawn_min_dist_mode: "dist_gt_radius"  # §5.1 Table 2: start distance > view radius at
+                                  # partial/final stages so partial-obs genuinely bites.
+
+  # Partial observation Omega/O (BRIEF §2.1 bounded Manhattan radius; §5.1 Table 2).
+  # Egocentric window is ALWAYS padded to the max footprint (radius 2 -> 5x5) so ONE
+  # frozen encoder spans 2x2->5x5 and supports OLoRA fine-tuning (ADR-003/ADR-D4-5).
+  view_radius_by_grid:            # tightens on 4x4 so the partial-obs effect bites
+    2: 0                          # 2x2 near-blind by design (pipeline sanity, not a
+                                  #   learning benchmark) — auto = ceil(min(H,W)/2)-1
+    3: 1                          # 3x3 entry test
+    4: 1                          # 4x4 partial-observability effects (radius < grid)
+    5: 2                          # 5x5 final test + learning curves
+  view_radius_max: 2              # padding footprint = 2*view_radius_max+1 = 5
+  obs_channels: 5                 # egocentric image channels (D2 §4):
+                                  #   0 self, 1 other_visible, 2 barrier,
+                                  #   3 out_of_bounds, 4 time_norm
+  obs_scalars: 6                  # aliasing-memory hooks (L10 eq 8): own_r_norm,
+                                  #   own_c_norm, step_norm, barriers_left_norm,
+                                  #   other_seen_now, steps_since_seen_norm
+
+  # Action space (BRIEF §3 "both move one cell each turn"; §3.3 barriers cop-only).
+  actions:
+    enable_stay: false            # BRIEF rule: both agents move one cell each turn,
+                                  #   so STAY is config-gated OFF by default (in enum).
+    enable_barrier: true          # §3.3 PLACE_BARRIER is cop-only; placement IS the move.
+    a_cop: 5                      # {UP,DOWN,LEFT,RIGHT,PLACE_BARRIER} (with STAY off)
+    a_thief: 4                    # {UP,DOWN,LEFT,RIGHT} (PLACE_BARRIER masked for thief)
+
+  # Curriculum / graduated Sanity-Check ladder (BRIEF §5.1 Table 2).
+  curriculum:
+    stages: [[2, 2], [3, 3], [4, 4], [5, 5]]  # 2x2 -> 3x3 -> 4x4 -> 5x5 (square; the env
+                                  #   is generic over H!=W, but the graded ladder is square)
+    num_cops_by_stage: [1, 1, 2, 1]  # ADR-D1-D: the 4x4 stage trains a 2-COP team so the
+                                  #   QMIX mixer is genuinely multi-agent (real §7.2 credit-
+                                  #   assignment curves). The graded 5x5 stage stays 1 cop
+                                  #   (faithful to BRIEF §3). num_cops (above) is the default;
+                                  #   this per-stage list overrides it — NEVER hardcoded.
+    promotion_threshold: 0.8      # promote when cop capture-rate over the window >= this
+    promotion_window: 100         # episodes of capture-rate used for the promotion gate
+
+# ============================================================================
+# ALGORITHM (BRIEF §5.2 free MARL choice; §7.2 IGM/monotonicity critique)
+# PRIMARY = QMIX (monotonic mixer, eq 7) within the COOPERATIVE cop team only.
+# VDN = ablation arm (eq 6). IQL = required §7.2 baseline (eq 2 == L10 eq 4).
+# Thief = SEPARATE adversarial Double-DQN folded into T, trained by self-play
+# (ADR-D1-B/ADR-D3-A): value decomposition NEVER crosses the cop/thief boundary.
+# ============================================================================
+algo:
+  name: "qmix"                    # qmix | vdn | iql  (BRIEF §5.2; ADR-D10-A)
+  baseline: "iql"                 # §7.2 mandated non-stationarity baseline ([4],[8])
+  double_q: true                  # Double-DQN target action selection (curbs self-play
+                                  #   overestimation; ADR-D3-E)
+  gamma: 0.99                     # discount (<=25-step horizon)
+  lr_agent: 3.0e-4                # AdamW lr for the shared recurrent agent Q-net
+  lr_mixer: 5.0e-4                # AdamW lr for the QMIX hypernetwork mixer
+  weight_decay: 1.0e-5
+  grad_clip_norm: 10.0
+  huber_delta: 1.0                # masked Huber loss (robust to self-play TD spikes)
+  batch_episodes: 32              # recurrent replay sampled as whole episodes (BPTT)
+  target_update_interval: 200     # learner-steps between hard target syncs
+  target_mode: "hard"             # hard | soft
+  tau: 0.005                      # Polyak coefficient if target_mode == soft
+
+  # QMIX monotonic mixer (BRIEF eq 7, [3]); abs/softplus-constrained weights so
+  # dQ_tot/dQ_i >= 0. With num_cops=1 the mixer is a state-conditioned positive
+  # scalar gain + bias on Q_cop (still IGM-valid) — documented as the §7.2 "trivial
+  # decomposition" caveat; flip include_opponent_utility for a genuinely 2-input mixer.
+  mixer:
+    type: "qmix"                  # qmix | vdn  (ablation toggle; ADR-D3-B)
+    embed_dim: 32                 # hypernetwork embedding width
+    include_opponent_utility: false  # ADR-D3-C: train-only opponent-utility head to make
+                                  #   Q_tot 2-input even at N=1 (off by default; §7.2 lever)
+
+# ============================================================================
+# NETWORKS (BRIEF eq 8 recurrent hidden state z_t = f_phi(z_{t-1}, o_t))
+# ONE shared RecurrentQNet (GRU) + a swappable Mixer ABC seam = DRY: only the
+# mixer changes across IQL/VDN/QMIX (ADR-D1-C). All dims are READ from here.
+# ============================================================================
+nets:
+  hidden_dim: 64                  # GRU hidden width H
+  gru: true                       # recurrent (GRU over LSTM: fewer params, ADR-D3-D)
+  conv_channels: [32, 64]         # Conv2d encoder over the egocentric obs patch
+  encoder_hidden: [64, 64]        # encoder trunk Linear widths (OLoRA-wrapped, D4)
+
+# ============================================================================
+# OLoRA (BRIEF §5.2 "pre-trained models + OLoRA", cite [7] Buyukakyuz 2024)
+# Orthonormal Low-Rank Adaptation via QR-decomposition of the PRETRAINED encoder
+# weight W0 (NOT a random matrix — that would be orthonormal-LoRA, not OLoRA;
+# ADR-D4-2). Wraps ONLY encoder Linears; Q-head + QMIX mixer stay PLAIN (ADR-D4-3).
+# Default OFF for from-scratch 5x5; exercised on the curriculum-transfer path
+# (BC-on-3x3 -> OLoRA-attach -> CTDE-finetune-to-5x5) + the full ablation arm.
+# ============================================================================
+olora:
+  enabled: false                  # ADR-D3-G/ADR-D4: off for from-scratch; on for transfer
+  rank: 4                         # default r; sweep {2, 4, 8}. HARD GUARD: rank <=
+                                  #   min(m,n)//2 (prevents degenerate rank on 64-dim layers)
+  rank_sweep: [2, 4, 8]
+  scale: 8.0                      # paper's alpha; 8 (not 16) for tiny near-singular weights
+  target_layers: ["encoder"]      # wrap encoder trunk Linears only (NOT head, NOT mixer)
+  # OLoRA forward: W_adapted = W0 + scale*(B @ A); B=Q_r[:, :r], A=R_r[:r, :]; re-base
+  #   W0 <- W0 - scale*(B @ A) so the function is unchanged at init (eq 10-11 / [7] eqs 3-5).
+
+# --- Behavior-cloning pre-training (the OLoRA "pre-trained model", ADR-D4-1) ---
+# Local BC of CopNet/ThiefNet encoders on Manhattan-heuristic rollouts over small
+# grids (training MUST be local, BRIEF §5.2). val-acc gate before OLoRA attach.
+bc:
+  epochs: 30
+  lr: 1.0e-3
+  epsilon: 0.1                    # expert label-diversity noise (epsilon-greedy expert)
+  pretrain_grids: [[2, 2], [3, 3]]
+  n_pairs: 40000                  # generated (o, a*) supervised pairs (seeded)
+  val_acc_gate: 0.9               # held-out heuristic-label accuracy required to attach OLoRA
+
+# ============================================================================
+# REPLAY (BRIEF §5.2 centralized replay buffer for CTDE)
+# Stores WHOLE padded episodes (obs + global state s + joint action) so the GRU
+# unrolls with correct hidden-state continuity (eq 9 -> episodic). Global s lives
+# ONLY here and is train-time only — NEVER crosses the MCP boundary.
+# ============================================================================
+replay:
+  buffer_episodes: 5000           # capacity in whole episodes (per role; two buffers)
+  min_replay_episodes: 256        # warmup before the first learner update
+  updates_per_episode: 4          # learner updates per collected episode
+
+# ============================================================================
+# SELF-PLAY (ADR-D1-E / ADR-D3-A): alternating best-response, frozen-opponent
+# windows + an opponent pool seeded by a Manhattan heuristic to damp the
+# non-stationarity / rock-paper-scissors cycling each side's learner faces.
+# ============================================================================
+selfplay:
+  window_k: 1                     # update_ratio: ticks the slower learner gets per faster
+                                  #   learner update (non-stationarity knob, §7.2)
+  pool_size: 5                    # opponent-pool snapshots (latest/best/historical + floor)
+  update_ratio: 1                 # 1 = simultaneous updates from the same rollout
+  rounds: 50                      # alternating best-response rounds per curriculum stage
+
+# ============================================================================
+# TRAINING (BRIEF §5.2 training MUST be local; §6.1 theory-first; §7.3 curves)
+# Fixed seeds drive every §7.3 figure (F1 learning curves, F5 baseline, F6 scale).
+# ============================================================================
+training:
+  seeds: [7, 17, 37, 71, 107]     # 5 seeds for mean +/- SE error bars (§7.3 F1/F5/F6)
+  episodes_per_stage: 5000        # self-play episodes at each curriculum grid size
+  eps_start: 1.0                  # epsilon-greedy exploration schedule (per role)
+  eps_end: 0.05
+  eps_anneal_env_steps: 20000     # linear anneal horizon in env steps
+  eval_epsilon: 0.0               # greedy at evaluation (reward shaping toggled OFF too)
+
+# ============================================================================
+# REWARD (RL TRAINING SIGNAL ONLY — strictly separate from the §3.4 scoreboard
+# above; ADR-D1-G/ADR-002). Potential-based shaping F = gamma*Phi(s') - Phi(s),
+# Phi = -manhattan(cop,thief)/d_max (Ng 1999: provably policy-invariant), enabled
+# during TRAINING only and toggled OFF at eval (eval_epsilon path).
+# ============================================================================
+reward:
+  shaping_enabled: true           # potential-based shaping ON during training
+  shaping_eval_enabled: false     # toggled OFF at evaluation (policy-invariance guard)
+  capture_bonus: 1.0              # terminal +1 dominant signal on capture (cop)
+  timeout_penalty: 1.0            # terminal -1 to cop / +1 to thief on timeout
+  step_penalty: 0.05              # -step_penalty per step (encourages fast capture)
+  distance_weight: 1.0            # coefficient on the grid-normalized potential delta
+  barrier_cost: 0.25              # small cop cost per barrier placement
+  invalid_penalty: 0.1            # penalty for an illegal action (mapped to no-op)
+  evade_step: 0.1                 # posg-mode thief per-step survival reward
+  timeout_bonus: 1.0              # posg-mode thief terminal evade reward
+
+# ============================================================================
+# MCP (BRIEF §5.3 two autonomous MCP servers over HTTP; §6 step 5 localhost,
+# step 8 cloud; cite [11] Anthropic MCP spec). A neutral REFEREE = "the
+# environment" (CTDE global-state holder, NOT a third player) drives the 6
+# sub-games and feeds each server ONLY its local obs. Genuine server-to-server
+# HTTP location calls (cop<->thief reveal_location) satisfy §5.3 and produce the
+# §7.3(d) comms evidence, but are decoupled from the policy input (ADR-D5-02).
+# request_move / propose_action accept LOCAL obs ONLY — never global state s.
+# Hosts/ports/URLs here; tokens & RSA keys in .env (no secrets in tracked files).
+# ============================================================================
+mcp:
+  host: "127.0.0.1"               # localhost Stage 1 (BRIEF §5.3 stage 1)
+  cop_port: 8001                  # Cop FastMCP server (separate OS process)
+  thief_port: 8002                # Thief FastMCP server (separate OS process)
+  path: "/mcp"                    # Streamable HTTP path
+  transport: "http"               # Streamable HTTP (NOT deprecated SSE)
+  protocol_version: "adrl-001-mcp-v1"  # cross-server contract version string
+  observation:
+    view_radius: 2                # radius the referee crops to at execution (5x5 graded)
+  client:
+    timeout_s: 10                 # absorbs cloud cold-start
+    max_retries: 3
+    backoff_s: 0.5
+    prewarm_ping: true            # warm-up health() ping before the tick loop
+  auth:                           # BRIEF §5.3 revocable bearer token; §7.3(d) 401 proof
+    scheme: "bearer"
+    # Stage 1 local = FastMCP StaticTokenVerifier; Stage 2 cloud = JWTVerifier (RS256)
+    #   with exp (natural expiry) + a jti deny-list (hard per-token revoke).
+    issuer: "adrl-001-mcp-auth"
+    algorithm: "RS256"
+    cop_audience: "marl-cop"
+    thief_audience: "marl-thief"
+    default_ttl_days: 7
+    required_scopes: ["game:write"]  # scopes: position:read, game:write,
+                                  #   report:send, admin:revoke
+    # Token VALUES and RSA keys live in .env ONLY (see .env-example):
+    #   COP_MCP_TOKEN, THIEF_MCP_TOKEN, REFEREE_MCP_TOKEN, PEER_MCP_TOKEN,
+    #   MCP_PUBLIC_KEY, MCP_PRIVATE_KEY, REVOKED_TOKEN_JTIS.
+
+# ============================================================================
+# CLOUD (BRIEF §5.3 stage 2; §6 step 8; §8 FastMCP + Prefect Horizon runbook)
+# Inference-only actor nets deployed (mixer/replay/global-state NEVER deployed —
+# decentralized execution; ADR-D6-3). Public URLs are bare strings here; the
+# Prefect deploy credential (PREFECT_API_KEY) lives in .env / the cloud secret
+# store, never tracked. Filled-in URLs are placeholders until Stage-2 deploy.
+# ============================================================================
+cloud:
+  platform: "prefect_horizon"     # Prefect Horizon / FastMCP Cloud (*.fastmcp.app).
+                                  #   Fallback host: render (Render.com free Web Service).
+  cop_url: ""                     # e.g. https://adrl-001-cop.fastmcp.app/mcp (set at deploy)
+  thief_url: ""                   # e.g. https://adrl-001-thief.fastmcp.app/mcp (set at deploy)
+  fallback_platform: "render"
+  rate_limits:                    # §5 ApiGatekeeper egress governance (ADR-0006)
+    peer_mcp_per_minute: 120
+    peer_mcp_burst: 10
+    gmail_per_minute: 5
+    gmail_burst: 1
+
+# ============================================================================
+# GMAIL REPORT (BRIEF §3.5 / §5.5; §6 step 9). Cop sends exactly ONE email after
+# the 6th VALID sub-game to rmisegal+marl@gmail.com with the JSON body of all 6
+# sub-games. Mechanism = smtplib + STARTTLS + Gmail App Password (ADR-D8-1;
+# §5.5 explicitly allows it), behind an EmailSender Protocol so a Gmail-API/OAuth
+# sender is a drop-in fallback. Scores derived from winner + game.scoring ONLY
+# (never caller-supplied). NO PII / NO secrets here — student identities come
+# from players.local.yaml, the App Password from .env.
+# ============================================================================
+gmail:
+  to: "rmisegal+marl@gmail.com"   # §3.5 recipient; the +marl plus-tag is MANDATORY
+  mechanism: "smtplib_app_password"  # smtplib_app_password | gmail_api_oauth (fallback)
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587                  # STARTTLS
+  # §3.5 subject: structured, NO names/ids/emails. {date} = build date Asia/Jerusalem.
+  subject_template: "[MARL Cops&Robbers] {group_name} | Final {num_games} sub-games | Cop {cop_total} - Thief {thief_total} | {date}"
+  output_dir: "results/reports"   # role-only REDACTED copy written here (README §7.3 evidence)
+  sentinel: "results/.report_sent"  # idempotency sentinel (sha256-keyed; write AFTER send)
+  schema_path: "docs/schema/report.schema.json"  # JSON-Schema draft-2020-12 contract
+  # Sender + App Password come from .env: GMAIL_SENDER, GMAIL_APP_PASSWORD,
+  #   REPORT_RECIPIENT_OVERRIDE (optional). github_repo from players.local.yaml.
+
+# ============================================================================
+# GUI (BRIEF §5.4 mandatory; §7.3(c) screenshots at different grid sizes).
+# Pygame god-view SPECTATOR reading the referee ground truth (NOT agent obs):
+# it never calls an MCP server and never writes state (ADR-GUI-02). Only
+# algorithm/board params live here; colors/widths/fonts/FPS/anim-ms are LOCAL
+# in src/gui/palette.py (CLAUDE.md §4; enforced by test_palette no-config-import).
+# ============================================================================
+gui:
+  screenshot_sizes: [2, 3, 4, 5]  # §7.3(c) capture matrix (2x2/3x3/4x4/5x5)
+  screenshot_dir: "results/screenshots"
+  view_radius_overlay: false      # debug Manhattan-radius overlay (toggle 'v'); off by default
+
+# ============================================================================
+# PATHS / RESULTS (BRIEF §7.3 figures; D10 reproducibility manifest)
+# All §7.3 figures regenerate from results/runs/*.jsonl via one command so README
+# numbers can never drift from code (ADR-D10-C). Heavy artifacts are git-ignored.
+# ============================================================================
+paths:
+  results_dir: "results"
+  runs_dir: "results/runs"               # append-only per-episode JSONL run records
+  figures_dir: "results/figures"         # F1-F6 PNGs referenced by README §7.3
+  checkpoint_dir: "results/checkpoints"  # cop_weights.pth / thief_weights.pth (+ sidecar)
+  experiment_manifest: "results/experiment_manifest.json"  # seeds/config-hash/commit/run-ids
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  level: "INFO"
+  redact_secrets: true            # strip Authorization/Bearer/key material before any
+                                  #   §7.3(d) screenshot (secrets/PII gate; ADR-D6-7)

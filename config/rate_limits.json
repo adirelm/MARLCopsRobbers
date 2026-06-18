@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "_comment": "V3 §5 ApiGatekeeper egress governance (BRIEF §5.3 peer-MCP HTTP, §5.5 Gmail). The single ApiGatekeeper.execute() routes EVERY outbound API call through a per-channel token-bucket + a FIFO overflow queue (no crash on burst), and logs every call. Versioned + git-tracked (no secrets here; tokens live in .env).",
+  "limits": {
+    "peer_mcp": {
+      "per_minute": 120,
+      "burst": 10,
+      "_use": "cop<->thief reveal_location / query_opponent HTTP calls (§5.3)"
+    },
+    "gmail": {
+      "per_minute": 5,
+      "burst": 1,
+      "_use": "the single end-of-game report send (§3.5/§5.5)"
+    },
+    "prefect_deploy": {
+      "per_minute": 30,
+      "burst": 5,
+      "_use": "Stage-2 cloud deploy / status API calls (§8)"
+    }
+  },
+  "overflow_policy": "fifo_queue",
+  "on_overflow": "enqueue",
+  "max_queue": 256,
+  "log_all_calls": true
+}

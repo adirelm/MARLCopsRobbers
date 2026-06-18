@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Virtual env (managed by uv)
+.venv/
+venv/
+
+# Build artifacts
+dist/
+build/
+*.egg
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+.DS_Store
+.ipynb_checkpoints/
+
+# ── Secrets / local environment (NEVER commit) ──────────────────────────────
+.env
+.env.*
+!.env-example
+secrets/
+*.pem
+*.key
+credentials*.json
+
+# ── PII (deny-list: real names/IDs/emails/owner-slug) — git-ignored, runtime-only ──
+# players.local.yaml holds the real student identity + repo owner; tracked copy is
+# players.example.yaml (placeholders only).
+players.local.yaml
+*.local.yaml
+
+# ── Moodle cover sheet — PII (ID + name + self-grade); upload to Moodle ONLY ──
+adrl-001-ex*.pdf
+adrl-001-ex*.docx
+
+# Local-only: brief PDFs, slides, lecturer feedback, review methodology
+instructions/
+# Copyrighted course source material (Dr. Segal, all rights reserved)
+planning/source_pdfs/
+
+# Stray PDFs (allow only docs/assets/ + docs/screenshots/)
+*.pdf
+!docs/assets/*.pdf
+!docs/screenshots/*.pdf
+
+# ── Training / runtime artifacts (regenerable) ──────────────────────────────
+# Keep lightweight metrics/figures + the §7.3 telemetry (results/runs/*.jsonl);
+# ignore heavy model checkpoints + raw histories.
+results/checkpoints/
+results/**/*.pt
+results/**/*.pth
+results/history/
+results/_tmp/
+# report send-state + the un-redacted (PII-bearing) report copies
+results/.report_sent
+results/reports/*.real.json
+
+# Cloud / vendored
+vendor/
+data/raw/
