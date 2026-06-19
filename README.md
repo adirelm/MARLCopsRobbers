@@ -66,3 +66,48 @@ MCP (Anthropic 2024) — full bibliography in `docs/PRD.md` §10.
 §1 Game · §2 Skills/architecture · §3 before · §4 after · §5 metrics/ablation/**sensitivity** ·
 §6 bug/limitations · §7 academic analysis (Dec-POMDP formalism, non-stationarity, IQL-vs-CTDE,
 IGM/monotonicity → QPLEX/Weighted-QMIX). Figures F1–F6 + GUI + MCP-comms screenshots land here.
+
+---
+
+## 7. Academic analysis (brief §7) — outline + figure manifest
+
+> **Skeleton only (T1.5).** §7.1/§7.2/§7.3 below are placeholders filled in as the build lands.
+> Equation/citation numbering follows **ex06/BRIEF as primary** (R13): ex06 "eq 2" ≡ L10 "eq 4";
+> BRIEF `[2]` (VDN) ≡ L10 `[7]`. Full formalism in [`docs/THEORY.md`](docs/THEORY.md).
+
+### 7.1 Formalism — Dec-POMDP `M` + POSG caveat *(pending)*
+
+The cooperative cop team is a **Dec-POMDP** `M = ⟨N, S, {A_i}, T, R, {Ω_i}, O, γ⟩` (eq 1, cite
+`[1]`), with **N = the cooperative COP TEAM** (the Thief is folded into `T`; value decomposition
+never crosses the cop/thief boundary). The faithful full game is a general-sum **POSG**
+`G = ⟨I, S, {A_i}, {O_i}, P, Ω, {R_i}, γ⟩` (eq 3, NEXP^NP) with `R_cop ≠ R_thief`. Each tuple
+symbol is mapped 1:1 to code (`GlobalState`, `Observation`, `actions.py`, `reward.py`, config).
+See [`docs/THEORY.md`](docs/THEORY.md).
+
+### 7.2 Analysis — non-stationarity, IQL-vs-CTDE, IGM/monotonicity *(pending)*
+
+(a) Why independent learners (IQL, eq 2/4) face a drifting target vs centralized CTDE; (b) the
+IQL/VDN/QMIX credit-assignment ordering on the 4×4 2-cop scenario; (c) IGM + monotonicity limits
+(eq 5, eq 7) → QPLEX `[10]` / Weighted-QMIX `[9]`; (d) OLoRA `[7]` as a stability aid, not the
+non-stationarity cure; curriculum `[5]`. Evidenced by F5.
+
+### 7.3 Results — the controlled experiment + figure manifest *(pending)*
+
+**Single controlled experiment** (D10 §C): arms **IQL / VDN / QMIX** × seeds **`[7, 17, 37, 71,
+107]`** (`training.seeds`) × ladder **`[2, 3, 4, 5]`** (`env.curriculum.stages`), with **identical**
+nets / replay / ε-decay / γ / target cadence — only the mixer (or the IQL learner branch) differs.
+Per-episode records append to `results/runs/*.jsonl`; `results/experiment_manifest.json` pins seeds,
+config hashes, git commit, and run IDs (zero README↔code drift).
+
+| Fig | Content | Generator | Path |
+|---|---|---|---|
+| **F1** | Both-agent learning curves (reward vs episode, mean±SE) | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
+| **F2** | Per-stage TD-loss curves | `python -m src.results.make_figures` | `results/figures/loss_curves.png` |
+| **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png` |
+| **F4** | MCP-comms proof — localhost canonical (cloud if P8) (CAPTURED) | redacted cop↔thief comms log / `scripts/smoke_cloud.py` | `results/figures/mcp_comms_local.png` (+ `_cloud.png`) |
+| **F5** | IQL vs VDN vs QMIX win-rate/convergence (incl. 4×4 2-cop panel) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
+| **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |
+
+F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); F3/F4 are
+deterministically captured by their seeded scripts. The OLoRA ablation chart + trainable-param
+table also land here (§7.2 evidence).

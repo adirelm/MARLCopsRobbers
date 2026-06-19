@@ -101,7 +101,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** `can_enter(y, actor)= y∈G and (y∉B or y==actor)` verified; `edge==wall` stays-in-place; ≤150 LOC each.
 
 - [ ] **T1.4 — Reward model + Scorer, STRICTLY separate (TDD)** · _A_
-  `src/marl/env/reward.py` (potential-based shaping `F=γΦ(s')−Φ(s)`, `Φ=−manhattan/d_max`, grid-normalized; `−step_penalty`; terminal ±1 dominant; per-agent dict; `dec_pomdp` ⇒ equal entries, `posg` ⇒ role-specific) + `src/marl/env/scorer.py` (Table-1 20/10/5/5, report-only).
+  `src/marl/env/reward.py` (potential-based shaping `F=γΦ(s')−Φ(s)`, **team potential `Φ = −min_i manhattan(cop_i, thief) / d_max`** — the closest cop sets it — with **`d_max = (H−1)+(W−1)` derived per live grid from `state.h, state.w`** (architect decision #2, NOT a config key), grid-normalized; `−step_penalty`; terminal ±1 dominant, `Φ(terminal)=0`; per-agent dict; `dec_pomdp` ⇒ equal entries, `posg` ⇒ role-specific) + `src/marl/env/scorer.py` (Table-1 20/10/5/5, report-only).
   **DoD:** test asserts the shaping identity `F=γΦ(s')−Φ(s)`; test asserts `RewardModel` and `Scorer` are **distinct modules** and Scorer output is **never** consumed by training; `dec_pomdp` dict entries equal; shaping **toggles off at eval**.
 
 - [ ] **T1.5 — README §7 outline + figure manifest** · _A_

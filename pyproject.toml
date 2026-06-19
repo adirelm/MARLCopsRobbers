@@ -10,6 +10,13 @@ dependencies = [
     "numpy>=1.26",
     "matplotlib>=3.8",
     "pyyaml>=6.0",
+]
+
+# §5.4 GUI (Pygame god-view spectator) is an OPTIONAL extra, needed only at P7 —
+# headless training / CI / the core test suite do NOT require SDL. Install with
+# `uv sync --extra gui` (or `--all-extras`); CI installs it for the GUI tests.
+[project.optional-dependencies]
+gui = [
     "pygame>=2.6.1",
 ]
 

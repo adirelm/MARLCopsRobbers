@@ -228,8 +228,10 @@ training:
 # ============================================================================
 # REWARD (RL TRAINING SIGNAL ONLY — strictly separate from the §3.4 scoreboard
 # above; ADR-D1-G/ADR-002). Potential-based shaping F = gamma*Phi(s') - Phi(s),
-# Phi = -manhattan(cop,thief)/d_max (Ng 1999: provably policy-invariant), enabled
-# during TRAINING only and toggled OFF at eval (eval_epsilon path).
+# Phi = -min_i manhattan(cop_i, thief) / d_max  (the CLOSEST cop sets the team
+#   potential; Ng 1999: provably policy-invariant), enabled during TRAINING only
+#   and toggled OFF at eval (eval_epsilon path). d_max = (H-1)+(W-1) is DERIVED per
+#   live grid from the state's h,w (architect decision #2) -> NOT a config key.
 # ============================================================================
 reward:
   shaping_enabled: true           # potential-based shaping ON during training
