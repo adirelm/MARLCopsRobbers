@@ -6,8 +6,9 @@ this file MUST NEVER import). The shaping potential is Ng-1999 policy-invariant:
 ``d_max = max(1, (H-1) + (W-1))`` derived per live grid (architect decision #2;
 NOT a config literal; the ``max(1, ...)`` floor mirrors grid.sample_spawn so a
 degenerate 1x1 grid cannot ZeroDivisionError), and ``Phi = 0`` on terminal
-states so ``F = distance_weight*(gamma*Phi(s')-Phi(s))`` collapses correctly at
-absorbing states. All coefficients come from config.
+states (config-gated by ``reward.phi_terminal_zero``, default True) so
+``F = distance_weight*(gamma*Phi(s')-Phi(s))`` collapses correctly at absorbing
+states. All coefficients come from config.
 """
 
 from __future__ import annotations
@@ -16,21 +17,26 @@ from src.marl.env.grid import manhattan
 from src.marl.env.types import GlobalState
 
 
-def potential(state: GlobalState) -> float:
+def potential(state: GlobalState, phi_terminal_zero: bool = True) -> float:
     """Return the shaping potential Phi for ``state``.
 
     ``Phi = -min_i manhattan(cop_i, thief) / d_max`` over the cop team, with
     ``d_max = max(1, (h-1) + (w-1))`` (the floor mirrors grid.sample_spawn so a
-    1x1 grid cannot divide by zero). Terminal/absorbing states yield ``0.0`` so
-    the Ng-1999 policy-invariance guarantee holds (``phi_terminal_zero``).
+    1x1 grid cannot divide by zero). When ``phi_terminal_zero`` is True (the
+    config default, ``reward.phi_terminal_zero``), terminal/absorbing states
+    yield ``0.0`` so the Ng-1999 policy-invariance guarantee holds; when False
+    the raw geometric potential is returned even at terminal states (an
+    invariance-breaking ablation).
 
     Args:
         state: The global state to evaluate.
+        phi_terminal_zero: Zero the potential at terminal states (default True).
 
     Returns:
-        The (non-positive) potential, or ``0.0`` if the state is terminal.
+        The (non-positive) potential, or ``0.0`` at a terminal state when
+        ``phi_terminal_zero`` is True.
     """
-    if state.terminal:
+    if state.terminal and phi_terminal_zero:
         return 0.0
     d_max = max(1, (state.h - 1) + (state.w - 1))
     nearest = min(manhattan(cop, state.thief_pos) for cop in state.cop_pos)
@@ -54,8 +60,11 @@ class RewardModel:
         r = cfg["reward"]
         self._gamma = cfg["algo"]["gamma"]
         self._mode = cfg["env"]["reward_mode"]
+        if self._mode not in ("dec_pomdp", "posg"):
+            raise ValueError(f"unknown reward_mode {self._mode!r} (expected 'dec_pomdp' or 'posg')")
         self._shaping_enabled = r["shaping_enabled"]
         self._shaping_eval_enabled = r["shaping_eval_enabled"]
+        self._phi_terminal_zero = r["phi_terminal_zero"]
         self._distance_weight = r["distance_weight"]
         self._step_penalty = r["step_penalty"]
         self._barrier_cost = r["barrier_cost"]
@@ -70,15 +79,18 @@ class RewardModel:
             return 0.0
         if eval_mode and not self._shaping_eval_enabled:
             return 0.0
-        return self._distance_weight * (self._gamma * potential(nxt) - potential(prev))
+        phi_nxt = potential(nxt, self._phi_terminal_zero)
+        phi_prev = potential(prev, self._phi_terminal_zero)
+        return self._distance_weight * (self._gamma * phi_nxt - phi_prev)
 
     def _cop_team_reward(
         self, prev: GlobalState, nxt: GlobalState, winner: str | None, eval_mode: bool
     ) -> float:
         """Aggregate the shared cop-team reward for one transition."""
         reward = self._shaping(prev, nxt, eval_mode) - self._step_penalty
-        if nxt.barriers_used > prev.barriers_used:
-            reward -= self._barrier_cost
+        # Charge per barrier placed this transition (delta can be >1 on a 2-cop
+        # simultaneous joint step, so multiply — not a single flat charge).
+        reward -= self._barrier_cost * (nxt.barriers_used - prev.barriers_used)
         if nxt.terminal and winner == "cop":
             reward += self._capture_bonus
         elif nxt.terminal and winner == "thief":

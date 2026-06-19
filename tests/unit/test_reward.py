@@ -27,9 +27,11 @@ def test_potential_half_distance(make_state):
 
 
 def test_potential_terminal_is_zero(make_state):
-    # Even with non-zero distance, a terminal state has Phi=0 (Ng-1999 invariance).
+    # Terminal Phi=0 by default (Ng-1999 invariance); phi_terminal_zero=False
+    # returns the raw geometric potential (the invariance-breaking ablation).
     state = make_state(cop_pos=(0, 0), thief_pos=(2, 2), h=3, w=3, terminal=True)
     assert potential(state) == 0.0
+    assert potential(state, phi_terminal_zero=False) == pytest.approx(-1.0)
 
 
 def test_potential_min_over_two_cops_picks_nearer(make_state):
@@ -184,3 +186,37 @@ def test_posg_capture_terminal_thief_zero_cop_bonus(cfg, make_state):
     no_win = RewardModel(cfg_posg).compute(prev, nxt, winner=None, eval_mode=False)
     assert out["thief"] == 0.0
     assert out["cop_0"] == pytest.approx(no_win["cop_0"] + cfg["reward"]["capture_bonus"])
+
+
+def test_barrier_cost_scales_with_placement_count(cfg, make_state):
+    # A 2-cop simultaneous placement (barriers_used delta 2) pays 2*barrier_cost,
+    # not a single flat charge (the 1-cop delta-1 case is covered above).
+    prev = make_state(cop_pos=[(0, 0), (4, 4)], thief_pos=(2, 2), h=5, w=5, step=0)
+    two = make_state(cop_pos=[(0, 0), (4, 4)], thief_pos=(2, 2), h=5, w=5, barriers_used=2, step=1)
+    none = make_state(cop_pos=[(0, 0), (4, 4)], thief_pos=(2, 2), h=5, w=5, step=1)
+    rm = RewardModel(cfg)
+    d2 = rm.compute(prev, two, winner=None)["cop_0"]
+    d0 = rm.compute(prev, none, winner=None)["cop_0"]
+    assert d2 == pytest.approx(d0 - 2 * cfg["reward"]["barrier_cost"])
+
+
+def test_phi_terminal_zero_config_is_honored(cfg, make_state):
+    # The reward.phi_terminal_zero key is LIVE (not dead): False keeps the raw
+    # terminal potential, changing the terminal shaping term.
+    cfg_off = copy.deepcopy(cfg)
+    cfg_off["reward"]["phi_terminal_zero"] = False
+    prev = make_state(cop_pos=(0, 0), thief_pos=(4, 4), h=5, w=5, step=23)
+    nxt = make_state(cop_pos=(0, 1), thief_pos=(4, 4), h=5, w=5, step=24, terminal=True)
+    g = cfg["algo"]["gamma"]
+    dw = cfg["reward"]["distance_weight"]
+    sp = cfg["reward"]["step_penalty"]
+    expected = dw * (g * potential(nxt, False) - potential(prev, False)) - sp
+    assert RewardModel(cfg_off).compute(prev, nxt, winner=None)["cop_0"] == pytest.approx(expected)
+
+
+def test_unknown_reward_mode_raises(cfg):
+    # A typo'd reward_mode must fail fast, not silently behave as dec_pomdp.
+    cfg_bad = copy.deepcopy(cfg)
+    cfg_bad["env"]["reward_mode"] = "pog"
+    with pytest.raises(ValueError, match="reward_mode"):
+        RewardModel(cfg_bad)

@@ -152,3 +152,10 @@ def test_non_mapping_section_raises():
     cfg["game"] = 5
     with pytest.raises(ValueError, match="mapping"):
         _validate_config(cfg)
+
+
+def test_non_mapping_root_raises(tmp_path):
+    """A top-level YAML list/scalar raises ValueError, not AttributeError."""
+    path = _write(tmp_path, "- not\n- a\n- mapping\n")
+    with pytest.raises(ValueError, match="root must be a mapping"):
+        load_config(path)

@@ -89,9 +89,12 @@ def _validate_config(cfg: dict) -> None:
         cfg: The parsed, interpolated config dict.
 
     Raises:
-        ValueError: If the version is not EXPECTED_VERSION, a required section
-            is missing or ``None``, or a mapping section is not a dict.
+        ValueError: If the config root is not a mapping, the version is not
+            EXPECTED_VERSION, a required section is missing or ``None``, or a
+            mapping section is not a dict.
     """
+    if not isinstance(cfg, dict):
+        raise ValueError(f"config root must be a mapping, got {type(cfg).__name__}")
     version = cfg.get(VERSION_KEY)
     if version != EXPECTED_VERSION:
         raise ValueError(f"config version {version!r} != required {EXPECTED_VERSION!r}")
