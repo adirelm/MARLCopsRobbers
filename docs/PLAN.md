@@ -1,6 +1,6 @@
 # PLAN — Assignment 6: MARL Cops & Robbers (adrl-001) — v1.0.0
 
-> **Group code:** `adrl-001` · **Version:** `1.0.0` · **Roles:** A / B
+> **Group code:** `adrl-001` · **Version:** `1.0.0` · **Solo submission** (work-streams WS1 / WS2, §10 R16)
 > **Source of truth:** `planning/BRIEF.md` (distilled `ex06.pdf`, Dr. Yoram Segal, 2026) +
 > `L10-MARL.pdf`. Governed by the V3 software-excellence guidelines and `CLAUDE.md` §1.4.
 >
@@ -41,12 +41,17 @@ is marked a coordination dependency, off the A6 critical path.
    MCP URLs (Stage 2), each emitting a schema-valid §3.5 JSON body.
 2. On the final 5×5 1-cop-vs-1-thief match, the trained Cop's capture rate **strictly exceeds**
    both the Manhattan-heuristic floor and the IQL baseline on held-out seeds `[7,17,37,71,107]`.
-3. All six §7.3 figures (F1–F6) regenerate from one command, traceable to `results/runs/*.jsonl`.
+3. The plotted §7.3 figures (F1/F2/F5/F6) regenerate from one command, traceable to
+   `results/runs/*.jsonl`; F3 (GUI) and F4 (MCP-comms) are deterministically **captured**, not plotted.
 4. All V3 hard gates green (see §9 of this PLAN).
 
-**Cost-budget envelope (human-decided):** training is **local-only** (§5.2); cloud is used only
-for the demo match (a 6-sub-game match is <500 requests, well inside Prefect Horizon free tier);
-tear down public services after the grading proof is captured to save compute minutes.
+**Cost-budget envelope (human-decided):** the full training envelope is **~100k episodes**
+(5000 episodes/stage × 4 curriculum stages × 5 seeds, per PRD FR-COST-1) and is **local-only**
+(§5.2); cloud is used only for the demo match (a 6-sub-game match is <500 requests, well inside
+Prefect Horizon free tier); tear down public services after the grading proof is captured to save
+compute minutes. **Defer-order (if behind schedule):** drop in order **P8 cloud → OLoRA ablation
+arm → P-bonus** (see R2 / R12 / R16 / P-bonus) — the localhost match + QMIX/VDN/IQL comparison
+stay on the critical path.
 
 ---
 
@@ -58,7 +63,7 @@ tear down public services after the grading proof is captured to save compute mi
                          ┌─────────────────────────────────────────────┐
         ┌──────────┐     │      MARL Cops & Robbers System (adrl-001)    │     ┌──────────────┐
         │  Student │────▶│  trains locally, plays a 6-sub-game match,    │────▶│  Lecturer    │
-        │ (A / B)  │ uv  │  visualizes it, emails the final report       │ SMTP│  rmisegal     │
+        │ (solo)   │ uv  │  visualizes it, emails the final report       │ SMTP│  rmisegal     │
         └──────────┘ run │                                               │ 587 │ +marl@gmail  │
                          └───────────────┬─────────────────┬────────────┘     └──────────────┘
                                          │ HTTPS (JWT)      │ git push-to-deploy
@@ -110,16 +115,16 @@ src/sdk/sdk.py :: MarlSDK  ── SINGLE business-logic entry; every UI/server/s
 
 ENVIRONMENT (src/marl/env/, pure library)              LEARNER (src/marl/, src/services/)
   actions  types  grid  transition(PURE)                 recurrent_q_net (GRU, eq 8)
-  observation(O, 5×5 padded)  reward(potential)          mixers/{base,iql,vdn,qmix}  (the ONLY seam)
+  observation(O, 5×5 padded)  reward(potential)          mixers/{base,vdn,qmix} + learner branches (seam)
   scorer(Table-1, SEPARATE)  curriculum                  learner_base → cop/thief/iql learners
   cops_robbers_env(reset/step/state/render_state)        episode_buffer(centralized, train-only)
                                                           olora(QR init, eq 10-11)
 DATA PLANE (src/marl/data/, src/marl/nets/)              selfplay(best-response)  trainer(curriculum)
-  schemas(TransitionDTO)  heuristics(A*/flee experts)
+  schemas(TransitionDTO)  heuristics(A*/flee experts)    referee = THE ENVIRONMENT (MatchRunner)
   obs_encoder(pad-to-5×5)  bc_dataset  replay           MCP (src/mcp/)
-  encoder  olora_linear  olora_init  agent_net  bundles   schemas  actions  auth(Static→JWT+jti)
+  encoder  olora_linear  olora_init  agent_net  bundles   schemas  actions(re-export env)  auth(Static→JWT+jti)
                                                           agent_runtime(private AgentController)
-EGRESS GOVERNANCE (src/api/, §5 REQUIRED — ADR-0009)      cop_server  thief_server  clients  referee
+EGRESS GOVERNANCE (src/api/, §5 REQUIRED — ADR-0009)      cop_server  thief_server  clients
   ApiGatekeeper.execute(call) + .get_queue_status()        (per-channel token-bucket: peer_mcp/gmail/
   FIFO overflow queue (no crash on burst), logs all calls   prefect_deploy from config/rate_limits.json)
   http_client(bearer)  ── ALL outbound egress routes here
@@ -133,7 +138,9 @@ RESULTS (src/results/)                                     app transform grid_vi
 - **CTDE structural split:** runtime/MCP code **cannot import** `mixer`, `episode_buffer`,
   `learner_base`, `GlobalState`, or anything under `services/` (import-boundary test). Exported
   `.pth` contains **agent-net params only** + a shape sidecar — global state is unreachable at exec.
-- **Mixer is the only differentiator** across IQL/VDN/QMIX (one shared `RecurrentQNet` + one buffer).
+- **Algorithm seam** across IQL/VDN/QMIX: one shared `RecurrentQNet` + one buffer; VDN/QMIX swap only
+  the Mixer ABC, while **IQL additionally drops the mixer + global state** and uses an independent
+  per-agent target (`IqlLearner._compute_target`, eq 4) — the seam is mixer-OR-learner-branch, not mixer-only.
 - **Egress via gatekeeper:** no module calls `httpx`/Gmail/Prefect outside `src/api/` + `src/reporting/mailer.py`; ALL peer-MCP, Gmail, and Prefect-deploy egress routes through `ApiGatekeeper.execute()`.
 - **Spectator purity:** GUI never imports referee/agent/MCP internals; `SpectatorFrame` frozen;
   `referee.build_local_obs` Manhattan-masks beyond `view_radius` (encodes the §2.1 Dec-POMDP invariant).
@@ -155,6 +162,7 @@ Assignment6-MARLCopsRobbers/
 ├── .python-version                 # 3.11
 ├── .env-example                    # tokens + Gmail + (PII handled via secrets/, see ADR-0013) — committed
 ├── .gitignore                      # .env .env.* *.pem *.key credentials*.json secrets/ adrl-001-ex*.pdf instructions/ artifacts/
+│                                    #   + allow-list exception: !deploy/model/*.pt (the ONE committed actor checkpoint)
 ├── .github/
 │   ├── pull_request_template.md    # Scope/Req/Human/AI/Tests/V3 checklist
 │   └── workflows/ci.yml            # ruff check → ruff format --check → file-size → check_* → pytest --cov
@@ -172,7 +180,7 @@ Assignment6-MARLCopsRobbers/
 │   │   └── config_loader.py        # load_config(): yaml + .env interpolation + validation     ~110
 │   ├── marl/
 │   │   ├── env/
-│   │   │   ├── actions.py          # Action IntEnum, DELTAS, action_mask(state, agent)         ~70
+│   │   │   ├── actions.py          # SINGLE source: Action IntEnum, DELTAS, action_mask(state, agent) ~70
 │   │   │   ├── types.py            # Pos, GlobalState @dataclass, Observation TypedDict        ~60
 │   │   │   ├── grid.py             # bounds, manhattan(), in_grid(), can_enter(), spawn        ~90
 │   │   │   ├── transition.py       # resolve_joint_action(state, joint_a, cfg) [PURE]          ~120
@@ -184,21 +192,22 @@ Assignment6-MARLCopsRobbers/
 │   │   │   ├── cops_robbers_env.py # CopsRobbersEnv: reset/step(4-tuple)/state                  ~120
 │   │   │   └── render_state.py     # render_state() spectator snapshot split out of env (≤150)  ~70
 │   │   ├── nets/
-│   │   │   ├── encoder.py          # per-role Encoder MLP trunk (OLoRA-wrapped Linears)        ~70
+│   │   │   ├── encoder.py          # flat-obs Linear trunk (encoder_hidden, OLoRA-wrapped); NO conv ~70
 │   │   │   ├── olora_linear.py     # OLoRALinear: frozen W0 + Parameter A,B; forward eq 11     ~90
 │   │   │   ├── olora_init.py       # qr_init(W0,r)→(A,B); rebase eq 10; wrap_encoder()         ~100
 │   │   │   ├── agent_net.py        # AgentNet = wrapped Encoder + plain Q-head (cop 5/thief 4) ~120
 │   │   │   └── bundles.py          # save/load {base_sha, adapters, head}; base_sha guard      ~90
-│   │   ├── recurrent_q_net.py      # GRUQNet: conv+vec encoder → GRUCell → Q-head, eq 8        ~120
+│   │   ├── recurrent_q_net.py      # GRUQNet: flat-obs Linear trunk → GRUCell → role Q-head, eq 8 ~120
 │   │   ├── mixers/
 │   │   │   ├── base_mixer.py       # Mixer ABC: forward(q_agents, state) → q_tot               ~30
-│   │   │   ├── iql_mixer.py        # identity / per-agent (baseline, eq 4)                      ~25
 │   │   │   ├── vdn_mixer.py        # sum over cop team, eq 6                                    ~30
-│   │   │   └── qmix_mixer.py       # monotonic hypernetwork, abs weights, eq 7                 ~130
+│   │   │   └── qmix_mixer.py       # monotonic hypernetwork, softplus(weights)≥0, eq 7         ~130
+│   │   │                           #   (NO iql_mixer.py — IQL has no mixer; it branches in IqlLearner)
 │   │   ├── learner_base.py         # QmixLearner: update/_compute_target/_sync/save/load       ~145
 │   │   ├── cop_learner.py          # CopLearner(QmixLearner): num_cops, A=5, reward hook       ~45
 │   │   ├── thief_learner.py        # ThiefLearner(QmixLearner): num_agents=1, A=4             ~40
-│   │   ├── iql_learner.py          # IqlLearner: override _compute_target → eq 4, no mixer     ~55
+│   │   ├── iql_learner.py          # IqlLearner: override _compute_target → eq 4, no mixer;     ~55
+│   │   │                           #   single-param-group optimizer (drops QMIX's lr_mixer group)
 │   │   ├── policy.py               # ε-greedy + greedy DECENTRALIZED exec path (local obs)     ~80
 │   │   ├── episode_buffer.py       # CentralizedEpisodeBuffer: padded episodes + global s      ~140
 │   │   └── data/
@@ -211,7 +220,8 @@ Assignment6-MARLCopsRobbers/
 │   │   ├── rollout.py              # collect ONE episode driving both ε-greedy policies        ~110
 │   │   ├── trainer.py              # SelfPlayTrainer: curriculum + OLoRA per stage + history   ~145
 │   │   ├── selfplay.py             # alternating best-response, frozen window, opponent pool   ~120
-│   │   └── checkpoints.py          # full(train) vs export(deploy) split + shape sidecar       ~70
+│   │   ├── checkpoints.py          # full(train) vs export(deploy) split + shape sidecar       ~70
+│   │   └── referee.py              # MatchRunner = THE ENVIRONMENT: ground-truth s, observe()=O(s,i), apply() ~145
 │   ├── api/
 │   │   ├── gatekeeper.py           # ApiGatekeeper.execute(call)+get_queue_status(): per-channel  ~120
 │   │   │                           #   token-bucket (peer_mcp/gmail/prefect_deploy) + FIFO overflow
@@ -219,15 +229,17 @@ Assignment6-MARLCopsRobbers/
 │   │   └── http_client.py          # bearer-auth HTTP wrapper (timeout/retry/backoff)         ~90
 │   ├── mcp/
 │   │   ├── schemas.py              # pydantic v2: Observation/MoveResponse/LocationReveal/...  ~140
-│   │   ├── actions.py              # action enum + legal_action_mask helper                    ~50
+│   │   │                           #   every request carries session_id (GRU keying + idempotency)
+│   │   ├── actions.py              # re-exports Action/DELTAS/mask from marl.env.actions (no dup) ~15
 │   │   ├── auth.py                 # build_verifier: Static(local)|JWT+jti-denylist(cloud)     ~120
 │   │   ├── agent_runtime.py        # private AgentController: Observation→action via SDK;       ~110
 │   │   │                           #   holds per-session GRU z_t (reset on new_sub_game)
 │   │   ├── cop_server.py           # FastMCP("cop"): request_move/reveal_location/query_opponent ~130
 │   │   │                           #   /new_sub_game/send_final_report (SAME contract localhost==cloud)
 │   │   ├── thief_server.py         # FastMCP("thief"): request_move/reveal_location/query_opponent/new_sub_game ~100
-│   │   ├── clients.py              # make_client(url,token); typed wrappers + structured log   ~120
-│   │   └── referee.py              # MatchRunner: ground-truth s, observe()=O(s,i), apply()    ~145
+│   │   └── clients.py              # make_client(url,token); typed wrappers + structured log   ~120
+│   │                               #   (referee.py lives in src/services/ — it is THE ENVIRONMENT,
+│   │                               #    so it is OUT of the test_mcp_servers_have_no_logic scope)
 │   ├── gui/
 │   │   ├── app.py                  # owns SDK + StateClient; update()/draw(); rebuild on resize ~110
 │   │   ├── transform.py            # GridView (row,col)→pixel Rect; capped square cells 2..5    ~50
@@ -248,7 +260,7 @@ Assignment6-MARLCopsRobbers/
 │   └── results/
 │       ├── aggregate.py            # per-method per-seed mean±SE, win-rate, time-to-capture      ~140
 │       ├── plots.py                # matplotlib helpers (alpha/fontsize/dpi local literals OK)   ~120
-│       └── make_figures.py         # SINGLE entrypoint: runs/*.jsonl → F1-F6                     ~140
+│       └── make_figures.py         # SINGLE entrypoint: runs/*.jsonl → F1/F2/F5/F6 (F3/F4 captured) ~140
 ├── scripts/                        # uv-run entrypoints; SDK-only; exempt from SDK rule, NOT size/lint
 │   ├── check_file_sizes.py         # ≤150 LOC gate (copy A5 verbatim)
 │   ├── check_no_hardcode.py        # grep magic game literals in src/
@@ -278,7 +290,10 @@ Assignment6-MARLCopsRobbers/
 ├── deploy/                         # NO requirements.txt (uv-only gate); Horizon/Render read
 │   │                               #   pyproject.toml + uv.lock — deps generated on demand via `uv export`
 │   ├── render.yaml                 # fallback host blueprint (two web services; `uv sync --frozen` build cmd)
-│   └── runbook.md                  # ordered, copy-pasteable cloud runbook (incl. the `uv export` step)
+│   ├── runbook.md                  # ordered, copy-pasteable cloud runbook (incl. the `uv export` step)
+│   └── model/                      # ONE committed actor-only inference checkpoint (MODEL_PATH target)
+│       ├── cop_actor.pt            # GRU+MLP state_dict, actor weights ONLY (sub-MB; .gitignore allow-listed)
+│       └── cop_actor.shape.json    # shape sidecar (obs/action dims) — load-time guard
 ├── docs/
 │   ├── PRD.md  PLAN.md  TODO.md
 │   ├── THEORY.md  ANALYSIS.md  QUALITY.md  UX.md  COST_ANALYSIS.md
@@ -289,7 +304,7 @@ Assignment6-MARLCopsRobbers/
 │   └── shared/PROMPTS.md           # literal prompts used (§1.4 evidence)
 ├── results/
 │   ├── README.md                   # what lives here; heavy artifacts git-ignored
-│   ├── runs/*.jsonl                # append-only per-episode telemetry (git-ignored)
+│   ├── runs/*.jsonl                # append-only per-episode telemetry (TRACKED: small, needed for figure regen)
 │   ├── figures/                    # F1-F6 PNGs (committed for README)
 │   ├── screenshots/                # GUI @2/3/4/5 + MCP CLI-log proof (§7.3 c,d)
 │   ├── reports/*.redacted.json     # role-only report evidence (real *.real.json git-ignored)
@@ -354,8 +369,8 @@ algo:                          # was top-level `marl:` — now nested under `alg
   target_update_interval: 200
   target_mode: hard            # hard | soft
   tau: 0.005                   # Polyak coeff if target_mode == soft
-  mixer: { type: qmix, embed_dim: 32, include_opponent_utility: false }   # ADR-0007 toggle
-nets:        { hidden_dim: 64, gru: true, conv_channels: [32, 64], encoder_hidden: [64, 64] }
+  mixer: { type: qmix, embed_dim: 32 }   # 2-cop 4×4 stage supplies the non-trivial-mixer evidence
+nets:        { hidden_dim: 64, gru: true, encoder_hidden: [64, 64] }   # flat-obs MLP trunk; NO conv (#5)
 olora:       { enabled: false, rank: 4, rank_sweep: [2, 4, 8], scale: 8.0, target_layers: ["encoder"] }  # assert rank≤min(m,n)//2
 bc:          { epochs: 30, lr: 1.0e-3, epsilon: 0.1, pretrain_grids: [[2,2],[3,3]], n_pairs: 40000, val_acc_gate: 0.9 }
 replay:      { buffer_episodes: 5000, min_replay_episodes: 256, updates_per_episode: 4 }
@@ -450,6 +465,8 @@ CentralizedEpisodeBuffer (the ONLY place s lives) ── sample episode-batch (B
 Learner (Cop / Thief / IQL)
    per-agent  Q_i(z_t, o_i)  [RecurrentQNet, GRU eq 8]      ──┐
    QMIX mixer f_mix(Q_1..Q_n ; s),  ∂Q_tot/∂Q_i ≥ 0 (eq 7) ◀─┘ consumes GLOBAL s
+   GLOBAL s is encoded to a STAGE-INVARIANT 77-float footprint (out-of-board cells masked),
+   mirroring the obs pad-to-5×5 — so the mixer/critic input width is fixed across 2×2..5×5 stages
    target  y_tot = r_team + γ(1-d)·Q_tot⁻(s', greedy(o'))      (Double-DQN action selection)
    loss    masked Huber(Q_tot(s,a) − stopgrad(y_tot))
                                        ▼
@@ -480,8 +497,9 @@ Spectator read path ── SpectatorFrame (full ground truth) ──▶ Pygame G
 `Observation` schema (ONE tool contract — localhost == cloud, no `propose_action`/`commit_turn`
 fork); an import-boundary test forbids runtime modules from importing
 `mixer`/`episode_buffer`/`learner_base`/`GlobalState`/`services`; an MCP-schema test asserts no
-global field appears in any request/response; `query_opponent` result is decoupled from the next
-`request_move`. The Thief is folded into `T(s'|s,ā)` and is a *separate* adversarial learner — it
+global field appears in any request/response; `query_opponent` has its OWN request/response schema in
+`mcp/schemas.py` (returns only the last radius-gated `LocationReveal`, keyed by `session_id`) and its
+result is decoupled from the next `request_move`. The Thief is folded into `T(s'|s,ā)` and is a *separate* adversarial learner — it
 never shares a cooperative mixer with the Cop (POSG, eq 3; ADR-0006).
 
 ---
@@ -500,11 +518,11 @@ require explicit human sign-off before the corresponding code lands.
 | **0004** | Move resolution & capture | SIMULTANEOUS joint-move; a cop↔thief **swap counts as capture**; `cop_first/thief_first` selectable via `move_resolution` flag | Brief is silent on move order; simultaneous is the principled default; swap-as-capture prevents a degenerate thief exploit. **Rule decision → human sign-off** before `transition.py`. |
 | **0005** | Reward = potential-based shaping (train-only) | `R = −step + distance_weight·(γΦ(s')−Φ(s))`, `Φ=−manhattan/d_max` (Ng 1999, policy-invariant); terminal ±1 dominant; shaping OFF at eval; official 20/10/5/5 scoreboard SEPARATE (`Scorer`, report-only) | Sparse terminal-only signal stalls on a 25-step horizon; potential-based shaping is provably policy-invariant, preserving faithfulness while curves converge. Keeps graded scores authentic. **Test-acceptance change → human sign-off.** |
 | **0006** | Adversarial boundary (POSG) | Value decomposition applies ONLY within the cooperative Cop team; Thief is a separate adversarial Double-DQN folded into `T(s'|s,ā)`; NO mixer over {cop,thief} | Opposed rewards violate `∂Q_tot/∂Q_thief≥0`; full game is POSG (NEXP^NP, eq 3). Both planning legs independently confirmed; load-bearing. |
-| **0007** | Cop-team size & mixer non-triviality | Graded 5×5 match = literal 1-cop-vs-1-thief (degenerates gracefully); `num_cops≥2` runs ONLY on the 4×4 train scenario for non-vacuous decomposition; `mixer.include_opponent_utility` toggle (default false) for a genuinely 2-input mixer | Faithful to BRIEF §3 while giving §7.2 real credit-assignment evidence; N=1 'trivial decomposition' is itself the rubric-required IGM-limit discussion. **Scope decision → human sign-off.** |
-| **0008** | Shared net + swappable mixer seam | One `RecurrentQNet` (GRU) + one centralized episode buffer; the Mixer ABC is the ONLY point of variation across IQL/VDN/QMIX | DRY + single-entry; keeps the algorithm comparison apples-to-apples (IQL = a ~15-line `_compute_target` diff the §7.2 write-up quotes). |
+| **0007** | Cop-team size & mixer non-triviality | Graded 5×5 match = literal 1-cop-vs-1-thief (degenerates gracefully); `num_cops≥2` runs ONLY on the 4×4 train scenario, which supplies a genuinely 2-input (non-trivial) mixer for non-vacuous decomposition | Faithful to BRIEF §3 while giving §7.2 real credit-assignment evidence; N=1 'trivial decomposition' is itself the rubric-required IGM-limit discussion. **Scope decision → human sign-off.** |
+| **0008** | Shared net + swappable mixer/learner seam | One `RecurrentQNet` (GRU) + one centralized episode buffer; VDN/QMIX vary ONLY the Mixer ABC, while IQL additionally **drops the mixer + global state** and overrides `_compute_target` (independent per-agent target, eq 4) — the variation point is mixer-OR-learner-branch, NOT mixer-only | DRY + single-entry; keeps the algorithm comparison apples-to-apples (IQL = a ~15-line `_compute_target` diff the §7.2 write-up quotes; there is no `iql_mixer.py` identity module). |
 | **0009** | §5 External-API governance REQUIRED | Add `src/api/gatekeeper.py` — one `ApiGatekeeper` with `execute(call)` + `get_queue_status()`, per-channel token-bucket (peer_mcp / gmail / prefect_deploy) from versioned `config/rate_limits.json`, a FIFO overflow queue (no crash on burst), call logging; ALL peer-MCP + Gmail + Prefect egress routes through it | §5 was N/A in A1–A5 (no runtime external calls); A6 makes real HTTP + Gmail + cloud-deploy calls → §5 flips N/A→REQUIRED. Enforced by `test_egress_via_gatekeeper`. |
 | **0010** | OLoRA scope & init | Pre-trained model = locally BC-cloned per-role encoder; OLoRA = paper-exact QR on the **pretrained** weight `W0` (eq 10-11, function-preserving rebase), wraps **encoder Linears only**, `rank=4` (assert ≤min(m,n)//2), `scale=8`; default OFF for from-scratch 5×5, ON for curriculum transfer | Only honest reading of §5.2 "pre-trained models + OLoRA (QR on pretrained weight matrices)" satisfying "training MUST be local"; reject QR-of-random-matrix (that is orthonormal-LoRA, not OLoRA) — the rejection is §7.2 grade evidence. |
-| **0011** | Referee-mediated dual-MCP topology, process isolation, per-session GRU state | 3 OS processes: 2 peer FastMCP servers + 1 neutral referee = THE ENVIRONMENT (CTDE global-state holder), NOT a third player; real cop↔thief HTTP `reveal_location` each tick (evidence-only); each agent server keeps **server-side per-sub-game GRU hidden state** `z_t` (keyed by session id, reset on `new_sub_game`) — agent servers are NOT `FASTMCP_STATELESS_HTTP` | Both planning legs converged; removes cop-as-self-referee conflict the §9 `mutual_agreement` exposes; makes train-global/exec-local literal in code. Processes (not threads) avoid FastMCP-async/Pygame/torch deadlock. The recurrent policy (eq 8) MUST carry `z_t` across the ~25 `request_move` ticks, so stateless HTTP is rejected for the agent servers (session-state holds it server-side; same contract localhost==cloud). |
+| **0011** | Referee-mediated dual-MCP topology, process isolation, per-session GRU state | 3 OS processes: 2 peer FastMCP servers + 1 neutral referee = THE ENVIRONMENT (CTDE global-state holder), NOT a third player; real cop↔thief HTTP `reveal_location` each tick (evidence-only); each agent server keeps **server-side per-sub-game GRU hidden state** `z_t` (keyed by session id, reset on `new_sub_game`) — agent servers are NOT `FASTMCP_STATELESS_HTTP` | Both planning legs converged; removes cop-as-self-referee conflict the §9 `mutual_agreement` exposes; makes train-global/exec-local literal in code. Processes (not threads) avoid FastMCP-async/Pygame/torch deadlock. The recurrent policy (eq 8) MUST carry `z_t` across the ~25 `request_move` ticks, so stateless HTTP is rejected for the agent servers (session-state holds it server-side; same contract localhost==cloud). Server-side `z_t` therefore requires a **single worker** (`cloud.workers: 1`); the free single-instance tier already provides this, and **client-carried hidden state** is the documented fallback if the host ever scales beyond one worker. |
 | **0012** | Cloud platform & auth | Primary host = **Prefect Horizon / FastMCP Cloud** (push-to-deploy, `*.fastmcp.app/mcp`); Render free-tier fallback (pre-tested); auth = app-level **revocable Bearer JWT** (RS256) inside FastMCP, NOT Horizon OAuth; revoke via jti deny-list (primary) + key rotation (hard lever) | §8.3 names this infra; identical auth gate runs on localhost AND cloud (never rewritten); §5.3 demands a revocable token + screenshottable 401. Inference-only deploy (actor nets; mixer/replay/`s` stay local). |
 | **0013** | Gmail mechanism & PII boundary | smtplib + STARTTLS + Gmail **App-Password** (default) behind an `EmailSender` Protocol (OAuth `GmailApiSender` drop-in fallback); real names/ids ONLY in git-ignored `secrets/players.local.yaml`, injected at send time; only role-only redacted JSON committed | Autonomous no-human-in-the-loop Cop (§3.5) can't do OAuth's interactive consent; App-Password is one revocable `.env` secret vs a tracked `token.json` hazard; §5.5 explicitly blesses it. PII deny-list is a hard gate. |
 | **0014** | GUI = Pygame god-view spectator | Pygame (over Tkinter/Streamlit); strict read-only god-view fed by referee ground truth via frozen `SpectatorFrame`; dual read path (in-proc Stage-1 default, HTTP `/spectator` SSE Stage-2, separate spectator token); render literals local in `palette.py` | True real-time loop + clean headless `SDL_VIDEODRIVER=dummy` capture for §7.3c; reuses A5's proven ≤150-LOC module split; spectator never affects partial observability (hard test). |
@@ -544,16 +562,22 @@ artifacts: results/screenshots/{local_comms.png, cloud_auth_401.png}, full_match
 ### 7.2 Stage 2 — cloud (incremental upside; localhost logs remain canonical F4)
 
 ```
-GitHub main ──push-to-deploy──▶  Prefect Horizon / FastMCP Cloud
-                                  ├─ entrypoint src/mcp/cop_server.py:mcp   → https://adrl-001-cop.fastmcp.app/mcp
-                                  └─ entrypoint src/mcp/thief_server.py:mcp → https://adrl-001-thief.fastmcp.app/mcp
-                                  env: MCP_PUBLIC_KEY, issuer, audience, REVOKED_TOKEN_JTIS,
-                                       MODEL_PATH (actor-only .pt)
+GitHub main ──push-to-deploy──▶  Prefect Horizon / FastMCP Cloud   (single worker — cloud.workers: 1)
+   (commit ONE actor-only ──┐     ├─ entrypoint src/mcp/cop_server.py:mcp   → https://adrl-001-cop.fastmcp.app/mcp
+    inference checkpoint:    │     └─ entrypoint src/mcp/thief_server.py:mcp → https://adrl-001-thief.fastmcp.app/mcp
+    GRU+MLP state_dict +     │     env: MCP_PUBLIC_KEY, issuer, audience, REVOKED_TOKEN_JTIS,
+    shape sidecar, sub-MB,   │          MODEL_PATH = deploy/model/cop_actor.pt (tracked; actor weights ONLY —
+    under deploy/model/)  ───┘          NO mixer / NO critic / NO replay / NO global state)
                                   NOT stateless: each server keeps per-sub-game server-side GRU
-                                       hidden state z_t (keyed by session id), reset on new_sub_game
+                                       hidden state z_t (keyed by session id), reset on new_sub_game.
+                                  Single worker REQUIRED: server-side z_t needs one process (free
+                                       single-instance tier already gives this); client-carried hidden
+                                       state is the fallback if the host ever scales >1 worker.
 
    referee / smoke_cloud.py (local or CI)
         │  JWTVerifier (RS256, exp + jti deny-list); BearerAuth clients; warm-up ping
+        │  (jti deny-list = a CUSTOM verifier wrapper around FastMCP's JWTVerifier, which itself
+        │   validates only sig/exp/aud/scopes — the per-jti revocation check is ours, not built in)
         │  cop(cloud) ⇄ thief(cloud)  request_move / reveal_location  (SAME tool contract as Stage 1)
         │     → SAME trace_id appears in BOTH servers' Horizon logs (§7.3d cloud proof)
         ▼
@@ -567,6 +591,10 @@ GitHub main ──push-to-deploy──▶  Prefect Horizon / FastMCP Cloud
 **CTDE deploy invariant:** cloud servers run **inference only**. `request_move` rejects any
 `global_state` field; deployed model files contain actor weights only — no trainer, mixer, replay,
 or global-state code reaches the cloud (`test_egress_via_gatekeeper` + actor-only checkpoint test).
+**Model delivery mechanism:** ONE small actor-only inference checkpoint (the GRU+MLP `state_dict` +
+its shape sidecar, sub-MB) is committed under the non-ignored `deploy/model/` path (a `.gitignore`
+allow-list exception); `MODEL_PATH` points the deployed entrypoints at it. The trainer's
+`export_weights()` writes exactly this actor-net `state_dict` (mixer/critic/replay/`s` excluded).
 Per-sub-game GRU hidden state is held **server-side** (keyed by session id, reset on `new_sub_game`)
 so the recurrent policy (eq 8) carries `z_t` across the ~25 `request_move` ticks — the agent servers
 are deliberately **NOT** `FASTMCP_STATELESS_HTTP` (ADR-0011 session-state; same contract on localhost).
@@ -585,11 +613,11 @@ GUI → cloud → Gmail. Each phase has an **exit gate** that must pass before t
 | **P1** | Theory first | Formal Dec-POMDP tuple ⟨N,S,A,T,R,Ω,O,γ⟩ (eq 1) + POSG caveat (eq 3) in `docs/THEORY.md`/README §7.1; S/A/R/Ω/O/γ as config constants; `actions.py`/`types.py`/`grid.py`; `reward.py` (potential-shaping, asserts `F=γΦ(s')−Φ(s)`) + `scorer.py` separate; README §7 outline names every figure/experiment | tuple doc present; reward + scorer tests pass; ADR-0004/0005 signed off |
 | **P2** | Basic pursuit | `transition.py` (PURE: simultaneous, swap=capture, barrier-is-move, budget cap, edge=wall, timeout); `observation.py` (5×5-padded egocentric image + 6 scalars, view-radius auto formula, other_visible masked beyond radius); `cops_robbers_env.py` (reset/step 4-tuple/state/render_state); **leak test**: `step()` never returns `GlobalState` | game-logic tests ≥85% cover; 2×2 capture works; obs shape fixed at 2/3/4/5; leak test green |
 | **P3** | Minimal pipeline | `curriculum.py` (Table-2 stages + promotion gate); `episode_buffer.py` (padded episodes + global s, post-done masking); end-to-end collect→train→export smoke on 2×2; first GUI shot + sub-game JSON | 2×2 reaches optimal; pipeline runs without NaN; buffer mask + BPTT shape tests pass |
-| **P4** | Network + training | `recurrent_q_net.py` (GRU, eq 8); mixers `base/iql/vdn/qmix` (IGM + monotonicity tests); `learner_base` + cop/thief/iql learners; `olora_*` (QR init eq 10, forward eq 11; orthonormal + function-preserving tests); BC pretrain → OLoRA-attach → CTDE-finetune; `selfplay`/`trainer` curriculum; seeded sweep harness logging to `results/runs/*.jsonl` | loss decreasing; 3×3 converges; QMIX/VDN/IQL arms run on identical nets/seeds; sweep logs written |
-| **P5** | MCP protocol | `mcp/schemas.py`/`actions.py`/`auth.py`(Static)/`agent_runtime.py`; `cop_server.py`/`thief_server.py` (tool surface, NO get_state/get_policy); `clients.py`; `referee.py` (observe=O(s,i), apply, simultaneous rule, scoring, technical-loss replay); `api/gatekeeper.py`+`http_client.py` | localhost: cop queries thief via MCP over HTTP; 401 on bad/revoked token; F4 local logs captured; no-global-leak + egress arch tests pass |
+| **P4** | Network + training | `recurrent_q_net.py` (GRU, eq 8); mixers `base/vdn/qmix` (IGM + monotonicity tests; IQL has no mixer — it branches in `iql_learner`); `learner_base` + cop/thief/iql learners; `olora_*` (QR init eq 10, forward eq 11; orthonormal + function-preserving tests); BC pretrain → OLoRA-attach → CTDE-finetune; `selfplay`/`trainer` curriculum; seeded sweep harness logging to `results/runs/*.jsonl` | loss decreasing; 3×3 converges; QMIX/VDN/IQL arms run on identical nets/seeds; sweep logs written |
+| **P5** | MCP protocol | `mcp/schemas.py`/`actions.py`/`auth.py`(Static)/`agent_runtime.py`; `cop_server.py`/`thief_server.py` (tool surface, NO get_state/get_policy); `clients.py`; `services/referee.py` (THE ENVIRONMENT, OUTSIDE `src/mcp/`: observe=O(s,i), apply, simultaneous rule, scoring, technical-loss replay); `api/gatekeeper.py`+`http_client.py` | localhost: cop queries thief via MCP over HTTP; 401 on bad/revoked token; F4 local logs captured; no-global-leak + egress arch tests pass |
 | **P6** | Full local run | `run_match.py` (spawn both servers, poll /healthz, run referee 6 sub-games, assemble `MatchReport`); 6 valid sub-games; tally; §3.5 JSON assembled (NOT sent) | 6 sub-games complete; totals match Scorer; JSON validates vs `report.schema.json`; integration test green |
 | **P7** | GUI | `gui/*` (transform/palette/grid_view/hud/score_view/input_map/state_client/app); `play.py`; `capture_screens.py` (headless deterministic fixtures); architecture gates (spectator purity, imports-only-SDK, no-leak) | F3 screenshots at 2×2/3×3/4×4/5×5 with cop+thief+≥1 barrier; spectator-purity + no-leak tests pass |
-| **P8** | Cloud-MCP | §8 4-stage runbook: (1) local `uv export` deploy deps (NO requirements.txt — uv-only); (2) `mcp_server.py` `@mcp.tool` entrypoints load OLoRA actor nets + per-session GRU state (NOT stateless); (3) Prefect token + push-to-deploy + capture public URLs; (4) confirm Gmail auto-report path. Swap to `JWTVerifier`+jti deny-list; pin fastmcp; deploy both entrypoints to Horizon with the SAME tool contract as Stage 1 (`request_move`/`reveal_location`/`query_opponent`/`new_sub_game`); wire peers; `smoke_cloud.py` (shared trace_id), `smoke_auth.py` (401 + revoke); `cloud_match.py`; `render.yaml` fallback pre-tested; `runbook.md`; redact before every screenshot | distributed match runs (≥1 valid cloud sub-game); cloud comms + 401 + revoke screenshots captured (cloud = upside, localhost canonical per ADR / R2) |
+| **P8** | Cloud-MCP | §8 4-stage runbook: (1) local `uv export` deploy deps (NO requirements.txt — uv-only); (2) `@mcp.tool` entrypoints load the committed actor-only checkpoint from `MODEL_PATH` (deploy/model/, OLoRA actor nets) + per-session GRU state (single worker, NOT stateless); (3) Prefect token + push-to-deploy + capture public URLs; (4) confirm Gmail auto-report path. Swap to `JWTVerifier`+jti deny-list; pin fastmcp; deploy both entrypoints to Horizon with the SAME tool contract as Stage 1 (`request_move`/`reveal_location`/`query_opponent`/`new_sub_game`); wire peers; `smoke_cloud.py` (shared trace_id), `smoke_auth.py` (401 + revoke); `cloud_match.py`; `render.yaml` fallback pre-tested; `runbook.md`; redact before every screenshot | distributed match runs (≥1 valid cloud sub-game); cloud comms + 401 + revoke screenshots captured (cloud = upside, localhost canonical per ADR / R2) |
 | **P9** | Gmail report | `reporting/*` (schema/collector/players/builder/mailer/redact/idempotency); `docs/schema/report.schema.json`; `sdk.send_final_report` (idempotent, sha256 sentinel, PII from secrets); wire cop's record→send after 6th valid sub-game; `smtp_smoke.py` | one email received at `rmisegal+marl@gmail.com`; JSON validates vs §3.5; idempotency + no-PII-in-tracked tests pass |
 | **P10** | Results | `results/aggregate.py`+`plots.py`+`make_figures.py`; run sweep (IQL/VDN/QMIX × 5 seeds × ladder); generate F1–F6; **§9 single-parameter sensitivity sweep** (e.g. `view_radius` / `olora.rank` / `selfplay.window_k` / `reward.distance_weight` → capture-rate effect + figure — DISTINCT from the algorithm ablation); **`notebooks/analysis.ipynb`** (SDK-only: LaTeX Dec-POMDP/QMIX equations, F1–F6, citations); `experiment_manifest.json`; write README §7 academic body (7.1 formalisms + eq map; 7.2 four sub-parts incl. IQL-vs-CTDE F5, IGM limits + QPLEX[10]/WQMIX[9], curriculum[5]/MAPPO; 7.3 captioned figures); risk register in PLAN + README §8 | all 6 figures present + non-placeholder; sensitivity figure present; notebook runs via SDK; numbers reproducible from `runs/`; README §7 complete |
 | **P11** | Gate | `software-excellence-v3` audit; confirm all hard gates; **`docs/COST_ANALYSIS.md`** (§11: AI-dev token-cost breakdown — input/output tokens, $/1M per model, total — plus the local-only RL training-compute envelope: episodes × stages × wall-clock + optimization notes); **`docs/QUALITY.md`** (§13: ISO/IEC 25010 mapping of ALL EIGHT characteristics — Functional Suitability, Performance Efficiency, Compatibility, Usability, Reliability, Security, Maintainability, Portability); self-grade; produce git-ignored cover sheet `adrl-001-ex06.pdf` (Moodle only, never asserted in a test); freeze 24h pre-deadline | all V3 hard gates ✅; COST_ANALYSIS + QUALITY present; audit doc + self-grade written; code frozen |
@@ -608,6 +636,7 @@ email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladd
 | ≤150 LOC/file (excl blanks/comments) | every module budgeted in §3; cop/thief servers split from `tools`, mixer from q-net, env across 9 files | `scripts/check_file_sizes.py` **after** `ruff format`; `test_final_gates` |
 | ≥85% coverage | DI + mocked httpx peer & Gmail; pure `transition`/`gatekeeper`/`builder` unit-tested; FakeEmailSender | `pytest --cov=src --cov-fail-under=85` |
 | Ruff 0 violations | `ruff check` + `ruff format --check`; PLR2004 ignored in tests only | CI steps 4–5 |
+| Docstring gate (every module/class/public fn) | Ruff `D` rules in the lint select (`D` per-file-ignored for `tests/`); every package `__init__.py` carries a one-line module docstring | `ruff check` (Ruff `D`); CI step 4 |
 | 0 hardcoded values | grid/moves/games/barriers/scoring/ports/hyperparams/recipient/templates in `config.yaml`; render literals local | `scripts/check_no_hardcode.py`; `test_config_single_source` |
 | 0 secrets + `.env-example` | tokens/keys/App-Password/PII in `.env` + `secrets/`; `.env-example` names-only; `.gitignore` covers `.env *.pem *.key credentials*.json secrets/` | `scripts/check_secrets.py`; redaction middleware + `redact_logs.py` before screenshots |
 | uv-only | CI uses `uv`; no pip/conda; `uv.lock` committed | CI step 3 `uv sync --frozen` |
@@ -644,7 +673,7 @@ CI never asserts the git-ignored cover sheet *exists* (skip-when-absent); push o
 | R13 | Citation-numbering hazard (ex06 vs L10) | M×M | README uses ex06/BRIEF numbering primary, footnote L10 equivalence | — |
 | R14 | FastMCP API churn (auth import path moved v2→v3) | M×M | run import check + pin fastmcp version BEFORE writing `auth.py` (P0/P8) | pin closest-to-brief v2.11.x |
 | R15 | Late penalty −5/24h | L×H | P11 V3 audit with buffer; freeze code 24h before deadline | — |
-| R16 | Group coordination (2-person) | M×M | role split A=env+CTDE+plots, B=MCP+GUI+Gmail+integration; daily artifact checklist | freeze scope to env+IQL+QMIX+report figures |
+| R16 | Solo-build overload (single submitter, large scope) | M×M | sequence as solo work-streams — WS1 env+CTDE+plots, WS2 MCP+GUI+Gmail+integration — one at a time, with a daily artifact checklist | freeze scope to env+IQL+QMIX+report figures (defer-order in §1) |
 
 ---
 

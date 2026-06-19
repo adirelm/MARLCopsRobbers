@@ -127,15 +127,14 @@ algo:
   target_mode: "hard"             # hard | soft
   tau: 0.005                      # Polyak coefficient if target_mode == soft
 
-  # QMIX monotonic mixer (BRIEF eq 7, [3]); abs/softplus-constrained weights so
+  # QMIX monotonic mixer (BRIEF eq 7, [3]); softplus-constrained hypernet weights so
   # dQ_tot/dQ_i >= 0. With num_cops=1 the mixer is a state-conditioned positive
   # scalar gain + bias on Q_cop (still IGM-valid) — documented as the §7.2 "trivial
-  # decomposition" caveat; flip include_opponent_utility for a genuinely 2-input mixer.
+  # decomposition" caveat. The 4x4 2-cop curriculum stage supplies the genuine
+  # multi-input (K1 non-trivial mixer) evidence, so no extra train-only lever is needed.
   mixer:
     type: "qmix"                  # qmix | vdn  (ablation toggle; ADR-D3-B)
     embed_dim: 32                 # hypernetwork embedding width
-    include_opponent_utility: false  # ADR-D3-C: train-only opponent-utility head to make
-                                  #   Q_tot 2-input even at N=1 (off by default; §7.2 lever)
 
 # ============================================================================
 # NETWORKS (BRIEF eq 8 recurrent hidden state z_t = f_phi(z_{t-1}, o_t))
@@ -145,8 +144,10 @@ algo:
 nets:
   hidden_dim: 64                  # GRU hidden width H
   gru: true                       # recurrent (GRU over LSTM: fewer params, ADR-D3-D)
-  conv_channels: [32, 64]         # Conv2d encoder over the egocentric obs patch
-  encoder_hidden: [64, 64]        # encoder trunk Linear widths (OLoRA-wrapped, D4)
+  encoder_hidden: [64, 64]        # flat-MLP encoder trunk Linear widths (OLoRA-wrapped,
+                                  #   D4); per L10 §5/eq8 the encoder is a Linear trunk
+                                  #   over the flattened obs (no Conv2d) — OLoRA wraps
+                                  #   only these Linears.
 
 # ============================================================================
 # OLoRA (BRIEF §5.2 "pre-trained models + OLoRA", cite [7] Buyukakyuz 2024)
@@ -194,11 +195,23 @@ replay:
 # non-stationarity / rock-paper-scissors cycling each side's learner faces.
 # ============================================================================
 selfplay:
-  window_k: 1                     # update_ratio: ticks the slower learner gets per faster
-                                  #   learner update (non-stationarity knob, §7.2)
-  pool_size: 5                    # opponent-pool snapshots (latest/best/historical + floor)
-  update_ratio: 1                 # 1 = simultaneous updates from the same rollout
+  # Regime = ALTERNATING BEST-RESPONSE: per round, ONE side is the learner while the
+  # opponent is held frozen, then the roles swap on the next round (ADR-D3-A).
+  window_k: 1                     # frozen-opponent window length ONLY: rounds the opponent
+                                  #   snapshot stays frozen before it is refreshed (§7.2
+                                  #   non-stationarity knob).
+  pool_size: 5                    # opponent-pool snapshots (latest/best/historical + floor).
+                                  #   Each round samples the frozen opponent uniformly from
+                                  #   this pool; the round's final learner net is snapshotted
+                                  #   back into the pool (FIFO over pool_size).
+  update_ratio: 1                 # within-round learner cadence: learner updates per collected
+                                  #   episode while the opponent is frozen (1 = one update/episode)
   rounds: 50                      # alternating best-response rounds per curriculum stage
+  episodes_per_round: 100         # episodes collected per round. Budget identity:
+                                  #   rounds(50) * episodes_per_round(100) = 5000 =
+                                  #   training.episodes_per_stage (NEVER hardcoded elsewhere).
+  # Per-round epsilon: each round restarts the training.eps_start->eps_end anneal for the
+  #   active learner so the just-unfrozen side re-explores against the new frozen opponent.
 
 # ============================================================================
 # TRAINING (BRIEF §5.2 training MUST be local; §6.1 theory-first; §7.3 curves)
@@ -221,10 +234,17 @@ training:
 reward:
   shaping_enabled: true           # potential-based shaping ON during training
   shaping_eval_enabled: false     # toggled OFF at evaluation (policy-invariance guard)
+  phi_terminal_zero: true         # Ng-1999 invariance REQUIRES Phi=0 on absorbing/terminal
+                                  #   states: capture auto-yields Phi=0, but timeout AND the
+                                  #   swap-capture terminals are the real edge cases that must
+                                  #   force F = gamma*Phi(s')-Phi(s) with Phi(s')=0.
   capture_bonus: 1.0              # terminal +1 dominant signal on capture (cop)
   timeout_penalty: 1.0            # terminal -1 to cop / +1 to thief on timeout
   step_penalty: 0.05              # -step_penalty per step (encourages fast capture)
-  distance_weight: 1.0            # coefficient on the grid-normalized potential delta
+  distance_weight: 1.0            # coefficient on the grid-normalized potential delta.
+                                  #   POLICY-INVARIANT (Ng-1999): scaling Phi cannot change
+                                  #   the optimal policy -> NOT a valid §9 sensitivity sweep
+                                  #   param. The swept §9 param is env.view_radius_by_grid.
   barrier_cost: 0.25              # small cop cost per barrier placement
   invalid_penalty: 0.1            # penalty for an illegal action (mapped to no-op)
   evade_step: 0.1                 # posg-mode thief per-step survival reward
@@ -247,6 +267,9 @@ mcp:
   path: "/mcp"                    # Streamable HTTP path
   transport: "http"               # Streamable HTTP (NOT deprecated SSE)
   protocol_version: "adrl-001-mcp-v1"  # cross-server contract version string
+  # session_id is a REQUIRED field on every request_move/move request: it keys the
+  #   server-side GRU hidden state z_t (one z_t per game session) and provides
+  #   (session_id, tick) idempotency so a retried tick never double-advances state.
   observation:
     view_radius: 2                # radius the referee crops to at execution (5x5 graded)
   client:
@@ -282,11 +305,13 @@ cloud:
   cop_url: ""                     # e.g. https://adrl-001-cop.fastmcp.app/mcp (set at deploy)
   thief_url: ""                   # e.g. https://adrl-001-thief.fastmcp.app/mcp (set at deploy)
   fallback_platform: "render"
-  rate_limits:                    # §5 ApiGatekeeper egress governance (ADR-0006)
-    peer_mcp_per_minute: 120
-    peer_mcp_burst: 10
-    gmail_per_minute: 5
-    gmail_burst: 1
+  workers: 1                      # SINGLE worker per server: the server-side GRU hidden
+                                  #   state z_t (BRIEF eq 8) is in-process, so >1 worker would
+                                  #   split z_t across processes. The free single-instance tier
+                                  #   already provides exactly one worker; client-carried-
+                                  #   hidden-state is the fallback if a tier ever scales out.
+  # Egress rate limits live in config/rate_limits.json (single source; also carries
+  #   prefect_deploy + overflow/max_queue) — NOT duplicated here (§5 ApiGatekeeper).
 
 # ============================================================================
 # GMAIL REPORT (BRIEF §3.5 / §5.5; §6 step 9). Cop sends exactly ONE email after
@@ -307,8 +332,9 @@ gmail:
   output_dir: "results/reports"   # role-only REDACTED copy written here (README §7.3 evidence)
   sentinel: "results/.report_sent"  # idempotency sentinel (sha256-keyed; write AFTER send)
   schema_path: "docs/schema/report.schema.json"  # JSON-Schema draft-2020-12 contract
-  # Sender + App Password come from .env: GMAIL_SENDER, GMAIL_APP_PASSWORD,
-  #   REPORT_RECIPIENT_OVERRIDE (optional). github_repo from players.local.yaml.
+  # Sender + App Password come from .env: GMAIL_SENDER, GMAIL_APP_PASSWORD.
+  #   github_repo from players.local.yaml. The recipient is unconditionally gmail.to
+  #   above (no env override); any test redirection is test-injection only.
 
 # ============================================================================
 # GUI (BRIEF §5.4 mandatory; §7.3(c) screenshots at different grid sizes).

@@ -55,7 +55,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** `scripts/check_version.py` + `tests/architecture/test_version_consistency.py` assert `__version__ == config.version == "1.0.0"` (NOT `0.1.0` — V3 hard gate, ADR-0011).
 
 - [ ] **T0.3 — Author config + schema + rate limits** · _A_
-  Write the full `config/config.yaml` (D9 §4 merging D1/D2/D3/D5/D6/D8 keys, using the EXACT nested paths): `game.{grid_size:5,max_moves:25,num_games:6,max_barriers:5,scoring.{cop_win:20,thief_win:10,cop_loss:5,thief_loss:5}}`, `env.{num_cops:1,move_resolution:simultaneous,capture_on_swap:true,reward_mode:dec_pomdp,view_radius_by_grid,obs_channels:5,obs_scalars:6,actions.{a_cop:5,a_thief:4,enable_stay:false,enable_barrier:true},curriculum.{stages:[[2,2],[3,3],[4,4],[5,5]],num_cops_by_stage:[1,1,2,1],promotion_threshold,promotion_window}}`, `algo.{name:qmix,baseline:iql,double_q:true,gamma,lr_agent,lr_mixer,batch_episodes,target_update_interval,mixer.{type:qmix,embed_dim:32,include_opponent_utility:false}}`, `nets.{hidden_dim:64,gru:true,conv_channels,encoder_hidden}`, `olora.{enabled:false,rank:4,rank_sweep,scale:8.0,target_layers}`, `bc.*`, `replay.*`, `selfplay.{window_k:1,pool_size,update_ratio,rounds:50}`, `training.{seeds:[7,17,37,71,107],episodes_per_stage:5000,eps_*}`, `reward.*`, `mcp.*`, `cloud.*`, `gmail.*`, `gui.*`, `paths.*`. (NO top-level `algorithm`/`mixer`/`actions`/`agent`/`report`/`email`/`scoring`/scalar `view_radius` — those are the nested paths above.) Add `config/config.schema.yaml` (typed) + `config/rate_limits.json` (§5 gatekeeper, channels `peer_mcp`/`gmail`/`prefect_deploy`). Implement `src/utils/config_loader.py` with `_validate_config → ValueError` and `.env` interpolation.
+  Write the full `config/config.yaml` (D9 §4 merging D1/D2/D3/D5/D6/D8 keys, using the EXACT nested paths): `game.{grid_size:5,max_moves:25,num_games:6,max_barriers:5,scoring.{cop_win:20,thief_win:10,cop_loss:5,thief_loss:5}}`, `env.{num_cops:1,move_resolution:simultaneous,capture_on_swap:true,reward_mode:dec_pomdp,view_radius_by_grid,obs_channels:5,obs_scalars:6,actions.{a_cop:5,a_thief:4,enable_stay:false,enable_barrier:true},curriculum.{stages:[[2,2],[3,3],[4,4],[5,5]],num_cops_by_stage:[1,1,2,1],promotion_threshold,promotion_window}}`, `algo.{name:qmix,baseline:iql,double_q:true,gamma,lr_agent,lr_mixer,batch_episodes,target_update_interval,mixer.{type:qmix,embed_dim:32}}`, `nets.{hidden_dim:64,gru:true,encoder_hidden}`, `olora.{enabled:false,rank:4,rank_sweep,scale:8.0,target_layers}`, `bc.*`, `replay.*`, `selfplay.{window_k:1,episodes_per_round:100,pool_size,update_ratio,rounds:50}`, `training.{seeds:[7,17,37,71,107],episodes_per_stage:5000,eps_*}`, `reward.{...,phi_terminal_zero:true}`, `mcp.*`, `cloud.{...,workers:1}`, `gmail.*`, `gui.*`, `paths.*`. (NO top-level `algorithm`/`mixer`/`actions`/`agent`/`report`/`email`/`scoring`/scalar `view_radius` — those are the nested paths above.) Add `config/config.schema.yaml` (typed) + `config/rate_limits.json` (§5 gatekeeper, channels `peer_mcp`/`gmail`/`prefect_deploy`). Implement `src/utils/config_loader.py` with `_validate_config → ValueError` and `.env` interpolation.
   **DoD:** `load_config()` validates and round-trips; no algorithm-relevant numeric appears outside config; `tests/architecture/test_config_single_source.py` finds zero magic literals in `src/`.
 
 - [ ] **T0.4 — `.env-example`, secrets policy, `.gitignore`** · _B_
@@ -64,10 +64,14 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 - [ ] **T0.5 — Docs-first PRD/PLAN/TODO + ADRs** · _A+B_
   Author `docs/PRD.md` (KPIs, FR/NFR, acceptance, §6-ordered milestones), `docs/PLAN.md` (C4 + UML + localhost→cloud deployment diagram + ADR index + SDK/MCP API contracts + risk register), this `docs/TODO.md`, the `docs/prd/PRD-{ENV,CTDE,MCP,REPORT}.md` set, and the numbered ADR set `ADR-0001`-`ADR-0014` (D9) **plus** the dimension ADRs (ADR-001 move-resolution, ADR-002 reward-framing, ADR-003 fixed-obs, ADR-004 barriers + the `capture_on_swap:true` rule clarification, ADR-D5-01..05 topology/auth, ADR-D6-1..8 cloud, ADR-GUI-01..05, ADR-D8-1..6 report, ADR-D10-A..G analysis).
-  **DoD:** all docs exist; **human sign-off** recorded on every human-decided ADR (esp. ADR-001 move-resolution + ADR-002 reward) BEFORE any transition/reward code lands; `tests/architecture/test_required_docs_present.py` finds README 6 sections + `THEORY/ANALYSIS/QUALITY/UX/COST` docs.
+  **DoD:** all docs exist; **human sign-off** recorded on every human-decided ADR (esp. ADR-001 move-resolution + ADR-002 reward) BEFORE any transition/reward code lands; `tests/architecture/test_required_docs_present.py` finds README 6 sections + `THEORY/ANALYSIS/QUALITY/UX/COST` docs + `docs/shared/PROMPTS.md` + the four `docs/prd/PRD-{ENV,CTDE,MCP,REPORT}.md` split docs (enumerated explicitly, NOT four separate tasks — V3 §16/§11 doc gate) (#16, #19).
+
+- [ ] **T0.5b — Prompt log `docs/shared/PROMPTS.md` (§1.4 evidence)** · _A+B_
+  Create `docs/shared/PROMPTS.md` (matches the PLAN tree mention) as the literal prompt log — the CLAUDE.md §1.4 human-architect/AI-implementer evidence trail — and **maintain it** across phases: append the verbatim prompts used per §-section as work lands (#16).
+  **DoD:** `docs/shared/PROMPTS.md` exists, is non-placeholder, and is added to the `test_required_docs_present.py` enumeration (shared with T0.5); a per-section prompt entry is appended whenever a phase's code lands (kept current, not authored once).
 
 - [ ] **T0.6 — Quality-gate tooling (RED first)** · _B_
-  Implement `scripts/check_no_hardcode.py`, `check_secrets.py`, `check_pii.py`, `check_version.py`, copy `check_file_sizes.py` verbatim. Write `tests/architecture/`: `test_sdk_single_entry`, `test_config_single_source`, `test_version_consistency`, `test_no_secrets_committed`, `test_no_pii_in_tracked_content`, `test_cover_sheet_gitignored` (**skip-when-absent**), `test_required_docs_present`, `test_egress_via_gatekeeper`, `test_final_gates`.
+  Implement `scripts/check_no_hardcode.py`, `check_secrets.py`, `check_pii.py`, `check_version.py`, copy `check_file_sizes.py` verbatim. `check_pii.py` MUST NOT enumerate literal deny-list tokens (real names/ids/emails/GitHub owner slug) in its own tracked source — it loads the deny-list from the git-ignored `players.local.yaml`/`secrets/` OR derives matches generically via regex shapes (A4 lesson) (#23). Write `tests/architecture/`: `test_sdk_single_entry`, `test_config_single_source`, `test_version_consistency`, `test_no_secrets_committed`, `test_no_pii_in_tracked_content`, `test_cover_sheet_gitignored` (**skip-when-absent**), `test_required_docs_present`, `test_egress_via_gatekeeper`, `test_final_gates`.
   **DoD:** gate tests written and RED where features don't yet exist; CI job order is `ruff check → ruff format --check → check_file_sizes (AFTER format) → check_no_hardcode → check_secrets → check_pii → check_version → pytest --cov-fail-under=85` (fetch-depth:0).
 
 - [ ] **T0.7 — SDK single-entry skeleton** · _A_
@@ -96,19 +100,11 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   `src/marl/env/grid.py` (`in_grid`, `manhattan`, `can_enter`, edge==wall, spawn sampler with `dist>radius`) + `src/marl/env/types.py` (`Pos`, `GlobalState @dataclass`, `Observation` TypedDict).
   **DoD:** `can_enter(y, actor)= y∈G and (y∉B or y==actor)` verified; `edge==wall` stays-in-place; ≤150 LOC each.
 
-- [ ] **T1.4 — Mixer ABC seam + IQL/VDN mixers (TDD)** · _A_
-  `src/marl/mixers/base_mixer.py` (`forward(q_agents, state) -> q_tot`) as the single swappable point; `iql_mixer.py` (per-agent, no reduction); `vdn_mixer.py` (sum over cop team, eq 6).
-  **DoD:** test asserts VDN `Q_tot == Σ_i Q_i`; IQL returns per-agent independence; ABC is the only differentiator across algorithms (DRY).
-
-- [ ] **T1.5 — Recurrent Q-net (TDD)** · _A_
-  Tests for `RecurrentQNet` shapes BEFORE implementing `src/marl/nets/agent_net.py` (or `src/marl/recurrent_q_net.py`): conv+vec encoder → `GRUCell(64)` → Q-head; `forward(obs[B,n,obs_dim], h[B,n,H]) -> (q[B,n,|A|], h')` (eq 8). All dims read from `env.obs_dim` (no hardcode).
-  **DoD:** forward-shape + hidden-carry tests pass; online+target copy; agent-id one-hot for weight-sharing across same-role agents; ≤150 LOC.
-
-- [ ] **T1.6 — Reward model + Scorer, STRICTLY separate (TDD)** · _A_
+- [ ] **T1.4 — Reward model + Scorer, STRICTLY separate (TDD)** · _A_
   `src/marl/env/reward.py` (potential-based shaping `F=γΦ(s')−Φ(s)`, `Φ=−manhattan/d_max`, grid-normalized; `−step_penalty`; terminal ±1 dominant; per-agent dict; `dec_pomdp` ⇒ equal entries, `posg` ⇒ role-specific) + `src/marl/env/scorer.py` (Table-1 20/10/5/5, report-only).
   **DoD:** test asserts the shaping identity `F=γΦ(s')−Φ(s)`; test asserts `RewardModel` and `Scorer` are **distinct modules** and Scorer output is **never** consumed by training; `dec_pomdp` dict entries equal; shaping **toggles off at eval**.
 
-- [ ] **T1.7 — README §7 outline + figure manifest** · _A_
+- [ ] **T1.5 — README §7 outline + figure manifest** · _A_
   Draft README §7.1/§7.2/§7.3 skeleton naming figures **F1-F6** (D10 §A.3) and the single controlled experiment (IQL/VDN/QMIX × seeds × ladder).
   **DoD:** README skeleton present with §-anchored captions placeholders; each figure mapped to its generator + path.
 
@@ -158,9 +154,17 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 > **Exit gate (P4):** loss decreasing; 3×3 converges; seeded sweep logs to `results/runs/*.jsonl`; OLoRA + ablation produce §7.3 evidence.
 
+- [ ] **T4.0a — Mixer ABC seam + IQL/VDN mixers (TDD)** · _A_ — _moved from P1 (#27): builds the network/training seam, belongs in P4 (matches PLAN P4, BRIEF §6 step 4)._
+  `src/marl/mixers/base_mixer.py` (`forward(q_agents, state) -> q_tot`) as the single swappable point; `iql_mixer.py` (per-agent, no reduction); `vdn_mixer.py` (sum over cop team, eq 6).
+  **DoD:** test asserts VDN `Q_tot == Σ_i Q_i`; IQL returns per-agent independence; ABC is the only differentiator across algorithms (DRY); ≤150 LOC each.
+
+- [ ] **T4.0b — Recurrent Q-net (TDD)** · _A_ — _moved from P1 (#27): the GRU Q-net is a training-network artifact, P4._
+  Tests for `RecurrentQNet` shapes BEFORE implementing `src/marl/nets/agent_net.py` (or `src/marl/recurrent_q_net.py`): flat-MLP encoder trunk (`nets.encoder_hidden`, OLoRA-wrappable Linear) → `GRUCell(64)` → role-conditioned Q-head; `forward(obs[B,n,obs_dim], h[B,n,H]) -> (q[B,n,|A|], h')` (eq 8). All dims read from `env.obs_dim` (no hardcode).
+  **DoD:** forward-shape + hidden-carry tests pass; online+target copy; agent-id one-hot for weight-sharing across same-role agents; ≤150 LOC.
+
 - [ ] **T4.1 — QMIX mixer (TDD, monotone)** · _A_
-  `src/marl/mixers/qmix_mixer.py` — monotonic hypernetwork (abs/softplus weights, eq 7), state-value `V(s)` head, optional train-only `include_opponent_utility` toggle (default false). Generic over `N` (so `num_cops≥2` is trivial).
-  **DoD:** numeric test asserts `∂Q_tot/∂Q_i ≥ 0` (perturb one `Q_i` up never decreases `Q_tot`); IGM-consistency test (eq 5): decentralized greedy joint == argmax of mixer output; ≤150 LOC; gated behind `algo.name=qmix`.
+  `src/marl/mixers/qmix_mixer.py` — monotonic hypernetwork (**softplus** weights, eq 7 — commits the abs/softplus contradiction to softplus, #3a), state-value `V(s)` head. Generic over `N` (so `num_cops≥2` is trivial).
+  **DoD:** numeric test asserts `∂Q_tot/∂Q_i ≥ 0` (perturb one `Q_i` up never decreases `Q_tot`) on an explicit **N=2 mixer fixture**; IGM-consistency test (eq 5): decentralized greedy joint == argmax of mixer output; ≤150 LOC; gated behind `algo.name=qmix`.
 
 - [ ] **T4.2 — Learner base + role learners + IQL (TDD)** · _A_
   `src/marl/learner.py` / `learner_base.py::QmixLearner` (Double-DQN centralized target, BPTT, masked **Huber** loss δ=1.0, hard target sync interval 200, AdamW param-groups `lr_agent/lr_mixer`, telemetry loss/grad_norm/q_tot). Subclasses: `CopLearner` (A=`env.actions.a_cop`=5, reward hook), `ThiefLearner` (separate adversarial Double-DQN, A=`env.actions.a_thief`=4, **NOT in any mixer**), `IqlLearner` (override `_compute_target` → eq 4, skip mixer).
@@ -179,8 +183,8 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** bundle round-trips with `base_sha` match; finetune emits loss + learning curves across stages; one frozen encoder spans the whole ladder (pad-to-5 verified).
 
 - [ ] **T4.6 — Self-play orchestration (TDD)** · _A_
-  `src/services/selfplay.py` (alternating best-response, frozen-opponent window, opponent pool seeded by Manhattan heuristic) + `src/services/rollout.py` (collect one episode driving both ε-greedy policies, per-role episode dicts, hidden reset) + `src/services/trainer.py`/`marl_trainer.py` (`SelfPlayTrainer`: collect→store(both)→update(both, honor `update_ratio`)→history; curriculum transfer; OLoRA per stage) + `src/services/checkpoints.py` (full-vs-export split + shape sidecar).
-  **DoD:** trainer logs opponent-pool sampling; fixed-seed eval shows non-degenerate (non-cycling) convergence; `history` is the single source for §7.3 curves; thief & cop update from the SAME rollout, each its own reward.
+  `src/services/selfplay.py` (**alternating best-response is THE regime** — #7: one learner trains against a frozen opponent for `selfplay.window_k` rounds, then roles swap; `selfplay.window_k` is ONLY the frozen-opponent window length, NOT an update ratio; opponent pool `selfplay.pool_size` seeded by the Manhattan heuristic) + `src/services/rollout.py` (collect one episode driving both ε-greedy policies, per-role episode dicts, hidden reset) + `src/services/trainer.py`/`marl_trainer.py` (`SelfPlayTrainer`: collect→store(both)→update(both)→history; `selfplay.rounds:50` rounds with the **budget identity** `rounds(50) × episodes_per_round(100) = episodes_per_stage(5000)`; per-round ε reset/anneal from `training.eps_*`; `update_ratio` scoped ONLY to within-round learner cadence; curriculum transfer; OLoRA per stage) + `src/services/checkpoints.py` (full-vs-export split + shape sidecar).
+  **DoD:** trainer logs opponent-pool sampling/snapshot (a frozen snapshot is pushed to the pool at each role-swap); `rounds × episodes_per_round == episodes_per_stage` asserted in a test; fixed-seed eval shows non-degenerate (non-cycling) convergence; `history` is the single source for §7.3 curves; thief & cop update from the SAME rollout, each its own reward.
 
 - [ ] **T4.7 — Seeded sweep harness → JSONL** · _A_
   Build the controlled experiment (D10 §C): arms **IQL/VDN/QMIX**, ladder **2×2→3×3→4×4→5×5**, seeds **`[7,17,37,71,107]`**; identical nets/replay/ε-decay/γ/target cadence (only the mixer differs). Append per-episode records to `results/runs/*.jsonl` (schema: `{method,seed,grid,episode,reward_team,reward_cop,reward_thief,td_loss,captured,steps,stage}`). Also run the **4×4 2-cop scenario** (`env.curriculum.num_cops_by_stage:[1,1,2,1]`) for non-vacuous credit-assignment evidence (this is the genuine multi-agent mixer arm — the K1 KPI evidence, NOT the degenerate 1-cop 5×5).
@@ -201,24 +205,24 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** zero hardcoded ports/URLs/tokens in `src/` (ports read from `mcp.cop_port`/`mcp.thief_port` = 8001/8002, NOT 8101/8102); one env-switched URL code path (localhost else `*_PUBLIC_URL`).
 
 - [ ] **T5.2 — Wire schemas (TDD RED first)** · _B_
-  `tests/unit/test_schemas.py` first: `MoveResponse`/`ActionResponse` has **no** value/logit/hidden field; `reveal_location` radius-gated; `MatchReport` key set matches §3.5 (`group_name, students[], github_repo, timezone, sub_games[6], totals`); **no** `get_state`/`get_policy`/`get_qvalues` tool registered.
-  **DoD:** all schema-hiding tests written and RED.
+  `tests/unit/test_schemas.py` first: `MoveResponse`/`ActionResponse` has **no** value/logit/hidden field; `reveal_location` radius-gated; every request schema **requires `session_id`** (a request missing it is rejected — #11); `query_opponent` has a typed request/response with no policy internals; `MatchReport` key set matches §3.5 (`group_name, students[], github_repo, timezone, sub_games[6], totals`); **no** `get_state`/`get_policy`/`get_qvalues` tool registered.
+  **DoD:** all schema-hiding tests written and RED (incl. the missing-`session_id` rejection + the `query_opponent` typed-schema test).
 
 - [ ] **T5.3 — `schemas.py` + `actions.py` (single wire-JSON source)** · _B_
-  `src/mcp/schemas.py` (pydantic v2: `Observation`, `MoveRequest`/`ActRequest`, `MoveResponse`/`ActResponse`, `LocationReveal`, `SubGameResult`, `MatchReport`, `AuthClaims`) + `src/mcp/actions.py` (enum + `legal_action_mask`).
-  **DoD:** T5.2 tests GREEN; `Observation` is the ONLY policy input; `select_action`/`request_move` accept ONLY local obs + legal_actions, **never** global state `s` (HARD invariant, decentralized-execution).
+  `src/mcp/schemas.py` (pydantic v2: `Observation`, `MoveRequest`/`ActRequest`, `MoveResponse`/`ActResponse`, `LocationReveal`, `QueryOpponentRequest`/`QueryOpponentResponse`, `SubGameResult`, `MatchReport`, `AuthClaims`) + `src/mcp/actions.py` (enum + `legal_action_mask`). **`session_id` is a REQUIRED field on every request schema** (#11) — it keys the server-side GRU `z_t` (T5.5) and gives `(session_id, tick)` idempotency. **`query_opponent` carries a real schema** (`QueryOpponentRequest`/`QueryOpponentResponse`, evidence-only fields — no Q-values/weights/`z_t`) rather than being implicit.
+  **DoD:** T5.2 tests GREEN; `session_id` present + required on all request models (a schema test asserts a request missing `session_id` is rejected); `query_opponent` round-trips via its typed schema and exposes no policy internals; `Observation` is the ONLY policy input; `select_action`/`request_move` accept ONLY local obs + legal_actions, **never** global state `s` (HARD invariant, decentralized-execution).
 
 - [ ] **T5.4 — Auth module (local→cloud, revocable)** · _B_
   `src/mcp/auth.py` — `build_verifier(cfg)`: `StaticTokenVerifier` (local, env tokens) | `JWTVerifier` (cloud, RS256, `aud`/`exp`); `jti` deny-list check; `last4(token)` log helper; per-tool scopes (`position:read`, `game:write`, `report:send`, `admin:revoke`).
   **DoD:** unit test: missing/bad Bearer → 401; revoked `jti` → 401; valid → 200; full tokens never logged (last-4 only).
 
 - [ ] **T5.5 — Private agent runtime + recurrent session state (DRY)** · _B_
-  `src/mcp/agent_runtime.py::AgentController` — `Observation -> action` via `sdk.build_policy`; role-parametrized for both servers; policy internals **unreachable** from any tool return. Holds **server-side per-sub-game GRU hidden state** `z_t = f_phi(z_{t-1}, o_t)` (eq 8) keyed by a session id, carried across the ~25 `request_move` ticks of a sub-game and **reset on `new_sub_game`/`start_sub_game`**. Do NOT run the agent servers with `FASTMCP_STATELESS_HTTP=true` (a stateless server would drop `z_t` between ticks); server-side per-session state is the chosen design (ADR-D5-04).
+  `src/mcp/agent_runtime.py::AgentController` — `Observation -> action` via `sdk.build_policy`; role-parametrized for both servers; policy internals **unreachable** from any tool return. Holds **server-side per-sub-game GRU hidden state** `z_t = f_phi(z_{t-1}, o_t)` (eq 8) keyed by a session id, carried across the ~25 `request_move` ticks of a sub-game and **reset on `new_sub_game`** (the canonical sub-game-lifecycle tool, #11). Do NOT run the agent servers with `FASTMCP_STATELESS_HTTP=true` (a stateless server would drop `z_t` between ticks); server-side per-session state is the chosen design (ADR-D5-04).
   **DoD:** `a_i = argmax_a mask_i(a)·Q_i(o_i, z_t, a; θ_i)`; hidden-state continuity verified across ticks within a sub-game AND reset to zero on `new_sub_game`; servers are NOT stateless-HTTP; no Q-values/weights/`z_t` reachable from returns.
 
 - [ ] **T5.6 — Cop + Thief servers** · _B_
-  `src/mcp/cop_server.py` + `thief_server.py` — `FastMCP(role, auth=verifier)`; tools `health`, `ping`, `start_sub_game`, `request_move`, `reveal_location` (radius-gated), `query_opponent` (real peer HTTP, **evidence-only**, NOT fed to next `request_move`), `end_sub_game`; cop-only `send_final_report`. `mcp.run(transport='http', host, port from config)`.
-  **DoD:** two distinct processes on two ports; neither imports the other's policy module; `query_opponent` result decoupled from policy input (partial-observability preserved); `transport='http'` (Streamable HTTP, not deprecated SSE) verified against the installed `fastmcp` version.
+  `src/mcp/cop_server.py` + `thief_server.py` — `FastMCP(role, auth=verifier)`; the canonical tool set (#11) `health`, `ping`, `new_sub_game` (single sub-game-lifecycle reset tool — supersedes the old `start_sub_game`/`end_sub_game` pair), `request_move`, `reveal_location` (radius-gated), `query_opponent` (real peer HTTP, **evidence-only**, NOT fed to next `request_move`); cop-only `send_final_report`. `mcp.run(transport='http', host, port from config)`.
+  **DoD:** two distinct processes on two ports; neither imports the other's policy module; `query_opponent` result decoupled from policy input (partial-observability preserved); `transport='http'` (Streamable HTTP, not deprecated SSE) verified against the installed `fastmcp` version; each tool handler documents **Input/Output/Setup** and calls `_validate_input()` that raises `TypeError` on a malformed payload (V3 §16, #20).
 
 - [ ] **T5.7 — Typed peer clients** · _B_
   `src/mcp/clients.py` — `make_client(url, token) -> Client(BearerAuth)`; typed wrappers with `timeout_s` + `max_retries` + structured per-call logging (§7.3d).
@@ -301,7 +305,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** version pinned in `pyproject.toml`; `uv.lock` committed; import path verified BEFORE any cloud auth code (do not guess); no tracked `requirements.txt` anywhere.
 
 - [ ] **T8.1 — Stage 2: cloud server = SAME `src/mcp/` contract + JWT auth** · _B_
-  Reuse the ONE tool contract from Phase 5 — there is NO divergent `src/marl/mcp` fork and NO `propose_action`/`commit_turn`/`get_public_state`/`place_barrier` tool set. The cloud entrypoints `src/mcp/cop_server.py:mcp` / `src/mcp/thief_server.py:mcp` register the SAME tools (`health`, `ping`, `start_sub_game`/`new_sub_game`, `request_move` [local-obs-only, **rejects any `global_state` field**], `reveal_location` [radius-gated], `query_opponent`, `end_sub_game`, cop-only `send_final_report`) at the SAME `mcp.path:/mcp`. The only Stage-1→Stage-2 delta is the auth verifier: swap `StaticTokenVerifier`→`JWTVerifier` (RS256 from env; jti deny-list; client token minter) via `build_verifier(cfg)` (T5.4), wiring OLoRA-tuned actor nets through `sdk.build_policy`.
+  Reuse the ONE tool contract from Phase 5 — there is NO divergent `src/marl/mcp` fork and NO `propose_action`/`commit_turn`/`get_public_state`/`place_barrier` tool set. The cloud entrypoints `src/mcp/cop_server.py:mcp` / `src/mcp/thief_server.py:mcp` register the SAME canonical tools (`health`, `ping`, `new_sub_game`, `request_move` [local-obs-only, **rejects any `global_state` field**], `reveal_location` [radius-gated], `query_opponent`, cop-only `send_final_report`) at the SAME `mcp.path:/mcp`. The only Stage-1→Stage-2 delta is the auth verifier: swap `StaticTokenVerifier`→`JWTVerifier` (RS256 from env; jti deny-list; client token minter) via `build_verifier(cfg)` (T5.4), wiring OLoRA-tuned actor nets through `sdk.build_policy`.
   **DoD:** localhost and cloud expose IDENTICAL tool names + `/mcp` path (one contract, ADR-D5-01); unit test: missing/revoked Bearer → 401; `request_move` rejects `global_state`; deployed `.pt` files contain actor weights only; each file ≤150 LOC.
 
 - [ ] **T8.2 — Stage 3: deploy both servers to Horizon + publish public URL** · _B_
@@ -309,7 +313,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** both URLs return `health()` over the public internet from a machine outside the dev host; record both URLs in `cloud.cop_url`/`cloud.thief_url`.
 
 - [ ] **T8.3 — Wire peers + cloud match** · _B_
-  Set each server's `PEER_MCP_URL`+`PEER_MCP_TOKEN`; redeploy; run `python -m mcp.cloud_match --num-games 6 --max-moves 25` over the two cloud URLs → `full_match.json` (the §3.5 body). Cloud client uses `mcp.client.timeout_s:10`, `mcp.client.max_retries:3`+backoff, `mcp.client.prewarm_ping:true`; the run reuses the SAME `request_move`/`end_sub_game` contract as localhost (no `commit_turn` fork).
+  Set each server's `PEER_MCP_URL`+`PEER_MCP_TOKEN`; redeploy; run `python -m mcp.cloud_match --num-games 6 --max-moves 25` over the two cloud URLs → `full_match.json` (the §3.5 body). Cloud client uses `mcp.client.timeout_s:10`, `mcp.client.max_retries:3`+backoff, `mcp.client.prewarm_ping:true`; the run reuses the SAME `request_move`/`new_sub_game` contract as localhost (no `commit_turn` fork).
   **DoD:** ≥1 valid cloud sub-game; `full_match.json` produced; **does NOT send email** (that is §6 step 9).
 
 - [ ] **T8.4 — Cloud proofs (§7.3d) + redaction** · _B_
@@ -340,7 +344,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 - [ ] **T9.3 — Collector + builder + players + redact + idempotency** · _B_
   `collector.py` (`MatchRecorder` zoneinfo timestamps, `isoformat(timespec='seconds')` → +03:00 IDT), `builder.py` (winner→scores from `game.scoring`, `build_report()`, `format_subject()` from `gmail.subject_template`), `players.py` (`load_players()` from `players.local.yaml`), `redact.py` (role-only JSON → `results/reports/*.redacted.json`), `idempotency.py` (sha256 canonical hash + `gmail.sentinel` written only AFTER successful send).
-  **DoD:** scores derived solely from winner+config (`cop`→{20,5}, `thief`→{5,10}); subject formats correctly; timestamps end `+03:00`; redacted copy has no `full_name`/`id`.
+  **DoD:** scores derived solely from winner+config (`cop`→{20,5}, `thief`→{5,10}); subject formats correctly; timestamps end `+03:00`; redacted copy has no `full_name`/`id`; `builder.py` documents **Input/Output/Setup** and `build_report()` calls `_validate_input()` raising `TypeError` on a malformed sub-game list (V3 §16, #20).
 
 - [ ] **T9.4 — Mailer (TDD, smtplib default)** · _B_
   `mailer.py` — `EmailSender` Protocol + `GmailMailer` (smtplib STARTTLS + App Password, injectable `smtp_factory`) + `FakeEmailSender`. Routes egress through the gatekeeper.
@@ -365,8 +369,8 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** `uv run python -m src.results.make_figures` regenerates committed figures; `experiment_manifest.json` pins seeds/config-hash/commit (figure-drift R8 eliminated).
 
 - [ ] **T10.2 — Generate F1-F6** · _A_
-  **F1** both-agent learning curves (reward vs episode, mean±SE) → `results/figures/learning_curves.png`; **F2** per-stage loss curves → `loss_curves.png`; **F3** GUI screenshots 2×2/3×3/4×4/5×5 (from T7.6); **F4** MCP-comms proof (localhost CANONICAL CLI log, cloud if P8) → `mcp_comms_local.png`; **F5** IQL vs VDN vs QMIX win-rate/convergence → `baseline_comparison.png`; **F6** scale effect (capture-rate vs grid size) → `scaling.png`. Plus the OLoRA ablation chart (OLoRA vs full-finetune vs frozen-base) + trainable-param table.
-  **DoD:** all six figures non-placeholder; IQL-vs-VDN divergence/convergence contrast visible in F5; capture-rate above Manhattan floor + above IQL on held-out seeds.
+  **Plotted from `results/runs/*.jsonl`** via `make_figures`: **F1** both-agent learning curves (reward vs episode, mean±SE) → `results/figures/learning_curves.png`; **F2** per-stage loss curves → `loss_curves.png`; **F5** IQL vs VDN vs QMIX win-rate/convergence → `baseline_comparison.png`; **F6** scale effect (capture-rate vs grid size) → `scaling.png`. **Deterministically CAPTURED, not plotted** (#26): **F3** GUI screenshots 2×2/3×3/4×4/5×5 (from T7.6) + **F4** MCP-comms proof (localhost CANONICAL CLI log, cloud if P8) → `mcp_comms_local.png`. Plus the OLoRA ablation chart (OLoRA vs full-finetune vs frozen-base) + trainable-param table (plotted from runs).
+  **DoD:** all six figures non-placeholder; F1/F2/F5/F6 regenerate from `results/runs/` (F3/F4 are captured artifacts checked for existence/dims, not regenerated from runs); IQL-vs-VDN divergence/convergence contrast visible in F5; capture-rate above Manhattan floor + above IQL on held-out seeds.
 
 - [ ] **T10.3 — README §7.1 formalisms** · _A_
   Dec-POMDP tuple (eq 1) + POSG caveat (eq 3); chosen value function (QMIX eq 7; VDN eq 6 special case; IGM eq 5); "assumptions-in-code" module-boundary evidence (train reads global `s` in mixer; MCP exec reads ONLY `o_i`); equation map appendix (**ex06 eq2 ≡ L10 eq4**; eqs 3,5,6,7,8,10,11).
@@ -400,7 +404,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 # Phase 11 — V3 gate audit & submission (BRIEF §11 quality)
 
-> **Exit gate (P11):** all V3 hard gates ✅; self-grade written; code frozen 24h pre-deadline; cover sheet produced for Moodle (never asserted in a test).
+> **Exit gate (P11):** all V3 hard gates ✅; self-grade written (to git-ignored cover sheet); code frozen 24h pre-deadline; cover sheet produced for Moodle (never asserted in a test).
 
 - [ ] **T11.1 — Run software-excellence-v3 audit** · _A+B_
   Walk all 20 V3 sections; gather FILE-PATH/grep/command evidence (never prose). Paste real evidence into `instructions/assignment-6/submission_guidelines_audit.md`; confirm §5 (ApiGatekeeper) + §10 (UX Nielsen) now REQUIRED-and-satisfied.
@@ -415,8 +419,8 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** `scripts/check_test_matrix.py` reports zero un-tested `src/` modules; `test_module_test_matrix.py` GREEN; the check runs in the CI gate order before `pytest --cov`.
 
 - [ ] **T11.3 — Self-grade + freeze + cover sheet** · _A+B_
-  Write the self-grade recommendation (drives grading strictness). Freeze code 24h before the deadline. Produce git-ignored `adrl-001-ex06.pdf` cover sheet (fill template fields only, save as PDF, no extra text) → Moodle only; **never assert it exists in a test** (skip-when-absent, MEMORY: broke A5 CI). Each member submits the identical repo URL on Moodle.
-  **DoD:** self-grade written; freeze in effect; cover sheet on Moodle only; late-penalty risk (−5/24h) mitigated by P11 buffer.
+  Write the self-grade recommendation (to git-ignored cover sheet) (drives grading strictness). Freeze code 24h before the deadline. Produce git-ignored `adrl-001-ex06.pdf` cover sheet (fill template fields only, save as PDF, no extra text) → Moodle only; **never assert it exists in a test** (skip-when-absent, MEMORY: broke A5 CI). Each member submits the identical repo URL on Moodle.
+  **DoD:** self-grade written (to git-ignored cover sheet); freeze in effect; cover sheet on Moodle only; late-penalty risk (−5/24h) mitigated by P11 buffer.
 
 ---
 
@@ -429,7 +433,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** `build_report(..., bonus: BonusContext | None)` injects bonus keys when set; schema leaves room so no rework; A6 single-group path unchanged.
 
 - [B] **TB.2 — Inter-group MCP interface spec** · _B_
-  Publish the cop↔thief tool contracts (the SAME single contract used localhost+cloud: `health`, `ping`, `start_sub_game`/`new_sub_game`, `request_move` [local-obs-only], `reveal_location`, `query_opponent`, `end_sub_game`, cop-only `send_final_report`, GameRef shape, `mcp.protocol_version`, Bearer/issuer/audience convention) as an **inter-group interface spec** doc so a partner group can run the opposing server against ours.
+  Publish the cop↔thief tool contracts (the SAME single canonical contract used localhost+cloud: `health`, `ping`, `new_sub_game`, `request_move` [local-obs-only], `reveal_location`, `query_opponent`, cop-only `send_final_report`, GameRef shape, `mcp.protocol_version`, Bearer/issuer/audience convention) as an **inter-group interface spec** doc so a partner group can run the opposing server against ours.
   **DoD:** `docs/INTERGROUP_MCP_SPEC.md` exists with the full wire contract + auth/token-exchange convention + which referee is authoritative; marked as a **coordination dependency** pending a partner group.
 
 - [B] **TB.3 — Bonus match (deferred)** · _B_
@@ -473,5 +477,6 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 | 11 | **PRD/PLAN/TODO + ADRs** | `docs/PRD.md`, `docs/PLAN.md`, this `docs/TODO.md`, `docs/prd/*`, ADRs 0001-0014 + dimension ADRs; human §1.4 sign-off before code | `test_required_docs_present.py` |
 | 12 | **Cover sheet git-ignored** | `adrl-001-ex06.pdf` ignored, Moodle-only | `test_cover_sheet_gitignored.py` (**skip-when-absent** — MEMORY) |
 | 13 | **CI hygiene** | gate order `ruff check → ruff format --check → check_file_sizes → check_* → pytest --cov`; `fetch-depth:0`; never pin mutable git SHAs in tests; CI never sends Gmail / calls cloud MCP (dry-run + mocks) | `.github/workflows/ci.yml` |
+| 14 | **Docstring gate (Ruff `D`)** (#18) | Ruff `D` added to the lint `select` (per-file `D`-ignore for `tests/`); every package `__init__.py` carries a one-line module docstring | `ruff check` (`D` rules); CI step 4 |
 
 **Carried lessons (MEMORY):** add `rmisegal` as read collaborator on the repo; never assert a git-ignored cover sheet exists (skip-when-absent); Google Drive can silently delete `.git` mid-session — push often and keep a `/tmp` clone to restore `.git`.

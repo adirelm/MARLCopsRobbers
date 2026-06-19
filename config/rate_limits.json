@@ -21,5 +21,7 @@
   "overflow_policy": "fifo_queue",
   "on_overflow": "enqueue",
   "max_queue": 256,
+  "on_max_queue_overflow": "reject_with_error",
+  "_on_max_queue_overflow_note": "When the FIFO overflow queue is full (depth == max_queue), the gatekeeper REJECTS the new call with an explicit error and LOGS it — it never silently drops and never crashes the process.",
   "log_all_calls": true
 }

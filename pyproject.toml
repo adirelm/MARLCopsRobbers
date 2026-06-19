@@ -23,7 +23,7 @@ dev = [
 mcp = [
     "fastmcp>=2.11",
     "httpx>=0.27",
-    "pyjwt>=2.9",
+    "pyjwt[crypto]>=2.9",
     "prefect>=3.0",
 ]
 # §5.5 — Gmail report. smtplib is stdlib (App-Password path); these enable the OAuth fallback.
@@ -44,10 +44,16 @@ line-length = 110
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "PL", "RUF"]
+# "D" (pydocstyle) enforces the §16 module/component docstring gate — every
+# package __init__ + public component carries a docstring (CLAUDE.md §16).
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "PL", "RUF", "D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["PLR2004"]
+# Tests are exempt from the docstring (D) gate; magic-value (PLR2004) is fine in asserts.
+"tests/**" = ["PLR2004", "D"]
 
 [tool.coverage.run]
 branch = true

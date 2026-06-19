@@ -51,6 +51,7 @@ def scan_dirs(root: Path, dirs: tuple[str, ...] = SCAN) -> list[tuple[Path, int]
 
 
 def main() -> int:
+    """Scan the configured dirs and exit non-zero if any file exceeds the limit."""
     root = Path(__file__).resolve().parent.parent
     over = scan_dirs(root)
     if over:
