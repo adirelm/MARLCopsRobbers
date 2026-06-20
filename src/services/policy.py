@@ -52,7 +52,12 @@ class RecurrentPolicy:
         return torch.from_numpy(vec).float().unsqueeze(0)
 
     def act(
-        self, obs_list: list[Observation], legal_masks: list, epsilon: float, rng: Random
+        self,
+        obs_list: list[Observation],
+        legal_masks: list,
+        epsilon: float,
+        rng: Random,
+        state: object = None,
     ) -> list[Action]:
         """Advance the hidden state one tick and return one legal action per agent.
 
@@ -64,6 +69,8 @@ class RecurrentPolicy:
             epsilon: Exploration probability; with prob ε an agent picks a uniform
                 LEGAL action, else the legal-masked greedy argmax.
             rng: The exploration RNG (seeded for reproducibility).
+            state: Accepted for a uniform policy interface (the heuristic opponent
+                needs it) but IGNORED here — a net policy acts on local obs only.
 
         Returns:
             One :class:`Action` per agent (always legal for this role).

@@ -59,8 +59,8 @@ def collect_episode(  # noqa: PLR0913 — env + two policies + cfg + the 3 per-e
         state = env.state()
         masks = info["action_mask"]
         cop_obs = [obs[key] for key in cop_keys]
-        cop_acts = cop_policy.act(cop_obs, [list(masks[key]) for key in cop_keys], epsilon, rng)
-        thief_act = thief_policy.act([obs["thief"]], [list(masks["thief"])], epsilon, rng)[0]
+        cop_acts = cop_policy.act(cop_obs, [list(masks[key]) for key in cop_keys], epsilon, rng, state)
+        thief_act = thief_policy.act([obs["thief"]], [list(masks["thief"])], epsilon, rng, state)[0]
         joint = dict(zip(cop_keys, cop_acts, strict=True))
         joint["thief"] = thief_act
         nxt, reward, terminated, info = env.step(joint)

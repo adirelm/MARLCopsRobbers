@@ -17,6 +17,8 @@ from pathlib import Path
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.replay import tabular_smoke
 from src.sdk import _helpers
+from src.sdk._train_helpers import cfg_for_algo, stage_params
+from src.services.trainer import SelfPlayTrainer
 from src.utils.compute import apply_compute_limits
 
 Policy = Callable[..., object]
@@ -95,6 +97,26 @@ class MarlSDK:
         path = base / f"{game_id}.json"
         self.write_subgame_json(record, path)
         return {**metrics, "subgame_path": str(path), "render_state": god_view}
+
+    def train(self, algorithm: str, seed: int, stage_idx: int = 0) -> list[dict]:
+        """Train one curriculum stage via self-play (the single training entry).
+
+        Routes through :class:`~src.services.trainer.SelfPlayTrainer` (compute
+        thread caps applied on its construction, so a full run cannot freeze the
+        host). UIs / scripts / sweeps call ONLY this — never the trainer directly.
+
+        Args:
+            algorithm: ``"qmix"`` (primary), ``"vdn"`` (ablation), or ``"iql"``.
+            seed: Master training seed (reproducible).
+            stage_idx: Curriculum stage index (``env.curriculum.stages``); 0 == 2x2.
+
+        Returns:
+            The per-round self-play history (``round`` / ``role`` / ``loss`` /
+            ``capture_rate`` dicts).
+        """
+        cfg = cfg_for_algo(self._cfg, algorithm)
+        h, w, num_cops = stage_params(cfg, stage_idx)
+        return SelfPlayTrainer(cfg, seed, h, w, num_cops).train_stage()
 
     def write_subgame_json(self, result: dict, path: str | Path) -> None:
         """Write a minimal sub-game record to ``path`` as pretty JSON.
