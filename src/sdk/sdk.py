@@ -19,7 +19,9 @@ from src.marl.nets.olora_linear import wrap_encoder
 from src.marl.replay import tabular_smoke
 from src.sdk import _helpers
 from src.sdk._train_helpers import cfg_for_algo
+from src.services.checkpoints import export_agent_weights, load_agent_weights
 from src.services.finetune import finetune_curriculum, stage_params
+from src.services.policy import RecurrentPolicy
 from src.services.trainer import SelfPlayTrainer
 from src.utils.compute import apply_compute_limits
 
@@ -152,6 +154,23 @@ class MarlSDK:
             cop_net = wrap_encoder(cop_net, cfg)
             thief_net = wrap_encoder(thief_net, cfg)
         return finetune_curriculum(cfg, seed, stage_indices, cop_net, thief_net, rounds_per_stage)
+
+    def build_policy(self, role: str, net: object, n_agents: int = 1) -> RecurrentPolicy:
+        """Return an acting :class:`RecurrentPolicy` over ``net`` for ``n_agents``.
+
+        The single local-obs acting seam UIs / the MCP controller use (carries the
+        GRU hidden state, picks legal ε-greedy actions, never sees global state).
+        ``net`` is any trained role net (dense or OLoRA-wrapped/bundle-loaded).
+        """
+        return RecurrentPolicy(net, n_agents)
+
+    def export_weights(self, net: object, role: str, path: str | Path) -> Path:
+        """Export ONLY the agent net + shape sidecar (no mixer/global state); return the sidecar."""
+        return export_agent_weights(net, path, self._cfg, role)
+
+    def load_weights(self, role: str, path: str | Path, n_agents: int) -> object:
+        """Rebuild a dense role net from an exported ``state_dict`` (inverse of export_weights)."""
+        return load_agent_weights(path, self._cfg, role, n_agents)
 
     def write_subgame_json(self, result: dict, path: str | Path) -> None:
         """Write a minimal sub-game record to ``path`` as pretty JSON.

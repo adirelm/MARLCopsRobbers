@@ -57,3 +57,24 @@ def save_full_checkpoint(path: str | Path, nets: dict[str, RecurrentQNet]) -> Pa
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({role: net.state_dict() for role, net in nets.items()}, path)
     return path
+
+
+def load_agent_weights(path: str | Path, cfg: dict, role: str, n_agents: int) -> RecurrentQNet:
+    """Rebuild a dense role :class:`RecurrentQNet` from an exported agent ``state_dict``.
+
+    The inverse of :func:`export_agent_weights` for the plain (dense) agent net —
+    the OLoRA-finetuned path is reconstructed instead from its attach bundle
+    (:func:`src.marl.olora_bundle.load_bundle`).
+
+    Args:
+        path: The ``.pt`` written by :func:`export_agent_weights`.
+        cfg: Loaded config (drives the net shape).
+        role: ``"cop"`` / ``"thief"`` (sets the head width).
+        n_agents: The net's agent-id width (cop 2, thief 1).
+
+    Returns:
+        A ``RecurrentQNet`` loaded with the exported weights.
+    """
+    net = RecurrentQNet(cfg, role, int(n_agents))
+    net.load_state_dict(torch.load(Path(path), weights_only=True))
+    return net
