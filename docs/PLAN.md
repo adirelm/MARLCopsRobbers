@@ -117,7 +117,8 @@ ENVIRONMENT (src/marl/env/, pure library)              LEARNER (src/marl/, src/s
   actions  types  grid  transition(PURE)                 recurrent_q_net (GRU, eq 8)
   observation(O, 5×5 padded)  reward(potential)          mixers/{base,vdn,qmix} + learner branches (seam)
   scorer(Table-1, SEPARATE)  curriculum                  learner_base → cop/thief/iql learners
-  cops_robbers_env(reset/step/state/render_state)        episode_buffer(centralized, train-only)
+  cops_robbers_env(reset/step→TransitionResult/state)    episode_buffer(centralized, train-only)
+  render_state(ONLY other global accessor, spectator)
                                                           olora(QR init, eq 10-11)
 DATA PLANE (src/marl/data/, src/marl/nets/)              selfplay(best-response)  trainer(curriculum)
   schemas(TransitionDTO)  heuristics(A*/flee experts)    referee = THE ENVIRONMENT (MatchRunner)
@@ -183,7 +184,7 @@ Assignment6-MARLCopsRobbers/
 │   │   │   ├── actions.py          # SINGLE source: Action IntEnum, DELTAS, action_mask(state, agent) ~70
 │   │   │   ├── types.py            # Pos, GlobalState @dataclass, Observation TypedDict        ~60
 │   │   │   ├── grid.py             # bounds, manhattan(), in_grid(), can_enter(), spawn        ~90
-│   │   │   ├── transition.py       # resolve_joint_action(state, joint_a, cfg) [PURE]          ~120
+│   │   │   ├── transition.py       # resolve_joint_action(...) -> TransitionResult [PURE]       ~120
 │   │   │   ├── observation.py      # O-function: builds 5×5-padded egocentric image + 6 scalars ~110
 │   │   │   ├── obs_channels.py     # channel/scalar encoders split out of observation.py (≤150) ~90
 │   │   │   ├── reward.py           # potential-based shaped R + per-agent R_i (Ng 1999)        ~110
@@ -515,7 +516,7 @@ require explicit human sign-off before the corresponding code lands.
 | **0001** | Repo layout | Flat `src/<layer>/`; reject nested `src/marl_cops_robbers/` | Matches A1–A5 the same grader accepted 4×; rename buys nothing; single-entry enforced by import-regex tests. |
 | **0002** | Single SDK entry | `MarlSDK` is the only business-logic surface; GUI/MCP/report/scripts import only `src.sdk` | V3 single-entry for UIs; scripts are thin wrappers (exempt). Enforced by `test_sdk_single_entry`. |
 | **0003** | CTDE method = QMIX primary | QMIX (monotonic mixer, eq 7) primary; VDN (eq 6) ablation; IQL (eq 4) required baseline; **MAPPO optional prose-only** | BRIEF §1.1/§2.1/§4/§7.2 make CTDE + value-decomposition + IGM/monotonicity the graded outcome; MAPPO lacks a brief citation. Discrete 4–5 action, ≤25-move, tiny grid favors value-based. (Human sign-off before P4.) |
-| **0004** | Move resolution & capture | SIMULTANEOUS joint-move; a cop↔thief **swap counts as capture**; `cop_first/thief_first` selectable via `move_resolution` flag | Brief is silent on move order; simultaneous is the principled default; swap-as-capture prevents a degenerate thief exploit. **Rule decision → human sign-off** before `transition.py`. |
+| **0004** | Move resolution & capture | SIMULTANEOUS joint-move; a cop↔thief **swap counts as capture**; `cop_first/thief_first` selectable via `move_resolution` flag. **Extended:** `transition.resolve_joint_action` returns a frozen `TransitionResult(next_state, winner, capture)`; capture is checked **BEFORE** timeout so **a capture on the final move beats the `(step+1)≥max_moves` timeout** (`winner="cop"`, not `"thief"`); **any** cop reaching the thief captures; over-budget barrier placement degrades to a stay **deterministically by cop index** (codex F1). | Brief is silent on move order; simultaneous is the principled default; swap-as-capture prevents a degenerate thief exploit. Capture-beats-timeout keeps a last-tick tag a cop win (the pursuer is rewarded for closing the case on move 25, not penalized by the clock). **Rule decision → human sign-off** before `transition.py`. |
 | **0005** | Reward = potential-based shaping (train-only) | `R = −step + distance_weight·(γΦ(s')−Φ(s))`, **team potential `Φ = −min_i manhattan(cop_i, thief) / d_max`** (the closest cop sets it; Ng 1999, policy-invariant) with **`d_max = (H−1)+(W−1)` derived per live grid from `state.h, state.w` (architect decision #2, NOT a config key)**; terminal ±1 dominant, `Φ(terminal)=0`; shaping OFF at eval; official 20/10/5/5 scoreboard SEPARATE (`Scorer`, report-only) | Sparse terminal-only signal stalls on a 25-step horizon; potential-based shaping is provably policy-invariant, preserving faithfulness while curves converge. `−min` rewards the team for ANY cop closing in; deriving `d_max` keeps one `Φ` correct across the 2×2→5×5 ladder. Keeps graded scores authentic. **Test-acceptance change → human sign-off.** |
 | **0006** | Adversarial boundary (POSG) | Value decomposition applies ONLY within the cooperative Cop team; Thief is a separate adversarial Double-DQN folded into `T(s'|s,ā)`; NO mixer over {cop,thief} | Opposed rewards violate `∂Q_tot/∂Q_thief≥0`; full game is POSG (NEXP^NP, eq 3). Both planning legs independently confirmed; load-bearing. |
 | **0007** | Cop-team size & mixer non-triviality | Graded 5×5 match = literal 1-cop-vs-1-thief (degenerates gracefully); `num_cops≥2` runs ONLY on the 4×4 train scenario, which supplies a genuinely 2-input (non-trivial) mixer for non-vacuous decomposition | Faithful to BRIEF §3 while giving §7.2 real credit-assignment evidence; N=1 'trivial decomposition' is itself the rubric-required IGM-limit discussion. **Scope decision → human sign-off.** |
