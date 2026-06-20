@@ -1,31 +1,26 @@
 """MarlSDK — the single business-logic entry point (CLAUDE.md §3, BRIEF §6).
 
-A thin FACADE: every public method routes through ``src.marl.*`` building blocks
-(env / replay / tabular smoke / render seam) with no business logic duplicated
-here. The P3 surface wires the 2x2 pipeline: build an env, collect a padded
-episode for the centralized replay buffer, run the throwaway 2x2 smoke (collect
--> tabular-train -> assert optimal), and write a minimal headless sub-game JSON.
-Private wiring lives in :mod:`src.sdk._helpers` so this file stays <=150 LOC.
+A thin FACADE: every public method routes through ``src.*`` building blocks (env /
+self-play trainer / OLoRA finetune / checkpoints / render seam) with no business
+logic duplicated here. It is the ONLY entry UIs / the MCP / scripts / the sweep
+import: build an env, ``train`` (qmix/vdn/iql) one curriculum stage via self-play,
+OLoRA-``finetune`` up the curriculum, ``build_policy`` for acting, and ``export``/
+``load`` the agent weights. (The throwaway P3 tabular smoke was removed in P4.)
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from pathlib import Path
 
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.nets.olora_linear import wrap_encoder
-from src.marl.replay import tabular_smoke
-from src.sdk import _helpers
 from src.sdk._train_helpers import cfg_for_algo
 from src.services.checkpoints import export_agent_weights, load_agent_weights
 from src.services.finetune import finetune_curriculum, stage_params
 from src.services.policy import RecurrentPolicy
 from src.services.trainer import SelfPlayTrainer
 from src.utils.compute import apply_compute_limits
-
-Policy = Callable[..., object]
 
 
 class MarlSDK:
@@ -57,50 +52,7 @@ class MarlSDK:
         Returns:
             A ready-to-reset env.
         """
-        return _helpers.make_env(self._cfg, h, w, num_cops)
-
-    def collect_episode(
-        self, env: CopsRobbersEnv, cop_policy: Policy, thief_policy: Policy, seed: int
-    ) -> dict:
-        """Collect ONE padded episode (buffer schema) under the given policies.
-
-        Args:
-            env: A reset-able single-cop env.
-            cop_policy: ``policy(state, mask, cfg) -> Action`` for the cop.
-            thief_policy: ``policy(state, mask, cfg) -> Action`` for the thief.
-            seed: The spawn seed (reproducible episode).
-
-        Returns:
-            The padded episode dict matching the ``CentralizedReplayBuffer`` schema.
-        """
-        return _helpers.run_episode(env, cop_policy, thief_policy, seed, self._cfg)
-
-    def run_p3_smoke(self, seeds, out_dir: str | Path | None = None) -> dict:
-        """Run the 2x2 collect->train->export smoke and write the P3 artifacts.
-
-        Delegates the optimal-capture gate to
-        :func:`src.marl.replay.tabular_smoke.run_smoke`, then writes a minimal
-        sub-game JSON whose SHAPE conforms to ``docs/schema/subgame.schema.json``
-        and attaches a headless god-view ``render_state`` dict (no GlobalState).
-        The write performs NO runtime schema validation (no validator is added at
-        P3); the integration test asserts the emitted record validates.
-
-        Args:
-            seeds: The training seeds to evaluate (e.g. ``training.seeds[:2]``).
-            out_dir: Optional sub-game output dir; defaults to ``paths.subgames_dir``.
-
-        Returns:
-            The ``run_smoke`` metrics dict augmented with ``subgame_path`` and the
-            ``render_state`` god-view dict.
-        """
-        seed_list = list(seeds)
-        metrics = tabular_smoke.run_smoke(self._cfg, seed_list)
-        game_id = f"p3-smoke-{int(seed_list[0])}"
-        record, god_view = _helpers.build_p3_artifacts(self._cfg, seed_list, game_id)
-        base = Path(out_dir) if out_dir is not None else Path(self._cfg["paths"]["subgames_dir"])
-        path = base / f"{game_id}.json"
-        self.write_subgame_json(record, path)
-        return {**metrics, "subgame_path": str(path), "render_state": god_view}
+        return CopsRobbersEnv(self._cfg, h=h, w=w, num_cops=num_cops)
 
     def train(self, algorithm: str, seed: int, stage_idx: int = 0) -> list[dict]:
         """Train one curriculum stage via self-play (the single training entry).
@@ -135,7 +87,7 @@ class MarlSDK:
 
         Wraps the BC-pretrained base nets with OLoRA (encoder adapters; frozen
         base + GRU) when ``olora`` is set, then carries them through the
-        curriculum via :func:`~src.services.curriculum.finetune_curriculum`. Always
+        curriculum via :func:`~src.services.finetune.finetune_curriculum`. Always
         the QMIX arm. Routes through the SDK so scripts stay thin.
 
         Args:

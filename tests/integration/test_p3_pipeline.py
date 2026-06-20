@@ -1,11 +1,11 @@
-"""P3 end-to-end pipeline integration (T3.3, via the single SDK entry).
+"""Sub-game artifact integration: schema validation + god-view no-leak.
 
-Drives the whole P3 smoke THROUGH ``MarlSDK``: collect (cop=tabular learner vs
-thief=heuristic) -> tabular-train on the 2x2 stage -> export. Asserts the run is
-NaN-free and reaches 2x2 optimal capture for two seeds; that a minimal sub-game
-JSON is written + validates against ``docs/schema/subgame.schema.json``; and that
-a headless god-view ``render_state()`` dict is produced carrying NO GlobalState
-(the sanctioned spectator seam, never the train-only type across the boundary).
+The durable P3 deliverables (kept after the throwaway tabular smoke was removed in
+P4): a minimal sub-game record written via ``MarlSDK.write_subgame_json`` validates
+against ``docs/schema/subgame.schema.json``; a self-contained validator REJECTS
+malformed records (non-vacuous); and the headless god-view ``render_state()`` dict
+carries NO :class:`GlobalState` anywhere (the sanctioned spectator seam). The real
+sub-game producer is the CTDE referee built in the MCP phase (P5).
 """
 
 from __future__ import annotations
@@ -16,17 +16,22 @@ from pathlib import Path
 
 import pytest
 
+from src.marl.env.render_state import render_state
 from src.marl.env.types import GlobalState
 from src.sdk.sdk import MarlSDK
 
 _SCHEMA = Path(__file__).resolve().parents[2] / "docs" / "schema" / "subgame.schema.json"
 
-_TYPES = {
-    "object": dict,
-    "array": list,
-    "string": str,
-    "integer": int,
-    "boolean": bool,
+_TYPES = {"object": dict, "array": list, "string": str, "integer": int, "boolean": bool}
+
+_GOOD_RECORD = {
+    "game_id": "subgame-7",
+    "grid": [2, 2],
+    "winner": "cop",
+    "capture": True,
+    "steps": 1,
+    "scores": {"cop": 20, "thief": 5},
+    "seed": 7,
 }
 
 
@@ -80,38 +85,14 @@ def _contains_globalstate(value) -> bool:
     return False
 
 
-def test_run_p3_smoke_collect_train_export_nan_free(cfg):
-    """run_p3_smoke over two seeds is NaN-free and reaches 2x2 optimal capture."""
-    seeds = cfg["training"]["seeds"][:2]
-    result = MarlSDK(cfg).run_p3_smoke(seeds)
-    assert result["optimal"] is True
-    assert result["nan_free"] is True
-    assert result["all_captured"] is True
-    assert result["seeds"] == list(seeds)
-
-
-def test_run_p3_smoke_writes_validating_subgame_json(cfg, tmp_path):
-    """run_p3_smoke exports a sub-game JSON that validates vs the schema."""
+def test_sdk_write_subgame_json_validates_against_schema(cfg, tmp_path):
+    """A record written via the SDK reads back and validates against the schema."""
     sdk = MarlSDK(cfg)
-    result = sdk.run_p3_smoke(cfg["training"]["seeds"][:2], out_dir=tmp_path)
-    sub_path = Path(result["subgame_path"])
-    assert sub_path.exists()
-    record = json.loads(sub_path.read_text(encoding="utf-8"))
-    _validate(record, _load_schema())  # raises AssertionError on any violation
-    assert record["grid"] == [2, 2]
-    assert record["winner"] == "cop"
-    assert record["capture"] is True
-
-
-_GOOD_RECORD = {
-    "game_id": "p3-smoke-7",
-    "grid": [2, 2],
-    "winner": "cop",
-    "capture": True,
-    "steps": 1,
-    "scores": {"cop": 20, "thief": 5},
-    "seed": 7,
-}
+    path = tmp_path / "subgames" / "g.json"
+    sdk.write_subgame_json(_GOOD_RECORD, path)
+    record = json.loads(path.read_text(encoding="utf-8"))
+    _validate(record, _load_schema())
+    assert record == _GOOD_RECORD
 
 
 @pytest.mark.parametrize(
@@ -125,28 +106,20 @@ _GOOD_RECORD = {
     ],
 )
 def test_validator_rejects_malformed_subgame(mutate, why):
-    """The self-contained validator REJECTS bad enum / missing / extra-key records.
-
-    Proves the validator is not vacuous: a known-good record passes, and every
-    single-field corruption (including additionalProperties:false at both the top
-    level and a nested object) raises ``AssertionError`` (``why`` labels each case).
-    """
-    assert why  # the human-readable rejection reason (also the parametrize id)
+    """The validator is non-vacuous: a good record passes; each corruption raises."""
+    assert why
     schema = _load_schema()
-    _validate(_GOOD_RECORD, schema)  # sanity: the good record still passes
+    _validate(_GOOD_RECORD, schema)
     with pytest.raises(AssertionError):
         _validate(mutate(copy.deepcopy(_GOOD_RECORD)), schema)
 
 
-def test_run_p3_smoke_emits_godview_render_state(cfg, tmp_path):
-    """run_p3_smoke produces a headless god-view dict with NO GlobalState anywhere."""
-    result = MarlSDK(cfg).run_p3_smoke(cfg["training"]["seeds"][:2], out_dir=tmp_path)
-    god = result["render_state"]
-    assert isinstance(god, dict)
-    # The spectator dict carries plain JSON-serializable board fields only.
+def test_render_state_godview_has_no_globalstate(cfg):
+    """The headless god-view dict is JSON-serializable with NO GlobalState leak."""
+    env = MarlSDK(cfg).build_env(h=2, w=2, num_cops=1)
+    env.reset(seed=1)
+    god = render_state(env.state(), cfg)
     assert {"h", "w", "cop_positions", "thief_position", "barriers"} <= set(god)
-    # RECURSIVE no-leak scan: no GlobalState field/instance nested anywhere.
     assert not _contains_globalstate(god)
-    json.dumps(god)  # must be JSON-serializable (no GlobalState / numpy leaks)
-    # No raw GlobalState dataclass field name is exposed as a god-view key.
+    json.dumps(god)  # must serialize (no GlobalState / numpy leaks)
     assert "cop_pos" not in god and "thief_pos" not in god

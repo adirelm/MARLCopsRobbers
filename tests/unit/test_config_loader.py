@@ -33,7 +33,6 @@ EXPECTED_SECTIONS = {
     "gui",
     "paths",
     "logging",
-    "p3_smoke",
 }
 
 
@@ -51,11 +50,6 @@ def test_round_trips_real_config():
         assert section in cfg
     assert cfg["game"]["grid_size"] == 5
     assert cfg["env"]["actions"]["a_cop"] == 5
-    # episodes is a convergence-tuned hyperparameter (config doc: the value that
-    # drives ALL training.seeds to 2x2 optimal); assert presence + a sane positive
-    # int rather than a brittle literal that fights the tuned config value.
-    assert isinstance(cfg["p3_smoke"]["episodes"], int) and cfg["p3_smoke"]["episodes"] > 0
-    assert cfg["p3_smoke"]["alpha"] == 0.5
     assert cfg["paths"]["bc_dataset_dir"] == "results/datasets"
     assert cfg["paths"]["subgames_dir"] == "results/subgames"
 

@@ -388,17 +388,6 @@ paths:
   olora_bundle_dir: "results/checkpoints/olora"     # P4c OLoRA attach bundles {sha, A/B, head}
 
 # ============================================================================
-# P3 SMOKE (T3.3) — the THROWAWAY tabular 2x2 Q-learner hyperparams (deleted in
-# P4). Kept here (NOT hardcoded; CLAUDE.md §4) so the 2x2 pipeline-sanity smoke
-# stays reproducible. This is a SMOKE/sanity learner, never a graded benchmark.
-# ============================================================================
-p3_smoke:
-  alpha: 0.5                      # tabular Q-learning constant step size (2x2 scale)
-  epsilon: 0.1                    # epsilon-greedy exploration during smoke collection
-  episodes: 4000                  # exploring-starts episodes for the 2x2 optimal-capture
-                                  #   gate (converges all training.seeds to optimal)
-
-# ============================================================================
 # LOGGING
 # ============================================================================
 logging:
