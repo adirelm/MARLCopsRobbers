@@ -15,9 +15,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
+from src.marl.nets.olora_linear import wrap_encoder
 from src.marl.replay import tabular_smoke
 from src.sdk import _helpers
-from src.sdk._train_helpers import cfg_for_algo, stage_params
+from src.sdk._train_helpers import cfg_for_algo
+from src.services.finetune import finetune_curriculum, stage_params
 from src.services.trainer import SelfPlayTrainer
 from src.utils.compute import apply_compute_limits
 
@@ -117,6 +119,39 @@ class MarlSDK:
         cfg = cfg_for_algo(self._cfg, algorithm)
         h, w, num_cops = stage_params(cfg, stage_idx)
         return SelfPlayTrainer(cfg, seed, h, w, num_cops).train_stage()
+
+    def finetune(  # noqa: PLR0913 — base nets + seed + stages + olora flag + rounds are all distinct
+        self,
+        seed: int,
+        stage_indices: list[int],
+        cop_net: object,
+        thief_net: object,
+        olora: bool = True,
+        rounds_per_stage: int | None = None,
+    ) -> dict:
+        """OLoRA-wrapped CTDE curriculum finetune across stages (the T4.5 loop).
+
+        Wraps the BC-pretrained base nets with OLoRA (encoder adapters; frozen
+        base + GRU) when ``olora`` is set, then carries them through the
+        curriculum via :func:`~src.services.curriculum.finetune_curriculum`. Always
+        the QMIX arm. Routes through the SDK so scripts stay thin.
+
+        Args:
+            seed: Master finetune seed.
+            stage_indices: Ordered curriculum stage indices (e.g. ``[1, 2, 3]``).
+            cop_net: The BC-pretrained cop base net (``n_agents=2``).
+            thief_net: The BC-pretrained thief base net (``n_agents=1``).
+            olora: Wrap the encoders with OLoRA before finetuning (default True).
+            rounds_per_stage: Rounds per stage (default ``selfplay.rounds``).
+
+        Returns:
+            ``{"history", "cop_net", "thief_net"}`` from the curriculum loop.
+        """
+        cfg = cfg_for_algo(self._cfg, "qmix")
+        if olora:
+            cop_net = wrap_encoder(cop_net, cfg)
+            thief_net = wrap_encoder(thief_net, cfg)
+        return finetune_curriculum(cfg, seed, stage_indices, cop_net, thief_net, rounds_per_stage)
 
     def write_subgame_json(self, result: dict, path: str | Path) -> None:
         """Write a minimal sub-game record to ``path`` as pretty JSON.

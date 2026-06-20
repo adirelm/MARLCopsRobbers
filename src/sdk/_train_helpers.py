@@ -1,10 +1,10 @@
-"""Training-entry wiring for ``MarlSDK.train`` (keeps sdk.py / _helpers.py <=150).
+"""Algorithm-selection wiring for ``MarlSDK.train`` (keeps sdk.py / _helpers.py <=150).
 
-Maps the public algorithm name to the config knobs the self-play trainer reads,
-and resolves a curriculum stage index to its ``(h, w, num_cops)``. ``qmix`` is the
-graded PRIMARY (CopLearner + QmixMixer), ``vdn`` the ablation arm (CopLearner +
-VdnMixer), and ``iql`` the §7.2 baseline (IqlLearner, no mixer). All values are
-config-derived; the algorithm switch only flips ``algo.name`` / ``algo.mixer.type``.
+Maps the public algorithm name to the config knobs the self-play trainer reads.
+``qmix`` is the graded PRIMARY (CopLearner + QmixMixer), ``vdn`` the ablation arm
+(CopLearner + VdnMixer), and ``iql`` the §7.2 baseline (IqlLearner, no mixer). All
+values are config-derived; the algorithm switch only flips ``algo.name`` /
+``algo.mixer.type`` (stage resolution lives in :mod:`src.services.curriculum`).
 """
 
 from __future__ import annotations
@@ -40,19 +40,3 @@ def cfg_for_algo(cfg: dict, algorithm: str) -> dict:
     out["algo"]["name"] = name
     out["algo"]["mixer"]["type"] = mixer
     return out
-
-
-def stage_params(cfg: dict, stage_idx: int) -> tuple[int, int, int]:
-    """Return ``(h, w, num_cops)`` for curriculum stage ``stage_idx``.
-
-    Args:
-        cfg: The loaded config (reads ``env.curriculum.stages`` /
-            ``num_cops_by_stage``).
-        stage_idx: Index into the curriculum ladder (0 == the 2x2 stage).
-
-    Returns:
-        The board height, width, and real cop count for the stage.
-    """
-    curriculum = cfg["env"]["curriculum"]
-    h, w = curriculum["stages"][stage_idx]
-    return int(h), int(w), int(curriculum["num_cops_by_stage"][stage_idx])

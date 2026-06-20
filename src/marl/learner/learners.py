@@ -25,35 +25,40 @@ from src.marl.learner._learner_helpers import gather_chosen, masked_argmax, mask
 from src.marl.learner.learner_base import QmixLearner
 from src.marl.mixers.qmix_mixer import QmixMixer
 from src.marl.mixers.vdn_mixer import VdnMixer
+from src.marl.nets.agent_net import RecurrentQNet
 from src.marl.nets.dims import action_dim
 
 
 class CopLearner(QmixLearner):
     """Cooperative cop-team learner behind the QMIX (or VDN ablation) mixer."""
 
-    def __init__(self, cfg: dict, n_agents: int) -> None:
+    def __init__(self, cfg: dict, n_agents: int, net: RecurrentQNet | None = None) -> None:
         """Wire the mixer chosen by ``algo.name`` and defer to the base learner.
 
         Args:
             cfg: The loaded config (``algo.name`` selects qmix/vdn; dims).
             n_agents: The cop-team size (mixer per-agent input count).
+            net: OPTIONAL pre-built online net (an OLoRA-wrapped encoder for the
+                finetune path); ``None`` builds a dense net internally.
         """
         mixer = QmixMixer(cfg, n_agents) if cfg["algo"]["mixer"]["type"] == "qmix" else VdnMixer()
-        super().__init__(cfg, role="cop", n_agents=n_agents, mixer=mixer)
+        super().__init__(cfg, role="cop", n_agents=n_agents, mixer=mixer, net=net)
 
 
 class IqlLearner(QmixLearner):
     """Independent per-agent Double-DQN baseline — no mixer, no global state."""
 
-    def __init__(self, cfg: dict, n_agents: int, role: str = "cop") -> None:
+    def __init__(self, cfg: dict, n_agents: int, role: str = "cop", net: RecurrentQNet | None = None) -> None:
         """Build the no-mixer IQL learner (single AdamW group at ``lr_agent``).
 
         Args:
             cfg: The loaded config (reads ``algo.*`` + dims).
             n_agents: The per-agent learner's agent-axis width.
             role: The role driving the Q-head action width (cop/thief).
+            net: OPTIONAL pre-built online net (OLoRA-wrapped for finetune); ``None``
+                builds a dense net internally.
         """
-        super().__init__(cfg, role=role, n_agents=n_agents, mixer=None)
+        super().__init__(cfg, role=role, n_agents=n_agents, mixer=None, net=net)
 
     def _slice_legal(self, legal: Tensor) -> Tensor:
         """Return the legality mask unchanged (the thief subclass slices it)."""
@@ -102,14 +107,16 @@ class IqlLearner(QmixLearner):
 class ThiefLearner(IqlLearner):
     """Single-agent adversarial Double-DQN (IQL-style, no mixer, ``a_thief``=4)."""
 
-    def __init__(self, cfg: dict) -> None:
+    def __init__(self, cfg: dict, net: RecurrentQNet | None = None) -> None:
         """Build the single-agent thief learner with the 4-action thief head.
 
         Args:
             cfg: The loaded config (``env.actions.a_thief`` head width; dims).
+            net: OPTIONAL pre-built online net (OLoRA-wrapped for finetune);
+                ``None`` builds a dense net internally.
         """
         self._a_thief = action_dim(cfg, "thief")
-        super().__init__(cfg, n_agents=1, role="thief")
+        super().__init__(cfg, n_agents=1, role="thief", net=net)
 
     def _slice_legal(self, legal: Tensor) -> Tensor:
         """Slice the ``a_cop``-wide env legality mask down to the thief head width."""

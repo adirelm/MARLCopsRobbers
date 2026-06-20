@@ -11,6 +11,7 @@ config-derived (no hardcode).
 from __future__ import annotations
 
 from src.marl.learner.learners import CopLearner, IqlLearner, ThiefLearner
+from src.marl.nets.agent_net import RecurrentQNet
 from src.marl.replay.episode_buffer import CentralizedReplayBuffer
 
 
@@ -31,16 +32,20 @@ def make_role_buffer(cfg: dict, n_agents: int, seed: int) -> CentralizedReplayBu
     )
 
 
-def build_cop_learner(cfg: dict, n_agents: int):
-    """Return the cop learner: :class:`CopLearner` (QMIX/VDN) or IQL baseline."""
+def build_cop_learner(cfg: dict, n_agents: int, net: RecurrentQNet | None = None):
+    """Return the cop learner: :class:`CopLearner` (QMIX/VDN) or IQL baseline.
+
+    Passes an OPTIONAL pre-built ``net`` (an OLoRA-wrapped encoder for the
+    finetune path) straight through to the learner's injection seam.
+    """
     if cfg["algo"]["name"] == "iql":
-        return IqlLearner(cfg, n_agents=int(n_agents), role="cop")
-    return CopLearner(cfg, n_agents=int(n_agents))
+        return IqlLearner(cfg, n_agents=int(n_agents), role="cop", net=net)
+    return CopLearner(cfg, n_agents=int(n_agents), net=net)
 
 
-def make_thief_learner(cfg: dict) -> ThiefLearner:
-    """Return the single-agent adversarial thief learner."""
-    return ThiefLearner(cfg)
+def make_thief_learner(cfg: dict, net: RecurrentQNet | None = None) -> ThiefLearner:
+    """Return the single-agent adversarial thief learner (optional injected net)."""
+    return ThiefLearner(cfg, net=net)
 
 
 def linear_epsilon(cfg: dict, env_steps: int) -> float:

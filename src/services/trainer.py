@@ -36,7 +36,16 @@ _COP_SLOTS = 2  # cop buffer/net/learner fixed agent-axis width (1-cop stages pa
 class SelfPlayTrainer:
     """Alternating best-response trainer: collect -> store(both) -> update trainee."""
 
-    def __init__(self, cfg: dict, seed: int, h: int, w: int, num_cops: int) -> None:
+    def __init__(  # noqa: PLR0913 — cfg + seed + the 3 stage dims + 2 optional injected nets
+        self,
+        cfg: dict,
+        seed: int,
+        h: int,
+        w: int,
+        num_cops: int,
+        cop_net: object = None,
+        thief_net: object = None,
+    ) -> None:
         """Build the cop/thief learners, buffers, and opponent pools for a stage.
 
         Args:
@@ -45,6 +54,9 @@ class SelfPlayTrainer:
             h: Board rows for this curriculum stage.
             w: Board columns for this curriculum stage.
             num_cops: Real cop count this stage (acting width; <= ``_COP_SLOTS``).
+            cop_net: OPTIONAL pre-built cop net to inject (a carried/OLoRA-wrapped
+                net for curriculum transfer / finetune); ``None`` builds dense.
+            thief_net: OPTIONAL pre-built thief net to inject; ``None`` builds dense.
         """
         apply_compute_limits(cfg)
         torch.manual_seed(int(seed))
@@ -58,8 +70,8 @@ class SelfPlayTrainer:
         self._eps_per_round = int(selfplay["episodes_per_round"])
         self._update_ratio = int(selfplay["update_ratio"])
         self._window_k = int(selfplay["window_k"])
-        self._cop = build_cop_learner(cfg, _COP_SLOTS)
-        self._thief = make_thief_learner(cfg)
+        self._cop = build_cop_learner(cfg, _COP_SLOTS, net=cop_net)
+        self._thief = make_thief_learner(cfg, net=thief_net)
         self._cop_buf = make_role_buffer(cfg, _COP_SLOTS, int(seed))
         self._thief_buf = make_role_buffer(cfg, 1, int(seed) + 1)
         self._cop_pool = OpponentPool("cop", cfg, self._num_cops, int(seed) + 2)
@@ -105,3 +117,11 @@ class SelfPlayTrainer:
         """Run best-response rounds (default ``selfplay.rounds``); return per-round history."""
         total = int(self._cfg["selfplay"]["rounds"]) if rounds is None else int(rounds)
         return [self._round(i) for i in range(total)]
+
+    def cop_net(self):
+        """Return the trained cop online net (carried to the next curriculum stage)."""
+        return self._cop.online_net
+
+    def thief_net(self):
+        """Return the trained thief online net (carried to the next curriculum stage)."""
+        return self._thief.online_net
