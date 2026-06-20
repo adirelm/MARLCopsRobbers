@@ -15,9 +15,26 @@ through the tensor shapes, so there are no literals to hoist into config.
 
 from __future__ import annotations
 
+import copy
+
 import torch
 from torch import Tensor
 from torch.nn import functional
+
+
+def frozen_copy(module: object) -> object:
+    """Return a grad-free deepcopy of an ``nn.Module`` (a frozen target).
+
+    Args:
+        module: Any ``nn.Module`` (or ``None``) to snapshot.
+
+    Returns:
+        A ``requires_grad_(False)`` deepcopy, or ``None`` when ``module`` is
+        ``None`` (the parameter-free / no-mixer branch).
+    """
+    if module is None:
+        return None
+    return copy.deepcopy(module).requires_grad_(False)
 
 
 def masked_huber(td_error: Tensor, mask: Tensor, delta: float) -> Tensor:
@@ -109,6 +126,23 @@ def flatten_obs(image: Tensor, scalars: Tensor) -> Tensor:
     b, t, n = image.shape[:3]
     flat_img = image.reshape(b, t, n, -1)
     return torch.cat([flat_img, scalars], dim=-1)
+
+
+def net_param_group(net: object, lr: float) -> dict:
+    """Return the AdamW group of a net's TRAINABLE params at learning rate ``lr``.
+
+    Filters on ``requires_grad`` so a frozen-base OLoRA-wrapped net contributes
+    only its ``{A, B, head}`` adapters (the frozen ``W0``/``bias`` are excluded);
+    a plain dense net contributes every parameter (the unchanged P4b path).
+
+    Args:
+        net: A ``RecurrentQNet`` (plain or OLoRA-wrapped).
+        lr: The agent-net learning rate (``algo.lr_agent`` from config).
+
+    Returns:
+        A single AdamW param-group dict ``{"params": [...], "lr": lr}``.
+    """
+    return {"params": [p for p in net.parameters() if p.requires_grad], "lr": lr}
 
 
 def to_tensors(batch: dict, device: torch.device) -> dict:

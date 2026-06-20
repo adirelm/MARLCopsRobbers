@@ -20,7 +20,7 @@ from src.marl.env.cops_robbers_env import CopsRobbersEnv
 def test_build_yields_requested_n_pairs_shapes(cfg):
     """build_bc_dataset returns (n_pairs, C, 5, 5) obs + (n_pairs, scalars) + (n_pairs,)."""
     n_pairs = 12
-    obs, scalars, actions, _manifest = build_bc_dataset(cfg, (3, 3), n_pairs, seed=7)
+    obs, scalars, actions, _eids, _manifest = build_bc_dataset(cfg, (3, 3), n_pairs, seed=7)
     channels = cfg["env"]["obs_channels"]
     n_scalars = cfg["env"]["obs_scalars"]
     w_v = 2 * cfg["env"]["view_radius_max"] + 1
@@ -33,7 +33,7 @@ def test_build_yields_requested_n_pairs_shapes(cfg):
 
 def test_actions_are_valid_indices(cfg):
     """Every label is a non-negative action index below the cop action count."""
-    _obs, _sc, actions, _m = build_bc_dataset(cfg, (3, 3), 16, seed=1)
+    _obs, _sc, actions, _eids, _m = build_bc_dataset(cfg, (3, 3), 16, seed=1)
     assert actions.min() >= 0
     assert actions.max() < cfg["env"]["actions"]["a_cop"]
 
@@ -41,7 +41,7 @@ def test_actions_are_valid_indices(cfg):
 def test_manifest_fields(cfg):
     """The manifest carries grid/n_pairs/seed/source + schema dims from config."""
     n_pairs = 8
-    _obs, _sc, _a, manifest = build_bc_dataset(cfg, (3, 3), n_pairs, seed=42)
+    _obs, _sc, _a, _eids, manifest = build_bc_dataset(cfg, (3, 3), n_pairs, seed=42)
     assert isinstance(manifest, DatasetManifest)
     assert manifest.grid == (3, 3)
     assert manifest.n_pairs == n_pairs
@@ -99,7 +99,7 @@ def test_label_is_greedy_expert_action_not_collection_epsilon(cfg):
     cfg = dict(cfg)
     cfg["bc"] = dict(cfg["bc"], epsilon=0.5)  # heavy collection noise
     grid, n_pairs = (3, 3), 40
-    _obs, _sc, actions, _m = build_bc_dataset(cfg, grid, n_pairs, seed=5)
+    _obs, _sc, actions, _eids, _m = build_bc_dataset(cfg, grid, n_pairs, seed=5)
     expected = _replay_greedy_labels(cfg, grid, n_pairs, seed=5)
     assert [int(a) for a in actions] == expected
 
@@ -118,11 +118,12 @@ def test_build_negative_n_pairs_raises_value_error(cfg):
 
 def test_npz_round_trip_equal(cfg, tmp_path):
     """save_npz then load_npz returns arrays + a manifest equal to the originals."""
-    obs, scalars, actions, manifest = build_bc_dataset(cfg, (3, 3), 10, seed=3)
+    obs, scalars, actions, episode_ids, manifest = build_bc_dataset(cfg, (3, 3), 10, seed=3)
     path = tmp_path / "bc.npz"
-    save_npz(path, obs, scalars, actions, manifest)
-    r_obs, r_sc, r_actions, r_manifest = load_npz(path)
+    save_npz(path, obs, scalars, actions, episode_ids, manifest)
+    r_obs, r_sc, r_actions, r_eids, r_manifest = load_npz(path)
     np.testing.assert_array_equal(obs, r_obs)
     np.testing.assert_array_equal(scalars, r_sc)
     np.testing.assert_array_equal(actions, r_actions)
+    np.testing.assert_array_equal(episode_ids, r_eids)
     assert r_manifest == manifest

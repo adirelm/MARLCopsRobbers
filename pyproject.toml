@@ -44,6 +44,11 @@ mail = [
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=85"
 testpaths = ["tests"]
 filterwarnings = ["ignore:pkg_resources is deprecated:UserWarning"]
+# `slow` flags the full-BC / OLoRA-finetune long runs (kept as scripts / marked
+# slow) so the default `uv run pytest` stays fast; deselect via `-m "not slow"`.
+markers = [
+    "slow: long-running full-BC / finetune jobs (excluded from the fast default run)",
+]
 
 # Stricter-than-spec Ruff (documented deviation, mirrors A4/A5): 110/py311 + PL + RUF.
 [tool.ruff]

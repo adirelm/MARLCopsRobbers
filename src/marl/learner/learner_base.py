@@ -9,11 +9,14 @@ argmax, target value); the loss is a filled-masked Huber; the target net + mixer
 are HARD-synced every ``algo.target_update_interval`` updates. Every hyperparameter
 is read from config (``algo.*``) / dims — no literals. Global state is consumed
 here only and never crosses the MCP boundary.
+
+An OPTIONAL ``net`` seam (default ``None`` = build internally, unchanged P4b)
+lets P4d inject an OLoRA-wrapped net; the optimizer net group keeps only
+``requires_grad`` params, so a wrapped net's frozen base ``W0``/``bias`` are
+excluded and only ``{A, B, head, mixer}`` train.
 """
 
 from __future__ import annotations
-
-import copy
 
 import torch
 from torch import Tensor
@@ -22,9 +25,11 @@ from torch.nn.utils import clip_grad_norm_
 from src.marl.learner._learner_helpers import (
     bptt_unroll,
     flatten_obs,
+    frozen_copy,
     gather_chosen,
     masked_argmax,
     masked_huber,
+    net_param_group,
     to_tensors,
 )
 from src.marl.mixers.base_mixer import BaseMixer
@@ -34,7 +39,9 @@ from src.marl.nets.agent_net import RecurrentQNet
 class QmixLearner:
     """Centralized BPTT Double-DQN learner for one cop team behind a mixer."""
 
-    def __init__(self, cfg: dict, role: str, n_agents: int, mixer: BaseMixer | None) -> None:
+    def __init__(
+        self, cfg: dict, role: str, n_agents: int, mixer: BaseMixer | None, net: RecurrentQNet | None = None
+    ) -> None:
         """Build the online/target nets + mixers and the two-group AdamW optimizer.
 
         Args:
@@ -43,6 +50,8 @@ class QmixLearner:
             n_agents: Same-role agent count (cop team size / 1 for thief).
             mixer: The credit-assignment mixer (``VdnMixer``/``QmixMixer``), or
                 ``None`` for the IQL branch (no mixer path).
+            net: OPTIONAL pre-built online net to inject (an OLoRA-wrapped
+                encoder for finetune); ``None`` builds a dense net (P4b path).
         """
         algo = cfg["algo"]
         self.n_agents = int(n_agents)
@@ -52,28 +61,20 @@ class QmixLearner:
         self.target_update_interval = int(algo["target_update_interval"])
         self.double_q = bool(algo["double_q"])
         self._updates = 0
-        self.online_net = RecurrentQNet(cfg, role, n_agents)
+        self.online_net = net if net is not None else RecurrentQNet(cfg, role, n_agents)
         self.target_net = self.online_net.clone_target()
         self.mixer = mixer
-        self.target_mixer = self._frozen_copy(mixer)
+        self.target_mixer = frozen_copy(mixer)
         self.optimizer = torch.optim.AdamW(self._param_groups(algo), weight_decay=float(algo["weight_decay"]))
-
-    @staticmethod
-    def _frozen_copy(mixer: BaseMixer | None) -> BaseMixer | None:
-        """Return a grad-free deepcopy of ``mixer`` (the frozen target mixer)."""
-        if mixer is None:
-            return None
-        target = copy.deepcopy(mixer)
-        return target.requires_grad_(False)
 
     def _param_groups(self, algo: dict) -> list[dict]:
         """Return AdamW param-groups: net @ ``lr_agent`` (+ mixer @ ``lr_mixer``).
 
-        The mixer group is appended ONLY when the mixer carries trainable
-        params: a parameter-free mixer (``VdnMixer``) would otherwise create an
-        empty AdamW group, so it is skipped.
+        The net group keeps only ``requires_grad`` params (an injected
+        OLoRA-wrapped net excludes its frozen base); a param-free ``VdnMixer``
+        adds no mixer group (it would otherwise be empty).
         """
-        groups = [{"params": list(self.online_net.parameters()), "lr": float(algo["lr_agent"])}]
+        groups = [net_param_group(self.online_net, float(algo["lr_agent"]))]
         if self._mixer_params():
             groups.append({"params": self._mixer_params(), "lr": float(algo["lr_mixer"])})
         return groups

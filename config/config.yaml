@@ -163,9 +163,10 @@ olora:
                                   #   min(m,n)//2 (prevents degenerate rank on 64-dim layers)
   rank_sweep: [2, 4, 8]
   scale: 8.0                      # paper's alpha; 8 (not 16) for tiny near-singular weights
-  target_layers: ["encoder"]      # wrap encoder trunk Linears only (NOT head, NOT mixer)
+  target_layers: ["encoder"]      # wrap encoder trunk Linears only (NOT head, NOT mixer);
+                                  #   attach also FREEZES the GRU backbone -> only {A,B,head,mixer} train
   # OLoRA forward: W_adapted = W0 + scale*(B @ A); B=Q_r[:, :r], A=R_r[:r, :]; re-base
-  #   W0 <- W0 - scale*(B @ A) so the function is unchanged at init (eq 10-11 / [7] eqs 3-5).
+  #   W0 <- W0 - scale*(B @ A) so the function is unchanged at init ([7] eqs 3-5).
 
 # --- Behavior-cloning pre-training (the OLoRA "pre-trained model", ADR-D4-1) ---
 # Local BC of CopNet/ThiefNet encoders on Manhattan-heuristic rollouts over small
@@ -176,7 +177,15 @@ bc:
   epsilon: 0.1                    # expert label-diversity noise (epsilon-greedy expert)
   pretrain_grids: [[2, 2], [3, 3]]
   n_pairs: 40000                  # generated (o, a*) supervised pairs (seeded)
-  val_acc_gate: 0.9               # held-out heuristic-label accuracy required to attach OLoRA
+  val_fraction: 0.2               # held-out fraction for the episode-level BC train/val split
+  split_seed: 7                   # deterministic seed for the BC episode-level split
+  # Per-grid held-out heuristic-label accuracy required to attach OLoRA (keyed by
+  # min(H,W)). User-signed-off realistic gates (ADR-D4): random floors cop 0.20 /
+  # thief 0.25; Bayes ceilings cop ~0.635 @2x2, ~0.823 @3x3 (privileged-expert vs
+  # local-obs imitation gap), so 0.78 keeps headroom. Required for BOTH roles.
+  val_acc_gate_by_grid:
+    2: 0.50
+    3: 0.78
 
 # ============================================================================
 # REPLAY (BRIEF §5.2 centralized replay buffer for CTDE)
@@ -363,6 +372,8 @@ paths:
   experiment_manifest: "results/experiment_manifest.json"  # seeds/config-hash/commit/run-ids
   bc_dataset_dir: "results/datasets"     # P3 (T3.2) seeded BC (o, a*) npz datasets
   subgames_dir: "results/subgames"       # P3 (T3.3) minimal sub-game JSON records
+  base_checkpoint_dir: "results/checkpoints/base"   # P4c BC-pretrained base encoders
+  olora_bundle_dir: "results/checkpoints/olora"     # P4c OLoRA attach bundles {sha, A/B, head}
 
 # ============================================================================
 # P3 SMOKE (T3.3) — the THROWAWAY tabular 2x2 Q-learner hyperparams (deleted in
