@@ -1,0 +1,15 @@
+{
+  "game_id": "p3-smoke-7",
+  "grid": [
+    2,
+    2
+  ],
+  "winner": "cop",
+  "capture": true,
+  "steps": 1,
+  "scores": {
+    "cop": 20,
+    "thief": 5
+  },
+  "seed": 7
+}

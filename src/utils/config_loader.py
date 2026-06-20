@@ -19,7 +19,8 @@ EXPECTED_VERSION = "1.0.0"
 # `version` is a scalar string; every other required section is a YAML mapping.
 VERSION_KEY = "version"
 
-# The 18 frozen top-level sections (P1 spec line 19). Order is documentation-only.
+# The 19 frozen top-level sections (P1 spec line 19 + the P3 `p3_smoke` block).
+# Order is documentation-only.
 REQUIRED_SECTIONS: tuple[str, ...] = (
     VERSION_KEY,
     "project",
@@ -39,6 +40,7 @@ REQUIRED_SECTIONS: tuple[str, ...] = (
     "gui",
     "paths",
     "logging",
+    "p3_smoke",
 )
 
 # The mapping sections that must each parse to a (possibly empty) dict, never None.

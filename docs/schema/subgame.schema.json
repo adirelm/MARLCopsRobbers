@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adrl-001/marl/subgame.schema.json",
+  "title": "MARL Cops & Robbers minimal sub-game record (P3 T3.3)",
+  "description": "The minimal headless sub-game record emitted by MarlSDK.write_subgame_json. Reused/extended by the P9 report sub_games[] entries (which add start/end/moves keys); the P3 record is the closed minimal core.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["game_id", "grid", "winner", "capture", "steps", "scores", "seed"],
+  "properties": {
+    "game_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this sub-game."
+    },
+    "grid": {
+      "type": "array",
+      "description": "Board dimensions [h, w].",
+      "items": {"type": "integer", "minimum": 1},
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "winner": {
+      "type": "string",
+      "enum": ["cop", "thief"],
+      "description": "The adjudicated sub-game winner."
+    },
+    "capture": {
+      "type": "boolean",
+      "description": "True iff the cop captured the thief (else timeout/evade)."
+    },
+    "steps": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of real moves played in the sub-game."
+    },
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cop", "thief"],
+      "properties": {
+        "cop": {"type": "integer", "description": "Cop scoreboard points (Table 1)."},
+        "thief": {"type": "integer", "description": "Thief scoreboard points (Table 1)."}
+      }
+    },
+    "seed": {
+      "type": "integer",
+      "description": "The seed driving this (reproducible) sub-game."
+    }
+  }
+}

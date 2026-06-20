@@ -361,6 +361,19 @@ paths:
   figures_dir: "results/figures"         # F1-F6 PNGs referenced by README §7.3
   checkpoint_dir: "results/checkpoints"  # cop_weights.pth / thief_weights.pth (+ sidecar)
   experiment_manifest: "results/experiment_manifest.json"  # seeds/config-hash/commit/run-ids
+  bc_dataset_dir: "results/datasets"     # P3 (T3.2) seeded BC (o, a*) npz datasets
+  subgames_dir: "results/subgames"       # P3 (T3.3) minimal sub-game JSON records
+
+# ============================================================================
+# P3 SMOKE (T3.3) — the THROWAWAY tabular 2x2 Q-learner hyperparams (deleted in
+# P4). Kept here (NOT hardcoded; CLAUDE.md §4) so the 2x2 pipeline-sanity smoke
+# stays reproducible. This is a SMOKE/sanity learner, never a graded benchmark.
+# ============================================================================
+p3_smoke:
+  alpha: 0.5                      # tabular Q-learning constant step size (2x2 scale)
+  epsilon: 0.1                    # epsilon-greedy exploration during smoke collection
+  episodes: 4000                  # exploring-starts episodes for the 2x2 optimal-capture
+                                  #   gate (converges all training.seeds to optimal)
 
 # ============================================================================
 # LOGGING
