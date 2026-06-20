@@ -58,21 +58,25 @@ class RecurrentPolicy:
 
         Args:
             obs_list: One LOCAL Observation per agent (length ``n_agents``).
-            legal_masks: One length-A bool legality mask per agent.
+            legal_masks: One env legality mask per agent (the uniform ``a_cop``
+                width); each is sliced to this net's head width so a thief never
+                considers the cop-only barrier slot (mirrors ``ThiefLearner``).
             epsilon: Exploration probability; with prob ε an agent picks a uniform
                 LEGAL action, else the legal-masked greedy argmax.
             rng: The exploration RNG (seeded for reproducibility).
 
         Returns:
-            One :class:`Action` per agent (always legal).
+            One :class:`Action` per agent (always legal for this role).
         """
+        a_dim = self._net.head.out_features
+        masks = [list(mask)[:a_dim] for mask in legal_masks]
         obs = self._encode(obs_list)
         with torch.no_grad():
             q, self._hidden = self._net(obs, self._hidden)
-        legal = torch.as_tensor(np.asarray(legal_masks, dtype=bool)).unsqueeze(0)
+        legal = torch.as_tensor(np.asarray(masks, dtype=bool)).unsqueeze(0)
         greedy = masked_argmax(q, legal)[0]
         actions: list[Action] = []
-        for i, mask in enumerate(legal_masks):
+        for i, mask in enumerate(masks):
             if rng.random() < epsilon:
                 actions.append(Action(rng.choice([j for j, ok in enumerate(mask) if ok])))
             else:
