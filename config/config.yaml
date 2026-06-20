@@ -150,6 +150,18 @@ nets:
                                   #   only these Linears.
 
 # ============================================================================
+# COMPUTE GOVERNANCE — keep the host responsive (no freeze on a laptop).
+# PyTorch defaults to grabbing EVERY core for intra-op parallelism, which spikes
+# all cores and freezes the UI. apply_compute_limits() (src/utils/compute.py)
+# caps the torch thread pools from here BEFORE any training runs. Raise these to
+# train faster on a dedicated box; keep them low (leave cores free) on a laptop.
+# ============================================================================
+compute:
+  num_threads: 2                  # torch intra-op threads (matmul etc.); << core count
+  num_interop_threads: 1          # torch inter-op threads (set once per process)
+  sweep_parallelism: 1            # run sweep configs SERIALLY (never N full-core procs at once)
+
+# ============================================================================
 # OLoRA (BRIEF §5.2 "pre-trained models + OLoRA", cite [7] Buyukakyuz 2024)
 # Orthonormal Low-Rank Adaptation via QR-decomposition of the PRETRAINED encoder
 # weight W0 (NOT a random matrix — that would be orthonormal-LoRA, not OLoRA;

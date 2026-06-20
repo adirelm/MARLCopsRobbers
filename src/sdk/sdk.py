@@ -17,6 +17,7 @@ from pathlib import Path
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.replay import tabular_smoke
 from src.sdk import _helpers
+from src.utils.compute import apply_compute_limits
 
 Policy = Callable[..., object]
 
@@ -25,12 +26,17 @@ class MarlSDK:
     """The single sanctioned entry point for MARL Cops & Robbers business logic."""
 
     def __init__(self, cfg: dict) -> None:
-        """Bind the SDK to a loaded config.
+        """Bind the SDK to a loaded config and apply compute (thread) governance.
+
+        Capping the torch thread pools at the single entry point means every
+        SDK-driven training path is bounded and can never grab all cores and
+        freeze the host (:func:`src.utils.compute.apply_compute_limits`).
 
         Args:
             cfg: The loaded project config (config/config.yaml via config_loader).
         """
         self._cfg = cfg
+        apply_compute_limits(cfg)
 
     def build_env(
         self, h: int | None = None, w: int | None = None, num_cops: int | None = None

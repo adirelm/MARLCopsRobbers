@@ -20,6 +20,7 @@ EXPECTED_SECTIONS = {
     "env",
     "algo",
     "nets",
+    "compute",
     "olora",
     "bc",
     "replay",
