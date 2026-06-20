@@ -157,8 +157,8 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 > **Exit gate (P4):** loss decreasing; 3×3 converges; seeded sweep logs to `results/runs/*.jsonl`; OLoRA + ablation produce §7.3 evidence.
 
-- [ ] **T4.0a — Mixer ABC seam + IQL/VDN mixers (TDD)** · _A_ — _moved from P1 (#27): builds the network/training seam, belongs in P4 (matches PLAN P4, BRIEF §6 step 4)._
-  `src/marl/mixers/base_mixer.py` (`forward(q_agents, state) -> q_tot`) as the single swappable point; `iql_mixer.py` (per-agent, no reduction); `vdn_mixer.py` (sum over cop team, eq 6).
+- [ ] **T4.0a — Mixer ABC seam + VDN mixer (TDD)** · _A_ — _moved from P1 (#27): builds the network/training seam, belongs in P4 (matches PLAN P4, BRIEF §6 step 4)._
+  `src/marl/mixers/base_mixer.py` (`forward(q_agents, state) -> q_tot`) as the single swappable point; `vdn_mixer.py` (sum over cop team, eq 6). IQL has no mixer — it branches in the learner (P4b), so no `iql_mixer.py`.
   **DoD:** test asserts VDN `Q_tot == Σ_i Q_i`; IQL returns per-agent independence; ABC is the only differentiator across algorithms (DRY); ≤150 LOC each.
 
 - [ ] **T4.0b — Recurrent Q-net (TDD)** · _A_ — _moved from P1 (#27): the GRU Q-net is a training-network artifact, P4._
