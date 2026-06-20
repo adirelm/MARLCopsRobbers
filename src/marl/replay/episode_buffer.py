@@ -66,6 +66,10 @@ class CentralizedReplayBuffer:
         self._done = np.zeros((n, t), dtype=bool)
         self._filled = np.zeros((n, t), dtype=bool)
         self._next_legal_mask = np.zeros((n, t, a, n_actions), dtype=bool)
+        # Episode-constant per-slot occupancy mask (NOT time-varying): which of the
+        # N agent slots hold a real agent (vs a zero-filled phantom from widening a
+        # k<N episode to the buffer's full N width). Distinct from per-step `filled`.
+        self._active = np.zeros((n, a), dtype=bool)
         self._hidden_seed = np.zeros((n,), dtype=np.int64)
         self._source_tag: list[SourceTag] = [SourceTag.RANDOM] * n
 
@@ -83,23 +87,18 @@ class CentralizedReplayBuffer:
             episode: Mapping with keys ``obs (T+1,N,C,w,w)`` (the +1 frame is the
                 terminal next-obs), ``scalars (T+1,N,scalars)``, ``global_state
                 (T+1,state_dim)``, ``actions (T,N)``, ``reward (T,N)``, ``done
-                (T,)``, ``filled (T,)``,
-                ``next_legal_mask (T,N,n_actions)``, ``hidden_seed`` scalar.
+                (T,)``, ``filled (T,)``, ``next_legal_mask (T,N,n_actions)``,
+                ``active (N,)`` (episode-constant per-slot occupancy mask),
+                ``hidden_seed`` scalar.
             source_tag: Provenance label stored alongside this episode.
 
         Raises:
-            ValueError: If the episode agent-axis width != ``n_agents`` (kills the
-                silent numpy size-1 -> size-2 broadcast that would copy the real cop
-                into a phantom slot). TODO(P4): when num_cops=2 episodes exist, accept
-                narrower episodes via explicit zero-filled phantom + per-agent active
-                mask padding instead of requiring the full N width here.
+            ValueError: If any per-agent field's agent axis != ``n_agents`` or
+                ``active`` is mis-shaped (see :meth:`_validate_agent_axes`); the
+                producer widens a k-cop episode to N (no silent broadcast).
         """
-        ep_agents = int(episode["obs"].shape[1])
-        if ep_agents != self._n_agents:
-            raise ValueError(
-                f"episode agent axis ({ep_agents}) != buffer n_agents ({self._n_agents}); "
-                "the producer must supply the full N width (no silent broadcast)"
-            )
+        self._validate_agent_axes(episode)
+        active = np.asarray(episode["active"], dtype=bool)
         i = self._cursor
         self._zero_slot(i)
         t = min(int(episode["filled"].shape[0]), self._t_max)
@@ -112,10 +111,20 @@ class CentralizedReplayBuffer:
         self._done[i, :t] = episode["done"][:t]
         self._filled[i, :t] = episode["filled"][:t]
         self._next_legal_mask[i, :t] = episode["next_legal_mask"][:t, :a]
+        self._active[i] = active
         self._hidden_seed[i] = np.int64(episode["hidden_seed"])
         self._source_tag[i] = source_tag
         self._cursor = (i + 1) % self._capacity
         self._size = min(self._size + 1, self._capacity)
+
+    def _validate_agent_axes(self, episode: dict) -> None:
+        """Fail loud if any per-agent field's agent axis != n_agents (no broadcast)."""
+        n = self._n_agents
+        for key in ("obs", "scalars", "actions", "reward", "next_legal_mask"):
+            if np.asarray(episode[key]).shape[1] != n:
+                raise ValueError(f"episode[{key!r}] agent axis != n_agents ({n})")
+        if np.asarray(episode["active"]).shape != (n,):
+            raise ValueError(f"episode['active'] must be shape ({n},)")
 
     def _zero_slot(self, i: int) -> None:
         """Reset every per-step field at ring index ``i`` (clears stale pad)."""
@@ -127,6 +136,7 @@ class CentralizedReplayBuffer:
         self._done[i] = False
         self._filled[i] = False
         self._next_legal_mask[i] = False
+        self._active[i] = False
 
     def sample(self, batch_size: int) -> dict:
         """Sample ``batch_size`` episodes with replacement into a batched dict.
@@ -136,9 +146,9 @@ class CentralizedReplayBuffer:
 
         Returns:
             A dict of batched arrays plus a ``source_tag`` list of length ``B``
-            carrying each drawn episode's provenance. ``obs``/``scalars``/
-            ``global_state`` are ``(B, T+1, ...)`` (the +1 holds the terminal
-            next-obs); all other per-step fields are ``(B, T, ...)``.
+            carrying provenance. ``obs``/``scalars``/``global_state`` are
+            ``(B, T+1, ...)`` (the +1 holds the terminal next-obs); per-step
+            fields are ``(B, T, ...)``; ``active`` is ``(B, n_agents)``.
 
         Raises:
             ValueError: If the buffer is empty.
@@ -155,6 +165,7 @@ class CentralizedReplayBuffer:
             "done": self._done[idx],
             "filled": self._filled[idx],
             "next_legal_mask": self._next_legal_mask[idx],
+            "active": self._active[idx],
             "hidden_seed": self._hidden_seed[idx],
             "source_tag": [self._source_tag[int(j)] for j in idx],
         }

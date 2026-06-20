@@ -459,9 +459,13 @@ CurriculumScheduler ── grid_size ──▶ CopsRobbersEnv
                                        │ env.step(joint_a) → (LOCAL obs_dict, reward_i, done, info)
                                        │ env.state()       → GlobalState s   ◀── TRAIN ONLY
                                        ▼
-rollout.collect ── per-role episode dicts ⟨o, a, r, o', done, GlobalState s, hidden seed⟩
+rollout.collect ── per-role episode dicts ⟨o, a, r, o', done, GlobalState s, active, hidden seed⟩
+   (producer widens a k-cop episode to the N-wide buffer: real cops in slots 0..k-1, slots k..N-1
+    zero-filled, and stamps the EPISODE-CONSTANT per-slot mask active[j] = (j < k) — P4d)
                                        ▼
-CentralizedEpisodeBuffer (the ONLY place s lives) ── sample episode-batch (BPTT, padded, filled-mask)
+CentralizedEpisodeBuffer (the ONLY place s lives) ── sample episode-batch (BPTT, padded; filled-mask
+   = per-TIMESTEP episode length, active-mask = per-SLOT occupancy, fixed for the whole episode —
+   NOT time-varying: a whole episode is uniformly N=1 or N=2)
                                        ▼
 Learner (Cop / Thief / IQL)
    per-agent  Q_i(z_t, o_i)  [RecurrentQNet, GRU eq 8]      ──┐

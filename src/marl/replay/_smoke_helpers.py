@@ -123,6 +123,8 @@ def _pad_episode(steps: list[dict], env: CopsRobbersEnv, cfg: dict) -> dict:
         "filled": np.zeros((t_max,), bool),
         "next_legal_mask": np.zeros((t_max, 1, a_cop), bool),
         "hidden_seed": np.int64(0),
+        # Episode-constant per-slot occupancy: this N=1 episode has one real cop.
+        "active": np.ones(1, dtype=bool),
     }
     for i in range(t + 1):
         ep["obs"][i, 0], ep["scalars"][i, 0], ep["global_state"][i] = imgs[i], scal[i], states[i]

@@ -176,7 +176,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `tests/unit/test_mixer.py` (N=2 fixture + optional negative control).
 - **FR-ALG-2 (IQL baseline, §7.2).** Implement an IQL baseline (independent recurrent Double-DQN per agent, eq 2/4, no mixer, no global state) for the mandated comparison.
   - **AC:** an `algo=iql` run produces learning curves on the same seeds/obs space as VDN/QMIX; README §7.2 shows the IQL-vs-CTDE non-stationarity contrast (IQL oscillates/diverges where CTDE converges).
-  - **Evidence:** F5; `src/marl/mixers/iql_mixer.py` / `iql_learner.py`.
+  - **Evidence:** F5; `src/marl/learner/learners.py::IqlLearner` (IQL is a no-mixer LEARNER branch — it overrides `_compute_target` for the per-agent eq4 target and drops the mixer + global state; there is NO `iql_mixer.py`).
 - **FR-ALG-3 (adversarial boundary, L2).** Cop and Thief NEVER share a cooperative mixer; the Thief is a separate adversarial learner folded into `T(s'│s,ā)`.
   - **AC:** code review + README §7.1/§7.2 document the POSG-vs-Dec-POMDP boundary (eq 3, NEXP^NP); a test asserts no mixer instance receives thief Q-values; two distinct learners + two replay buffers exist.
   - **Evidence:** ADR-D1-B / ADR-D3-A; `tests/unit/test_learner_isolation.py`.
