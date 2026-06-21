@@ -52,6 +52,8 @@ class Referee:
         winner = info.get("winner") or ("cop" if capture else "thief")
         scores = self._scorer.score(winner)
         return {
+            "game_id": session_id,
+            "grid": [self._grid[0], self._grid[1]],
             "winner": winner,
             "capture": capture,
             "steps": tick,

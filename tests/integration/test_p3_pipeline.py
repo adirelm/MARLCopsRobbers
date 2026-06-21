@@ -19,10 +19,9 @@ import pytest
 from src.marl.env.render_state import render_state
 from src.marl.env.types import GlobalState
 from src.sdk.sdk import MarlSDK
+from src.utils.jsonschema_min import validate as _validate
 
 _SCHEMA = Path(__file__).resolve().parents[2] / "docs" / "schema" / "subgame.schema.json"
-
-_TYPES = {"object": dict, "array": list, "string": str, "integer": int, "boolean": bool}
 
 _GOOD_RECORD = {
     "game_id": "subgame-7",
@@ -33,40 +32,6 @@ _GOOD_RECORD = {
     "scores": {"cop": 20, "thief": 5},
     "seed": 7,
 }
-
-
-def _check_type(value, type_name: str) -> bool:
-    """Return whether ``value`` matches a draft-2020-12 primitive type name."""
-    if type_name == "integer":
-        return isinstance(value, int) and not isinstance(value, bool)
-    if type_name == "boolean":
-        return isinstance(value, bool)
-    return isinstance(value, _TYPES[type_name])
-
-
-def _validate(instance, schema) -> None:
-    """Minimal draft-2020-12 validator: required/type/enum/additionalProperties."""
-    if "type" in schema:
-        assert _check_type(instance, schema["type"]), f"type mismatch: {schema['type']}"
-    for key in schema.get("required", []):
-        assert key in instance, f"missing required key {key!r}"
-    if "enum" in schema:
-        assert instance in schema["enum"], f"{instance!r} not in {schema['enum']}"
-    props = schema.get("properties", {})
-    if isinstance(instance, dict):
-        if schema.get("additionalProperties") is False:
-            extra = set(instance) - set(props)
-            assert not extra, f"unexpected keys {extra}"
-        for key, sub in props.items():
-            if key in instance:
-                _validate(instance[key], sub)
-    if isinstance(instance, list) and "items" in schema:
-        if "minItems" in schema:
-            assert len(instance) >= schema["minItems"]
-        if "maxItems" in schema:
-            assert len(instance) <= schema["maxItems"]
-        for item in instance:
-            _validate(item, schema["items"])
 
 
 def _load_schema() -> dict:
@@ -110,7 +75,7 @@ def test_validator_rejects_malformed_subgame(mutate, why):
     assert why
     schema = _load_schema()
     _validate(_GOOD_RECORD, schema)
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         _validate(mutate(copy.deepcopy(_GOOD_RECORD)), schema)
 
 

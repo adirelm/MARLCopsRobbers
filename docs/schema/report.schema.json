@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MARL Cops & Robbers — §3.5 end-of-match report body",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["group", "students", "num_games", "sub_games", "totals"],
+  "properties": {
+    "group": { "type": "string" },
+    "students": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["full_name", "id"],
+        "properties": {
+          "full_name": { "type": "string" },
+          "id": { "type": "string" }
+        }
+      }
+    },
+    "num_games": { "type": "integer" },
+    "sub_games": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["game_id", "grid", "winner", "capture", "steps", "scores", "seed"],
+        "properties": {
+          "game_id": { "type": "string" },
+          "grid": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "integer" } },
+          "winner": { "type": "string", "enum": ["cop", "thief"] },
+          "capture": { "type": "boolean" },
+          "steps": { "type": "integer" },
+          "scores": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cop", "thief"],
+            "properties": { "cop": { "type": "integer" }, "thief": { "type": "integer" } }
+          },
+          "seed": { "type": "integer" }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cop", "thief"],
+      "properties": { "cop": { "type": "integer" }, "thief": { "type": "integer" } }
+    }
+  }
+}
