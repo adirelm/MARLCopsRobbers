@@ -151,3 +151,17 @@ class MarlSDK:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    def send_final_report(self, report: dict, sender: object = None, date_str: str | None = None) -> dict:
+        """Idempotently send the §3.5 report via Gmail + write a redacted copy (T9.5).
+
+        The single send entry. Defaults to the real :class:`GmailMailer` (env creds
+        ``GMAIL_SENDER`` / ``GMAIL_APP_PASSWORD``); pass a ``FakeEmailSender`` for a dry
+        run. ``date_str`` defaults to today in the configured project timezone. The send
+        is sentinel-guarded so the lecturer is emailed EXACTLY once. Returns the result.
+        """
+        from src.reporting.mailer import GmailMailer  # noqa: PLC0415 — lazy keeps import light
+        from src.reporting.send import build_date, send_report  # noqa: PLC0415 — lazy
+
+        sender = sender or GmailMailer(self._cfg)
+        return send_report(self._cfg, report, sender, date_str or build_date(self._cfg))
