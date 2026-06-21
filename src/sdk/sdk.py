@@ -20,6 +20,7 @@ from src.sdk._train_helpers import cfg_for_algo
 from src.services.checkpoints import export_agent_weights, load_agent_weights
 from src.services.finetune import finetune_curriculum, stage_params
 from src.services.policy import RecurrentPolicy
+from src.services.spectator import SpectatorSession
 from src.services.trainer import SelfPlayTrainer
 from src.utils.compute import apply_compute_limits
 
@@ -135,6 +136,10 @@ class MarlSDK:
         from src.mcp.match import run_local_match as _run  # noqa: PLC0415 — lazy: breaks the sdk<->mcp cycle
 
         return asyncio.run(_run(self._cfg, cop_net, thief_net, players, seed, stage, num_games))
+
+    def spectator_session(self, h: int = 5, w: int = 5, num_cops: int = 1, seed: int = 0) -> SpectatorSession:
+        """Return a god-view :class:`SpectatorSession` (the GUI's single entry, T7.1)."""
+        return SpectatorSession(self._cfg, h, w, num_cops, seed)
 
     def write_subgame_json(self, result: dict, path: str | Path) -> None:
         """Write a minimal sub-game record to ``path`` as pretty JSON.
