@@ -146,12 +146,6 @@ F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figu
 screenshots (`results/screenshots/grid_*.png`) and **F4** MCP-comms proof are deterministically
 captured. The figure manifest:
 
-**Single controlled experiment** (D10 §C): arms **IQL / VDN / QMIX** × seeds **`[7, 17, 37, 71,
-107]`** (`training.seeds`) × ladder **`[2, 3, 4, 5]`** (`env.curriculum.stages`), with **identical**
-nets / replay / ε-decay / γ / target cadence — only the mixer (or the IQL learner branch) differs.
-Per-episode records append to `results/runs/*.jsonl`; `results/experiment_manifest.json` pins seeds,
-config hashes, git commit, and run IDs (zero README↔code drift).
-
 | Fig | Content | Generator | Path |
 |---|---|---|---|
 | **F1** | Both-agent learning curves (reward vs episode, mean±SE) | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
@@ -164,3 +158,24 @@ config hashes, git commit, and run IDs (zero README↔code drift).
 F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); F3/F4 are
 deterministically captured by their seeded scripts. The OLoRA ablation chart + trainable-param
 table also land here (§7.2 evidence).
+
+---
+
+## 8. Risk register (summary)
+
+The full P×I register with mitigation + fallback per owner-phase is in
+[`docs/PLAN.md` §10](docs/PLAN.md) (R1–R16). The highest-impact risks and how A6 contains them:
+
+| ID | Risk | P×I | Mitigation → Fallback |
+|---|---|---|---|
+| R1 | MARL non-convergence on tiny grids (the studied effect) | H×H | 2×2-first curriculum, 5 seeds, shaping, VDN arm → heuristic-thief warm start; report instability honestly |
+| R2 | Cloud deploy / Prefect quota fails | M×H | localhost F4 is canonical (cloud is upside, ADR-D10-E) → submit local proof + smoke |
+| R3 | Gmail single mandatory send fails | M×H | `smtp_smoke.py` pre-flight + idempotent sentinel + OAuth drop-in → never block on send |
+| R5 | PII leak into the tracked repo | M×H | git-ignored cover sheet + CI deny-list grep + placeholders → never assert the PII artifact in a test |
+| R6 | Google Drive deletes `.git` mid-session | M×H | push often + a `/tmp` clone → restore `.git` |
+| R7 | A `.py` exceeds the 150-LOC cap | H×M | split early; size gate runs AFTER `ruff format` → extract submodules |
+| R8 | Figures drift from code | M×M | one `make_figures` entry + a manifest config-hash → CI regenerates |
+| R14 | FastMCP auth API churn (v2→v3) | M×M | verify the import path + pin the version BEFORE auth code → pin closest-to-brief |
+
+The full sixteen entries (incl. formalism-mismatch R4, IGM-critique depth R9, OLoRA ambiguity R12,
+late-penalty R15, solo-overload R16) are tabulated in `docs/PLAN.md §10`.
