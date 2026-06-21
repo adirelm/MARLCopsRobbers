@@ -44,9 +44,10 @@ def test_verifier_rejects_unknown_token(cfg):
 
 
 def test_query_opponent_evidence_cannot_reach_request_move():
-    """Structural decoupling — request_move's controller.act takes only obs."""
+    """Structural decoupling — controller.act takes only obs + own tick (no opponent/global)."""
     params = set(inspect.signature(AgentController.act).parameters)
-    assert params == {"self", "session_id", "image", "scalars", "legal_mask"}
+    assert params == {"self", "session_id", "tick", "image", "scalars", "legal_mask"}
+    assert not ({"evidence", "opponent", "global_state"} & params)
 
 
 def test_load_players_returns_placeholder_group_and_students():

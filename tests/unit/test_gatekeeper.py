@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from src.api.gatekeeper import ApiGatekeeper
+from src.api.gatekeeper import DEFERRED, ApiGatekeeper
 
 
 def test_burst_admits_immediately_then_overflow_enqueues():
@@ -23,7 +23,8 @@ def test_burst_admits_immediately_then_overflow_enqueues():
         gk.execute("peer_mcp", lambda i=i: ran.append(i))
     assert len(ran) == 10
     assert gk.get_queue_status()["peer_mcp"] == 0
-    gk.execute("peer_mcp", lambda: ran.append(99))
+    deferred = gk.execute("peer_mcp", lambda: ran.append(99))
+    assert deferred is DEFERRED  # explicit deferral marker, not a silent None result
     assert gk.get_queue_status()["peer_mcp"] == 1
     assert 99 not in ran
 

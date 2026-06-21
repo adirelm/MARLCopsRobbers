@@ -39,23 +39,45 @@ def test_act_requires_a_started_session(cfg):
     """act on an unknown session raises (new_sub_game must precede request_move)."""
     image, scalars, legal = _obs(cfg)
     with pytest.raises(KeyError, match="session"):
-        _controller(cfg).act("nope", image, scalars, legal)
+        _controller(cfg).act("nope", 0, image, scalars, legal)
 
 
 def test_act_returns_a_legal_action_int(cfg):
     """A started session returns a plain legal action int (no internals leaked)."""
     ctrl = _controller(cfg)
     ctrl.new_session("s1")
-    action = ctrl.act("s1", *_obs(cfg))
+    action = ctrl.act("s1", 0, *_obs(cfg))
     assert isinstance(action, int)
     assert 0 <= action < cfg["env"]["actions"]["a_cop"]
+
+
+def test_act_is_idempotent_on_retried_tick(cfg):
+    """A retried (session, tick) returns the cached action and does NOT re-advance z_t."""
+    ctrl = _controller(cfg)
+    ctrl.new_session("s1")
+    image, scalars, legal = _obs(cfg)
+    first = ctrl.act("s1", 0, image, scalars, legal)
+    hidden_after_first = ctrl._sessions["s1"]["policy"]._hidden.clone()
+    retried = ctrl.act("s1", 0, image, scalars, legal)  # same tick -> cached, no re-advance
+    assert retried == first
+    assert torch.equal(ctrl._sessions["s1"]["policy"]._hidden, hidden_after_first)
+
+
+def test_act_rejects_a_regressing_tick(cfg):
+    """A tick below the last advanced tick is rejected (idempotency contract)."""
+    ctrl = _controller(cfg)
+    ctrl.new_session("s1")
+    image, scalars, legal = _obs(cfg)
+    ctrl.act("s1", 5, image, scalars, legal)
+    with pytest.raises(ValueError, match="regress"):
+        ctrl.act("s1", 3, image, scalars, legal)
 
 
 def test_new_session_resets_hidden_stream(cfg):
     """new_session replaces the session's policy -> a fresh z_0 (new_sub_game reset)."""
     ctrl = _controller(cfg)
     ctrl.new_session("s1")
-    ctrl.act("s1", *_obs(cfg))  # advance z_t
+    ctrl.act("s1", 0, *_obs(cfg))  # advance z_t
     before = ctrl._sessions["s1"]
     ctrl.new_session("s1")
     assert ctrl._sessions["s1"] is not before

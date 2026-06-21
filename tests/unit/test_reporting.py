@@ -68,3 +68,19 @@ def test_validate_rejects_extra_top_level_key():
     body["leak"] = 1
     with pytest.raises(ValueError, match="unexpected"):
         validate(body)
+
+
+def test_validate_rejects_inconsistent_num_games():
+    """A schema-valid body whose num_games lies about sub_games is rejected (semantic)."""
+    body = build_report("adrl-001", _STUDENTS, _RESULTS).to_dict()
+    body["num_games"] = 999
+    with pytest.raises(ValueError, match="num_games"):
+        validate(body)
+
+
+def test_validate_rejects_totals_not_equal_to_sum():
+    """A body whose totals disagree with Σ sub-game scores is rejected (totals are derived)."""
+    body = build_report("adrl-001", _STUDENTS, _RESULTS).to_dict()
+    body["totals"]["cop"] = 0
+    with pytest.raises(ValueError, match="totals"):
+        validate(body)

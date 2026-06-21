@@ -96,5 +96,21 @@ def build_report(group: str, students: list[Student], results: list[dict]) -> Ma
 
 
 def validate(report: dict) -> None:
-    """Validate an assembled report dict against ``docs/schema/report.schema.json``."""
+    """Validate a report dict against the schema AND the §3.5 semantic invariants.
+
+    The JSON schema alone permits a semantically-inconsistent body (e.g.
+    ``num_games`` or ``totals`` that disagree with ``sub_games``). After the schema
+    check, assert ``num_games == len(sub_games)`` and each ``totals[role]`` equals
+    the sum of the per-sub-game scores (the §3.5 totals are DERIVED, never trusted).
+
+    Raises:
+        ValueError: On a schema violation OR a num_games / totals inconsistency.
+    """
     _schema_validate(report, json.loads(_SCHEMA_PATH.read_text(encoding="utf-8")))
+    sub_games = report["sub_games"]
+    if report["num_games"] != len(sub_games):
+        raise ValueError(f"num_games {report['num_games']} != len(sub_games) {len(sub_games)}")
+    for role in ("cop", "thief"):
+        expected = sum(int(g["scores"][role]) for g in sub_games)
+        if report["totals"][role] != expected:
+            raise ValueError(f"totals[{role!r}] {report['totals'][role]} != Σ sub-game scores {expected}")

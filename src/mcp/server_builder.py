@@ -25,6 +25,7 @@ from src.mcp.schemas import (
     RevealRequest,
     RevealResponse,
 )
+from src.reporting.schema import validate as validate_report
 
 
 def _require(condition: object, message: str) -> None:
@@ -84,14 +85,22 @@ def build_server(
 
     @mcp.tool
     def request_move(req: MoveRequest) -> dict:
-        """In: MoveRequest (LOCAL obs only). Out: MoveResponse. Setup: new_sub_game first."""
+        """In: MoveRequest (LOCAL obs only). Out: MoveResponse. Setup: new_sub_game first.
+
+        Idempotent on ``(session_id, tick)`` — a retried tick returns the cached
+        action without re-advancing the GRU state.
+        """
         _require(req.session_id, "session_id must be non-empty")
-        action = controller.act(req.session_id, req.image, req.scalars, req.legal_mask)
+        action = controller.act(req.session_id, req.tick, req.image, req.scalars, req.legal_mask)
         return MoveResponse(action=action).model_dump()
 
     @mcp.tool
     def reveal_location(req: RevealRequest) -> dict:
-        """In: RevealRequest. Out: RevealResponse (radius-gated). Setup: new_sub_game w/ position."""
+        """In: RevealRequest. Out: RevealResponse (radius-gated). Setup: new_sub_game w/ position.
+
+        Reveals the position the referee PROVISIONED at new_sub_game (the only
+        absolute cell a decentralized server legitimately holds) — radius-gated.
+        """
         _require(req.session_id, "session_id must be non-empty")
         own = positions.get(req.session_id)
         visible = own is not None and _manhattan(own, req.requester_pos) <= view_radius
@@ -99,19 +108,30 @@ def build_server(
 
     @mcp.tool
     def query_opponent(req: QueryOpponentRequest) -> dict:
-        """In: QueryOpponentRequest. Out: QueryOpponentResponse (evidence-only). Setup: peer reachable."""
+        """In: QueryOpponentRequest. Out: QueryOpponentResponse (evidence-only). Setup: peer reachable.
+
+        Passes THIS server's own provisioned cell to the peer so the peer can
+        radius-gate its reveal; the evidence never re-enters request_move.
+        """
         _require(req.session_id, "session_id must be non-empty")
-        evidence = (
-            peer_query(req.requester_role, req.tick) if peer_query else {"visible": False, "position": None}
-        )
-        return QueryOpponentResponse(**evidence).model_dump()
+        own = positions.get(req.session_id)
+        if peer_query is None or own is None:
+            return QueryOpponentResponse(visible=False, position=None).model_dump()
+        return QueryOpponentResponse(**peer_query(req.session_id, req.requester_role, own)).model_dump()
 
     if role == "cop":  # the Cop (and ONLY the Cop) holds the report tool
 
         @mcp.tool
         def send_final_report(report: dict) -> dict:
-            """In: §3.5 report body. Out: ReportAck. Setup: cop-only, after the 6th sub-game (dry-run)."""
+            """In: §3.5 report body. Out: ReportAck. Setup: cop-only, after the 6th sub-game (dry-run).
+
+            Validates the report (schema + derived-totals) at the boundary before ack.
+            """
             _require(report, "report must be non-empty")
+            try:
+                validate_report(report)
+            except ValueError as exc:
+                raise TypeError(f"invalid report body: {exc}") from exc
             return ReportAck(sent=False, dry_run=True).model_dump()
 
     return mcp

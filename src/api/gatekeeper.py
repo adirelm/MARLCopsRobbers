@@ -21,6 +21,12 @@ from pathlib import Path
 _DEFAULT_PATH = Path(__file__).resolve().parents[2] / "config" / "rate_limits.json"
 _log = logging.getLogger("marl.api.gatekeeper")
 
+# Returned (instead of a silent None) when a call is deferred to the FIFO overflow
+# queue: the caller MUST treat it as "not yet run" (the call executes on a later
+# drain). Egress through the gatekeeper is fire-and-forget; a caller needing the
+# response synchronously should check get_queue_status() first or run within burst.
+DEFERRED = object()
+
 
 class _TokenBucket:
     """A refilling token bucket: ``per_minute`` tokens/min, capacity ``burst``."""
@@ -65,7 +71,9 @@ class ApiGatekeeper:
             call: A zero-arg thunk performing the outbound side effect.
 
         Returns:
-            The call's result when run immediately, or ``None`` when deferred.
+            The call's result when run immediately, or the :data:`DEFERRED` sentinel
+            when the call is enqueued for a later drain (NOT a result — the caller
+            must check for ``is DEFERRED``).
 
         Raises:
             KeyError: On an unknown channel.
@@ -81,7 +89,7 @@ class ApiGatekeeper:
             raise RuntimeError(f"egress channel {channel!r} queue full (max_queue={self._max_queue})")
         self._queues[channel].append(call)
         _log.info("egress channel=%s status=queued depth=%d", channel, len(self._queues[channel]))
-        return None
+        return DEFERRED
 
     def _drain(self, channel: str) -> None:
         """Flush queued calls FIFO while tokens are available."""
