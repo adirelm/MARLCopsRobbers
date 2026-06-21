@@ -149,7 +149,11 @@ reconverging from its instability dip at the 50-round budget (it leads at the ea
 *F6 — capture rate vs grid size: capture falls as the board grows + view radius tightens (partial observability bites).*
 
 ![F2 loss curves](results/figures/loss_curves.png)
-*F2 — TD-loss per round (mean±SE) at 4×4. §9 sensitivity (`sensitivity_view_radius.png`) sweeps the 5×5 view radius.*
+*F2 — TD-loss per round (mean±SE) at 4×4. §9 sensitivity (`sensitivity_view_radius.png`) sweeps the 4×4 view radius.*
+
+![F4 MCP comms](results/figures/mcp_comms_local.png)
+*F4 — localhost cop↔thief MCP comms (redacted): the SAME `trace` (session_id) on BOTH servers'
+`request_move` calls per sub-game. F3 GUI screenshots are in `results/screenshots/grid_*.png`.*
 
 F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); **F3** GUI
 screenshots (`results/screenshots/grid_*.png`) and **F4** MCP-comms proof are deterministically

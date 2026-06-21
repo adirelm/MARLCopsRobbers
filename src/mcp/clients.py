@@ -26,10 +26,11 @@ def make_client(url: str, token: str) -> Client:
 class AgentClient:
     """Async typed wrapper over a FastMCP ``Client`` for one agent server."""
 
-    def __init__(self, client: Client, max_retries: int = 3) -> None:
-        """Wrap a (HTTP or in-memory) client with a bounded retry budget."""
+    def __init__(self, client: Client, max_retries: int = 3, label: str = "peer") -> None:
+        """Wrap a (HTTP or in-memory) client with a bounded retry budget + a log label."""
         self._client = client
         self._max_retries = max(1, int(max_retries))
+        self._label = label
 
     async def __aenter__(self) -> AgentClient:
         """Open the underlying client connection (reused across the sub-game)."""
@@ -41,17 +42,34 @@ class AgentClient:
         await self._client.__aexit__(*exc)
 
     async def _call(self, tool: str, args: dict) -> object:
-        """Call ``tool`` with bounded retries + structured logging; return result data."""
+        """Call ``tool`` with bounded retries + structured logging; return result data.
+
+        The log line carries the client ``label`` (which server) + the ``trace`` (the
+        session_id): a sub-game's cop AND thief calls share one trace — the §7.3d F4 proof.
+        """
+        req = args.get("req")
+        trace = req.get("session_id", "-") if isinstance(req, dict) else "-"
         last: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
                 data = (await self._client.call_tool(tool, args)).data
-                _log.info("mcp_call tool=%s attempt=%d status=ok", tool, attempt)
+                _log.info(
+                    "mcp_call client=%s tool=%s trace=%s attempt=%d status=ok",
+                    self._label,
+                    tool,
+                    trace,
+                    attempt,
+                )
                 return data
             except Exception as exc:  # retried up to max_retries, then re-raised on exhaustion
                 last = exc
                 _log.warning(
-                    "mcp_call tool=%s attempt=%d status=err err=%s", tool, attempt, type(exc).__name__
+                    "mcp_call client=%s tool=%s trace=%s attempt=%d status=err err=%s",
+                    self._label,
+                    tool,
+                    trace,
+                    attempt,
+                    type(exc).__name__,
                 )
         raise last  # type: ignore[misc]
 
