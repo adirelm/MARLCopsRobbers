@@ -11,7 +11,7 @@ import inspect
 
 import pytest
 
-from src.gui import palette
+from src.gui import palette, render
 from src.gui.input_map import bindings, command_for
 from src.gui.spectator import SpectatorFrame
 from src.gui.state_client import HttpStateClient, InProcStateClient, ReplayStateClient
@@ -48,6 +48,14 @@ def test_palette_is_valid_rgb_and_imports_no_config():
     source = inspect.getsource(palette)
     assert "load_config" not in source
     assert "config_loader" not in source
+
+
+def test_render_module_imports_cleanly_without_pygame():
+    """src/gui/render.py imports without pygame (guarded) and exposes its executor API."""
+    assert render.pygame is None  # pygame absent on this host; module still imports
+    assert hasattr(render, "execute_plan")
+    assert hasattr(render, "render_frame")
+    assert hasattr(render, "run_app")
 
 
 def test_input_map_bindings():
