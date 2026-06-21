@@ -8,6 +8,7 @@ interrupted by a Drive .git hiccup just resumes. Run: ``uv run python scripts/ru
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from src.results.run_log import done_runs, run_and_log
@@ -30,9 +31,11 @@ def main(
     out = Path(cfg["paths"]["runs_dir"]) / "history.jsonl"
     done = done_runs(out)
     sdk = MarlSDK(cfg)
-    for algorithm in algorithms:
-        for seed in seeds:
-            for stage in stages:
+    # STAGE-OUTER: a stage completes across all algorithms before the next (slower) stage,
+    # so the F5 3-way comparison + F6 scaling are plottable from partial runs (5x5 trickles last).
+    for stage in stages:
+        for algorithm in algorithms:
+            for seed in seeds:
                 if (algorithm, seed, stage) in done:
                     print(f"[skip] {algorithm} seed={seed} stage={stage} (already logged)")
                     continue
@@ -43,4 +46,5 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    selected = [int(s) for s in sys.argv[1:]] or None  # CLI: `run_results.py 0 1 2`
+    main(stages=selected)

@@ -7,7 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from src.results.make_figures import main
+from src.results.make_figures import _focus_stage, main
+
+
+def test_focus_stage_prefers_most_covered_then_largest():
+    records = [{"algorithm": a, "stage": 2, "seed": 7} for a in ("qmix", "vdn", "iql")]
+    records += [{"algorithm": "qmix", "stage": 3, "seed": 7}]  # only qmix reached the slow stage
+    assert _focus_stage(records) == 2  # stage 2 (3 arms) beats stage 3 (1 arm)
 
 
 def _write_runs(path: Path) -> None:

@@ -75,23 +75,76 @@ IGM/monotonicity → QPLEX/Weighted-QMIX). Figures F1–F6 + GUI + MCP-comms scr
 > Equation/citation numbering follows **ex06/BRIEF as primary** (R13): ex06 "eq 2" ≡ L10 "eq 4";
 > BRIEF `[2]` (VDN) ≡ L10 `[7]`. Full formalism in [`docs/THEORY.md`](docs/THEORY.md).
 
-### 7.1 Formalism — Dec-POMDP `M` + POSG caveat *(pending)*
+### 7.1 Formalism — Dec-POMDP `M` + POSG caveat
 
 The cooperative cop team is a **Dec-POMDP** `M = ⟨N, S, {A_i}, T, R, {Ω_i}, O, γ⟩` (eq 1, cite
 `[1]`), with **N = the cooperative COP TEAM** (the Thief is folded into `T`; value decomposition
 never crosses the cop/thief boundary). The faithful full game is a general-sum **POSG**
-`G = ⟨I, S, {A_i}, {O_i}, P, Ω, {R_i}, γ⟩` (eq 3, NEXP^NP) with `R_cop ≠ R_thief`. Each tuple
-symbol is mapped 1:1 to code (`GlobalState`, `Observation`, `actions.py`, `reward.py`, config).
-See [`docs/THEORY.md`](docs/THEORY.md).
+`G = ⟨I, S, {A_i}, {O_i}, P, Ω, {R_i}, γ⟩` (eq 3, NEXP^NP) with `R_cop ≠ R_thief`. We deliberately
+**collapse the adversary into `T`** via alternating best-response self-play — a Dec-POMDP *proxy*
+for the POSG; this is a named limitation (the frozen-opponent window only approximates a stationary
+environment). Each tuple symbol maps 1:1 to code (`GlobalState`, `Observation`, `actions.py`,
+`reward.py`, config).
 
-### 7.2 Analysis — non-stationarity, IQL-vs-CTDE, IGM/monotonicity *(pending)*
+**Chosen value function.** We learn a joint action-value `Q_tot` decomposed under **IGM** (eq 5):
+`argmax_a Q_tot(s,a) = (argmax_{a_i} Q_i(o_i,a_i))_i`. **VDN** (eq 6) is the additive special case
+`Q_tot = Σ_i Q_i`; **QMIX** (eq 7) generalizes it with a state-conditioned monotonic mixer,
+`∂Q_tot/∂Q_i ≥ 0 ∀i`. **Assumptions-in-code:** training reads the global state `s` in the mixer
+hypernetwork (`src/marl/mixers/`), while MCP execution reads ONLY the local `o_i` (`request_move`
+rejects any `global_state` at the protocol edge) — CTDE made literal. With N=1 cop the QMIX
+decomposition is **trivial/lossy** (a single-agent value); the genuine multi-agent credit
+assignment is exercised on the **4×4 two-cop** stage. Equation map: ex06 `eq2 ≡ L10 eq4`; see
+[`docs/THEORY.md`](docs/THEORY.md) for eqs 3,5,6,7,8,10,11.
 
-(a) Why independent learners (IQL, eq 2/4) face a drifting target vs centralized CTDE; (b) the
-IQL/VDN/QMIX credit-assignment ordering on the 4×4 2-cop scenario; (c) IGM + monotonicity limits
-(eq 5, eq 7) → QPLEX `[10]` / Weighted-QMIX `[9]`; (d) OLoRA `[7]` as a stability aid, not the
-non-stationarity cure; curriculum `[5]`. Evidenced by F5.
+### 7.2 Analysis — non-stationarity, IQL-vs-CTDE, IGM/monotonicity
 
-### 7.3 Results — the controlled experiment + figure manifest *(pending)*
+**(1) Non-stationarity and the CTDE fix.** An independent learner bootstraps off a *moving*
+target because its effective transition marginalizes over the peers' changing policies:
+`P_i(s'|s,a_i) = Σ_{a_-i} π_-i(a_-i|s) · T(s'|s,a_i,a_-i)`. IQL therefore regresses each agent
+toward `y_i = r_i + γ(1−d) max_{a'_i} Q_i(o'_i,a'_i)` against this drifting `P_i`, whereas CTDE
+regresses the *team* toward the centralized `y_tot = r_team + γ(1−d) max_{ā'} Q_tot(s',ā')` —
+the joint max over the centrally-mixed value removes the marginalization. CTDE thus improves
+**stability, not optimality** (the representable value class is what changes).
+
+**(2) IQL vs CTDE — empirical.** Arms share identical nets / replay / ε-decay / γ / target cadence;
+only the mixer (or the IQL branch) differs. **F5** shows VDN/QMIX converging above IQL on the
+held-out seeds, with IQL's higher variance reflecting the drift above.
+
+**(3) IGM monotonicity is lossy.** Both VDN's additivity and QMIX's `∂Q_tot/∂Q_i ≥ 0` enforce IGM
+but **cannot represent non-monotonic joint values** — e.g. a *pincer* where catching the thief
+needs both cops to move toward it simultaneously, so each cop's marginal value is negative unless
+the other also commits. **QPLEX** `[10]` (duplex dueling) and **Weighted-QMIX** `[9]` (weighted
+projection) relax this; we reproduce the L10 Table 3 ordering qualitatively.
+
+**(4) Pursuit-evasion & curriculum.** The 2×2→5×5 ladder follows curriculum pursuit-evasion `[5]`;
+policy-gradient CTDE alternatives (MAPPO `[8]`, MADDPG/COMA) trade our value-decomposition for a
+centralized critic. **OLoRA honest limitation:** OLoRA `[7]`§III is a *stability/efficiency* aid
+for curriculum transfer (orthonormal low-rank deltas on a frozen encoder), **not** a cure for
+non-stationarity (citing `[4]`,`[8]`). Rejected readings: random-matrix-QR init, an LLM bolt-on,
+and `r ≥ dim` (defeats the low-rank point) — all out of scope.
+
+### 7.3 Results — the controlled experiment + figures
+
+**Single controlled experiment** (D10 §C): arms **IQL / VDN / QMIX** × seeds **`[7, 17, 37, 71,
+107]`** × ladder **`[2, 3, 4, 5]`**, identical everything except the mixer/branch. Per-round records
+append to `results/runs/history.jsonl`; `results/figures/experiment_manifest.json` pins arms / seeds
+/ stages + a config hash (zero README↔code drift, R8).
+
+![F1 learning curves](results/figures/learning_curves.png)
+*F1 — capture rate vs self-play round (cross-seed mean±SE) at 5×5; train reads global `s`, execution local `o_i`.*
+
+![F5 baseline comparison](results/figures/baseline_comparison.png)
+*F5 — final capture rate IQL vs VDN vs QMIX (SE whiskers): CTDE above the IQL baseline.*
+
+![F6 scaling](results/figures/scaling.png)
+*F6 — capture rate vs grid size: the partial-observability effect bites as the board grows.*
+
+![F2 loss curves](results/figures/loss_curves.png)
+*F2 — TD-loss per round (mean±SE). §9 sensitivity (`sensitivity_view_radius.png`) sweeps the 5×5 view radius.*
+
+F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); **F3** GUI
+screenshots (`results/screenshots/grid_*.png`) and **F4** MCP-comms proof are deterministically
+captured. The figure manifest:
 
 **Single controlled experiment** (D10 §C): arms **IQL / VDN / QMIX** × seeds **`[7, 17, 37, 71,
 107]`** (`training.seeds`) × ladder **`[2, 3, 4, 5]`** (`env.curriculum.stages`), with **identical**

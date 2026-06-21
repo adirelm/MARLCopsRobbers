@@ -12,11 +12,25 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import defaultdict
 from pathlib import Path
 
 from src.results.aggregate import load_runs
 from src.results.plots import plot_comparison, plot_curve_figure, plot_scaling
 from src.utils.config_loader import load_config
+
+
+def _focus_stage(records: list[dict]) -> int:
+    """The LARGEST stage with the most algorithm coverage (robust to a partial run).
+
+    A partial run may have one slow stage reached by only some algorithms; the F5
+    comparison needs a stage where the most arms are present, preferring the largest.
+    """
+    algos_by_stage: dict[int, set] = defaultdict(set)
+    for rec in records:
+        algos_by_stage[rec["stage"]].add(rec["algorithm"])
+    most = max(len(algos) for algos in algos_by_stage.values())
+    return max(stage for stage, algos in algos_by_stage.items() if len(algos) == most)
 
 
 def _manifest(cfg: dict, records: list[dict]) -> dict:
@@ -38,7 +52,7 @@ def main(cfg: dict | None = None) -> list[str]:
     records = load_runs(Path(cfg["paths"]["runs_dir"]) / "history.jsonl")
     if not records:
         raise SystemExit("no runs in results/runs/history.jsonl — run scripts/run_results.py first")
-    stage = max(r["stage"] for r in records)  # the discriminating (largest) comparison stage
+    stage = _focus_stage(records)  # the largest stage with the most algorithm coverage
     saved = [
         str(
             plot_curve_figure(
