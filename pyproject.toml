@@ -87,6 +87,10 @@ convention = "google"
 [tool.coverage.run]
 branch = true
 source = ["src"]
+# The cloud deploy entrypoints build a module-level `mcp` at import — they load a real
+# OLoRA `.pt` from MODEL_PATH on the FastMCP/Prefect worker and cannot run in CI. The
+# tested factory is src/mcp/cloud.py:build_cloud_server (covered); these are thin wiring.
+omit = ["src/mcp/cloud_cop.py", "src/mcp/cloud_thief.py"]
 
 [tool.coverage.report]
 fail_under = 85

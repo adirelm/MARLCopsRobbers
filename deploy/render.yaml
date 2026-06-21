@@ -1,0 +1,48 @@
+# Render blueprint (fallback to Prefect Horizon) for the two MARL MCP servers (T8.5).
+#
+# Each service serves the SAME canonical tool contract as localhost over RS256 JWT auth
+# (MCP_AUTH_MODE=jwt). Secrets (MCP_PUBLIC_KEY, MODEL_PATH, REVOKED_TOKEN_JTIS, the peer
+# token) are set in the Render dashboard / a secret group with `sync: false` — NEVER
+# inlined here (V3 §7.4). uv is bootstrapped via its official installer (no pip; §8.4).
+services:
+  - type: web
+    name: adrl-001-cop
+    runtime: python
+    plan: free
+    buildCommand: "curl -LsSf https://astral.sh/uv/install.sh | sh && uv sync --group mcp --group cloud"
+    startCommand: "uv run fastmcp run src/mcp/cloud_cop.py:mcp --transport http --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /mcp
+    envVars:
+      - key: MCP_AUTH_MODE
+        value: jwt
+      - key: MCP_PUBLIC_KEY
+        sync: false
+      - key: MODEL_PATH
+        sync: false
+      - key: REVOKED_TOKEN_JTIS
+        sync: false
+      - key: PEER_MCP_URL
+        sync: false
+      - key: PEER_MCP_TOKEN
+        sync: false
+
+  - type: web
+    name: adrl-001-thief
+    runtime: python
+    plan: free
+    buildCommand: "curl -LsSf https://astral.sh/uv/install.sh | sh && uv sync --group mcp --group cloud"
+    startCommand: "uv run fastmcp run src/mcp/cloud_thief.py:mcp --transport http --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /mcp
+    envVars:
+      - key: MCP_AUTH_MODE
+        value: jwt
+      - key: MCP_PUBLIC_KEY
+        sync: false
+      - key: MODEL_PATH
+        sync: false
+      - key: REVOKED_TOKEN_JTIS
+        sync: false
+      - key: PEER_MCP_URL
+        sync: false
+      - key: PEER_MCP_TOKEN
+        sync: false

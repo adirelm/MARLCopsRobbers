@@ -14,20 +14,28 @@ import os
 from fastmcp.server.auth import StaticTokenVerifier
 
 
-def build_verifier(cfg: dict, role: str, token: str | None = None) -> StaticTokenVerifier:
-    """Return the Stage-1 static-token verifier for ``role`` (localhost bearer auth).
+def build_verifier(cfg: dict, role: str, token: str | None = None) -> object:
+    """Return the bearer verifier for ``role`` — the SINGLE seam both servers share.
+
+    Stage-1 (localhost, default) is a :class:`StaticTokenVerifier`. Stage-2 (cloud,
+    ``MCP_AUTH_MODE=jwt``) transparently swaps in the RS256 :class:`RevocableJWTVerifier`
+    WITHOUT touching the servers — they only ever call this seam (ADR-D5-01).
 
     Args:
         cfg: Loaded config (reads ``mcp.auth`` scopes + per-role audience).
         role: ``"cop"`` or ``"thief"`` (selects the audience + ``{ROLE}_MCP_TOKEN``).
-        token: Explicit bearer token (tests/dev); defaults to the env var.
+        token: Explicit bearer token (tests/dev); defaults to the env var (Stage-1 only).
 
     Returns:
-        A :class:`StaticTokenVerifier` mapping the role token to its claims.
+        A FastMCP token verifier (static for localhost, JWT for the cloud).
 
     Raises:
-        ValueError: If no token is supplied and ``{ROLE}_MCP_TOKEN`` is unset.
+        ValueError: If no token is supplied and ``{ROLE}_MCP_TOKEN`` is unset (Stage-1).
     """
+    if os.environ.get("MCP_AUTH_MODE") == "jwt":
+        from src.mcp.jwt_auth import build_jwt_verifier  # noqa: PLC0415 — cloud-only path
+
+        return build_jwt_verifier(cfg, role)
     auth = cfg["mcp"]["auth"]
     token = token or os.environ.get(f"{role.upper()}_MCP_TOKEN")
     if not token:
