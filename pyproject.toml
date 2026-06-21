@@ -56,6 +56,11 @@ mail = [
     "google-auth>=2.34",
     "google-auth-oauthlib>=1.2",
 ]
+# §9 analysis notebook — execute headless via `uv run jupyter nbconvert --execute` (T10.7).
+notebook = [
+    "nbconvert>=7.0",
+    "ipykernel>=6.0",
+]
 
 [tool.pytest.ini_options]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=85"
