@@ -19,6 +19,9 @@ from src.mcp.schemas import (
     MoveRequest,
     MoveResponse,
     NewSubGameRequest,
+    QueryOpponentRequest,
+    QueryOpponentResponse,
+    ReportAck,
     RevealRequest,
     RevealResponse,
 )
@@ -35,7 +38,13 @@ def _manhattan(a: tuple[int, int], b: tuple[int, int]) -> int:
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
-def build_server(cfg: dict, role: str, controller: AgentController, verifier: object) -> FastMCP:
+def build_server(
+    cfg: dict,
+    role: str,
+    controller: AgentController,
+    verifier: object,
+    peer_query: object = None,
+) -> FastMCP:
     """Build a role's FastMCP server with the canonical tools (auth-gated).
 
     Args:
@@ -43,6 +52,9 @@ def build_server(cfg: dict, role: str, controller: AgentController, verifier: ob
         role: ``"cop"`` / ``"thief"`` (the server name).
         controller: The role's per-session :class:`AgentController`.
         verifier: The FastMCP auth verifier (Stage-1 static / Stage-2 JWT).
+        peer_query: Optional ``(requester_role, tick) -> {"visible", "position"}``
+            seam backing ``query_opponent`` (the orchestrator wires it to the peer's
+            radius-gated reveal); ``None`` yields no evidence.
 
     Returns:
         A configured :class:`FastMCP` server (call ``.run`` or test in-memory).
@@ -84,5 +96,22 @@ def build_server(cfg: dict, role: str, controller: AgentController, verifier: ob
         own = positions.get(req.session_id)
         visible = own is not None and _manhattan(own, req.requester_pos) <= view_radius
         return RevealResponse(visible=visible, position=own if visible else None).model_dump()
+
+    @mcp.tool
+    def query_opponent(req: QueryOpponentRequest) -> dict:
+        """In: QueryOpponentRequest. Out: QueryOpponentResponse (evidence-only). Setup: peer reachable."""
+        _require(req.session_id, "session_id must be non-empty")
+        evidence = (
+            peer_query(req.requester_role, req.tick) if peer_query else {"visible": False, "position": None}
+        )
+        return QueryOpponentResponse(**evidence).model_dump()
+
+    if role == "cop":  # the Cop (and ONLY the Cop) holds the report tool
+
+        @mcp.tool
+        def send_final_report(report: dict) -> dict:
+            """In: §3.5 report body. Out: ReportAck. Setup: cop-only, after the 6th sub-game (dry-run)."""
+            _require(report, "report must be non-empty")
+            return ReportAck(sent=False, dry_run=True).model_dump()
 
     return mcp

@@ -17,16 +17,19 @@ from src.mcp.server_builder import build_server
 from src.sdk.sdk import MarlSDK
 
 
-def make_thief_server(cfg: dict, net: object, token: str | None = None) -> FastMCP:
+def make_thief_server(cfg: dict, net: object, token: str | None = None, peer_query: object = None) -> FastMCP:
     """Build the thief FastMCP server over a trained thief net + its bearer verifier.
 
     Args:
         cfg: Loaded config.
         net: The trained thief agent net (``n_agents=1``).
         token: Stage-1 bearer token (defaults to ``THIEF_MCP_TOKEN`` in the env).
+        peer_query: Optional ``query_opponent`` seam to the cop's reveal.
 
     Returns:
         The thief :class:`FastMCP` server (run on ``mcp.thief_port`` or test in-memory).
     """
     controller = AgentController(MarlSDK(cfg), "thief", net, n_agents=1)
-    return build_server(cfg, "thief", controller, build_verifier(cfg, "thief", token=token))
+    return build_server(
+        cfg, "thief", controller, build_verifier(cfg, "thief", token=token), peer_query=peer_query
+    )

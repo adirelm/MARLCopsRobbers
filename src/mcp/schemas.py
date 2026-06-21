@@ -72,3 +72,33 @@ class HealthResponse(BaseModel):
     model_config = _STRICT
     status: str
     protocol_version: str
+
+
+class QueryOpponentRequest(BaseModel):
+    """The OUTBOUND ask one server makes to the peer for the opponent's location.
+
+    Distinct from ``reveal_location`` (the radius-gated inbound responder): this is
+    the asker's request. The result is AUDIT/EVIDENCE only and is NEVER fed back
+    into ``request_move`` (partial observability preserved).
+    """
+
+    model_config = _STRICT
+    session_id: str
+    requester_role: str
+    tick: int
+
+
+class QueryOpponentResponse(BaseModel):
+    """Evidence-only opponent reveal — NO Q-values / weights / hidden ``z_t``."""
+
+    model_config = _STRICT
+    visible: bool
+    position: tuple[int, int] | None = None
+
+
+class ReportAck(BaseModel):
+    """Acknowledgement of a cop-only ``send_final_report`` (dry-run at P6)."""
+
+    model_config = _STRICT
+    sent: bool
+    dry_run: bool
