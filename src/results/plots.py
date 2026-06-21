@@ -94,3 +94,20 @@ def plot_scaling(records: list[dict], metric: str, out_path: str | Path) -> Path
     ax.set_title("Scale effect — capture rate vs grid size")
     ax.legend()
     return _save(fig, out_path)
+
+
+def plot_sensitivity(stats: dict, xlabel: str, title: str, out_path: str | Path) -> Path:
+    """§9 sensitivity: capture rate vs a swept parameter value (mean±SE), one line."""
+    values = sorted(stats)
+    fig, ax = plt.subplots(figsize=_FIGSIZE)
+    ax.errorbar(
+        values,
+        [stats[v][0] for v in values],
+        yerr=[stats[v][1] for v in values],
+        marker="o",
+        capsize=5,
+    )
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("final capture rate")
+    ax.set_title(title)
+    return _save(fig, out_path)
