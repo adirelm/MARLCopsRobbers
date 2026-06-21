@@ -50,20 +50,19 @@ def test_palette_is_valid_rgb_and_imports_no_config():
     assert "config_loader" not in source
 
 
-def test_render_module_imports_cleanly_without_pygame():
-    """src/gui/render.py imports without pygame (guarded) and exposes its executor API."""
-    assert render.pygame is None  # pygame absent on this host; module still imports
+def test_render_module_exposes_executor_api():
+    """src/gui/render.py (guarded import) exposes the executor + loop API."""
     assert hasattr(render, "execute_plan")
     assert hasattr(render, "render_frame")
     assert hasattr(render, "run_app")
 
 
 def test_input_map_bindings():
-    """Keys map to the documented spectator commands; unbound keys yield None."""
+    """Keys (pygame.key.name values) map to the spectator commands; unbound -> None."""
     assert command_for("space") == "toggle_pause"
-    assert command_for("esc") == "quit"
+    assert command_for("escape") == "quit"
     assert command_for("unbound") is None
-    assert set(bindings()) >= {"space", "+", "-", "n", "r", "v", "esc"}
+    assert set(bindings()) >= {"space", "escape", "n", "r", "v", "-"}
 
 
 def _frame(move: int) -> SpectatorFrame:

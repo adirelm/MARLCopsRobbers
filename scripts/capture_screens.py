@@ -23,7 +23,7 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
     from src.gui.render import render_frame  # noqa: PLC0415 - lazy with pygame
 
     cfg = cfg or load_config()
-    out_dir = Path(cfg["paths"]["screenshot_dir"])
+    out_dir = Path(cfg["gui"]["screenshot_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
     pygame.init()
     sdk = MarlSDK(cfg)

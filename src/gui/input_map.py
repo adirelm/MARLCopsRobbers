@@ -1,21 +1,23 @@
 """Input map — key-name -> spectator command (T7.5).
 
-PURE (no pygame): a stable key-name -> command table the app consults after it
-translates a pygame key event to a name (``space``/``+``/``-``/``n``/``r``/``v``/
-``esc``). Keeping the binding table pygame-free makes the control scheme testable
-headless and decouples the GUI's intent from the toolkit's key constants.
+PURE (no pygame): a stable key-name -> command table keyed by ``pygame.key.name``
+values (``space``/``escape``/``return``/``n``/``r``/``v``/``-``/``=``/``+``), so the
+app maps an event with ``command_for(pygame.key.name(event.key))`` and no toolkit
+constants leak into this module — keeping the control scheme testable headless.
 """
 
 from __future__ import annotations
 
 _BINDINGS = {
     "space": "toggle_pause",
-    "+": "speed_up",
+    "=": "speed_up",  # the '+' key unshifted
+    "+": "speed_up",  # numpad '+'
     "-": "slow_down",
     "n": "next_sub_game",
+    "return": "next_sub_game",
     "r": "reset",
     "v": "toggle_view_radius",
-    "esc": "quit",
+    "escape": "quit",
 }
 
 

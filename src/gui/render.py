@@ -1,16 +1,16 @@
-"""Thin pygame executor + spectator window loop (T7.4/T7.5) — REQUIRES pygame.
+"""Thin pygame executor + spectator window loop (T7.4/T7.5).
 
 Runs the PURE draw-plan ops (:mod:`src.gui.draw_plan`) against a pygame surface and
-hosts the window loop (input -> SDK frame -> render). pygame can't build on py3.14
-here, so this module is GUARDED — it IMPORTS cleanly without pygame (so the repo +
-the draw-plan tests stay green) and its pygame-calling bodies are ``# pragma: no
-cover`` (exercised on a pygame-capable machine). The render DECISIONS are tested in
-``test_draw_plan``; only the thin pygame execution lives here.
+hosts the window loop (input -> SDK frame -> render). Tested HEADLESS via pygame-ce
+under ``SDL_VIDEODRIVER=dummy`` (conftest); the import is GUARDED so the repo still
+imports where pygame is absent. The render DECISIONS are tested in ``test_draw_plan``;
+``execute_plan`` / ``render_frame`` / ``_handle_key`` are tested in ``test_gui_render``;
+only the interactive ``run_app`` while-loop is exercised manually (scripts/play.py).
 """
 
 from __future__ import annotations
 
-try:  # pygame is an optional extra (the `gui` group); absent on this build host.
+try:  # pygame-ce provides `pygame`; guarded so the repo imports where it's absent.
     import pygame
 except ImportError:  # pragma: no cover - pygame optional
     pygame = None
@@ -21,7 +21,7 @@ from src.gui.input_map import command_for
 from src.gui.transform import GridView
 
 
-def execute_plan(surface, font, plan) -> None:  # pragma: no cover - requires pygame
+def execute_plan(surface, font, plan) -> None:
     """Execute draw ops against a pygame surface (fill / rect / ellipse / text)."""
     for op in plan:
         kind = op["kind"]
@@ -37,7 +37,7 @@ def execute_plan(surface, font, plan) -> None:  # pragma: no cover - requires py
             surface.blit(font.render(op["text"], True, op["color"]), op["pos"])
 
 
-def render_frame(surface, font, frame, show_radius=False) -> None:  # pragma: no cover - requires pygame
+def render_frame(surface, font, frame, show_radius=False) -> None:
     """Render one SpectatorFrame (board + HUD) to ``surface``."""
     rows, cols = frame.grid
     view = GridView(surface.get_width(), surface.get_height(), cols, rows)
@@ -68,10 +68,9 @@ def run_app(client, width=720, height=560, fps=palette.FPS) -> None:  # pragma: 
     pygame.quit()
 
 
-def _handle_key(event, client, running, paused, show_radius, frame):  # noqa: PLR0913  # pragma: no cover
+def _handle_key(event, client, running, paused, show_radius, frame):  # noqa: PLR0913
     """Map a KEYDOWN to a spectator command; return the updated loop state."""
-    name = pygame.key.name(event.key)
-    command = command_for({"return": "n"}.get(name, name))
+    command = command_for(pygame.key.name(event.key))
     if command == "quit":
         running = False
     elif command == "toggle_pause":

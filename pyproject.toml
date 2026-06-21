@@ -1,3 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# `src` is the import root (imports are `src.marl`, `src.mcp`, ...), so install it as
+# the package — this makes `uv run python scripts/<name>.py` resolve `import src.*`
+# directly (not only via `-m`/cwd). Build artifacts stay out of the wheel.
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
 [project]
 name = "marlcopsrobbers"
 version = "1.0.0"
@@ -16,8 +26,11 @@ dependencies = [
 # headless training / CI / the core test suite do NOT require SDL. Install with
 # `uv sync --extra gui` (or `--all-extras`); CI installs it for the GUI tests.
 [project.optional-dependencies]
+# pygame-ce (Community Edition) is a drop-in fork — `import pygame` is unchanged —
+# but ships prebuilt universal2 wheels for Python 3.14 (stock pygame 2.6.1 has no
+# 3.14 wheel, so it tries to build from source and fails on missing SDL.h).
 gui = [
-    "pygame>=2.6.1",
+    "pygame-ce>=2.5.7",
 ]
 
 [dependency-groups]

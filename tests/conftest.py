@@ -6,6 +6,13 @@ factory that builds a `GlobalState` with sensible 5x5 defaults.
 
 from __future__ import annotations
 
+import os
+
+# Force headless SDL BEFORE any pygame import so the GUI render tests never open a
+# window (T7.2; A5 pattern). Harmless when pygame-ce is absent.
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+
 from collections.abc import Callable, Iterable
 
 import pytest
