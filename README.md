@@ -106,9 +106,16 @@ regresses the *team* toward the centralized `y_tot = r_team + γ(1−d) max_{ā'
 the joint max over the centrally-mixed value removes the marginalization. CTDE thus improves
 **stability, not optimality** (the representable value class is what changes).
 
-**(2) IQL vs CTDE — empirical.** Arms share identical nets / replay / ε-decay / γ / target cadence;
-only the mixer (or the IQL branch) differs. **F5** shows VDN/QMIX converging above IQL on the
-held-out seeds, with IQL's higher variance reflecting the drift above.
+**(2) IQL vs CTDE — empirical (the honest, nuanced result).** Arms share identical nets / replay /
+ε-decay / γ / target cadence; only the mixer (or the IQL branch) differs (5 seeds, mean±SE). At
+**3×3 QMIX leads** (0.93 vs IQL/VDN 0.88) — decomposition helps when it converges. But at the
+harder **4×4 two-cop** stage QMIX exhibits the **characteristic monotonic-mixer instability**: its
+learning curve (F1) dips to ~0.46 mid-training and is **still reconverging at the 50-round budget**
+(→ 0.72), so the simpler **VDN is the most consistent (0.82)** and IQL stays competitive (0.81).
+This is precisely the studied non-convergence phenomenon (risk R1) and it sharpens the thesis —
+CTDE stabilizes the *target*, but QMIX's richer hypernetwork value class needs **more episodes to
+stabilize** than additive VDN / independent IQL. We report this faithfully rather than cherry-pick a
+stage; **CTDE improves stability, not guaranteed sample-efficiency**.
 
 **(3) IGM monotonicity is lossy.** Both VDN's additivity and QMIX's `∂Q_tot/∂Q_i ≥ 0` enforce IGM
 but **cannot represent non-monotonic joint values** — e.g. a *pincer* where catching the thief
@@ -131,16 +138,18 @@ append to `results/runs/history.jsonl`; `results/figures/experiment_manifest.jso
 / stages + a config hash (zero README↔code drift, R8).
 
 ![F1 learning curves](results/figures/learning_curves.png)
-*F1 — capture rate vs self-play round (cross-seed mean±SE) at 5×5; train reads global `s`, execution local `o_i`.*
+*F1 — capture rate vs self-play round (cross-seed mean±SE) at the 4×4 two-cop focus stage; QMIX's
+mid-training dip + recovery is the monotonic-mixer instability (R1). Train reads global `s`, exec local `o_i`.*
 
 ![F5 baseline comparison](results/figures/baseline_comparison.png)
-*F5 — final capture rate IQL vs VDN vs QMIX (SE whiskers): CTDE above the IQL baseline.*
+*F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers): VDN most consistent; QMIX still
+reconverging from its instability dip at the 50-round budget (it leads at the easier 3×3 stage).*
 
 ![F6 scaling](results/figures/scaling.png)
-*F6 — capture rate vs grid size: the partial-observability effect bites as the board grows.*
+*F6 — capture rate vs grid size: capture falls as the board grows + view radius tightens (partial observability bites).*
 
 ![F2 loss curves](results/figures/loss_curves.png)
-*F2 — TD-loss per round (mean±SE). §9 sensitivity (`sensitivity_view_radius.png`) sweeps the 5×5 view radius.*
+*F2 — TD-loss per round (mean±SE) at 4×4. §9 sensitivity (`sensitivity_view_radius.png`) sweeps the 5×5 view radius.*
 
 F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); **F3** GUI
 screenshots (`results/screenshots/grid_*.png`) and **F4** MCP-comms proof are deterministically
