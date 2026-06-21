@@ -21,7 +21,7 @@ def _minimal(model) -> dict:
         return {**base, "tick": 0, "image": [[[0.0]]], "scalars": [0.0], "legal_mask": [True]}
     if model is NewSubGameRequest:
         return {**base, "grid": [2, 2]}
-    return {**base, "requester": "thief"}
+    return {**base, "requester": "thief", "requester_pos": [0, 0]}
 
 
 @pytest.mark.parametrize("model", _REQUESTS)

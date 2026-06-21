@@ -24,6 +24,7 @@ class NewSubGameRequest(BaseModel):
     session_id: str
     grid: tuple[int, int]
     num_cops: int = 1
+    position: tuple[int, int] | None = None  # the agent's OWN start cell (its own info)
 
 
 class MoveRequest(BaseModel):
@@ -45,11 +46,16 @@ class MoveResponse(BaseModel):
 
 
 class RevealRequest(BaseModel):
-    """A radius-gated location query from a peer (evidence-only)."""
+    """A radius-gated location query from a peer (evidence-only).
+
+    The requester provides its OWN cell so the server can decide visibility; the
+    reveal is mutual — you only learn a peer's position if you are within its view.
+    """
 
     model_config = _STRICT
     session_id: str
     requester: str
+    requester_pos: tuple[int, int]
 
 
 class RevealResponse(BaseModel):
