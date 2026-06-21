@@ -1,0 +1,6 @@
+{"param": "view_radius_4", "value": 1, "algorithm": "qmix", "seed": 7, "stage": 2, "grid": 4, "final_capture_rate": 0.89}
+{"param": "view_radius_4", "value": 1, "algorithm": "qmix", "seed": 17, "stage": 2, "grid": 4, "final_capture_rate": 0.62}
+{"param": "view_radius_4", "value": 1, "algorithm": "qmix", "seed": 37, "stage": 2, "grid": 4, "final_capture_rate": 0.78}
+{"param": "view_radius_4", "value": 2, "algorithm": "qmix", "seed": 7, "stage": 2, "grid": 4, "final_capture_rate": 1.0}
+{"param": "view_radius_4", "value": 2, "algorithm": "qmix", "seed": 17, "stage": 2, "grid": 4, "final_capture_rate": 0.02}
+{"param": "view_radius_4", "value": 2, "algorithm": "qmix", "seed": 37, "stage": 2, "grid": 4, "final_capture_rate": 0.74}

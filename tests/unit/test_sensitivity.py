@@ -16,13 +16,13 @@ def _diff_paths(left, right, prefix=()):
 
 def test_make_variant_changes_only_the_one_key(cfg):
     diffs = set(_diff_paths(make_variant(cfg, 1), make_variant(cfg, 2)))
-    assert diffs == {("env", "view_radius_by_grid", 5)}
+    assert diffs == {("env", "view_radius_by_grid", 4)}
 
 
 def test_make_variant_does_not_mutate_input(cfg):
-    before = cfg["env"]["view_radius_by_grid"][5]
+    before = cfg["env"]["view_radius_by_grid"][4]
     make_variant(cfg, 99)
-    assert cfg["env"]["view_radius_by_grid"][5] == before
+    assert cfg["env"]["view_radius_by_grid"][4] == before
 
 
 def test_run_sensitivity_sweeps_values_and_seeds(tmp_path, cfg):
@@ -30,7 +30,7 @@ def test_run_sensitivity_sweeps_values_and_seeds(tmp_path, cfg):
 
     class _SDK:
         def __init__(self, variant):
-            self.radius = variant["env"]["view_radius_by_grid"][5]
+            self.radius = variant["env"]["view_radius_by_grid"][4]
 
         def train(self, algorithm, seed, stage_idx):
             return [{"round": 0, "role": "cop", "loss": 0.1, "capture_rate": 0.2 * self.radius}]

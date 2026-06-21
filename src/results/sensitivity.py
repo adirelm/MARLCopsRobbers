@@ -19,7 +19,7 @@ from src.results.run_log import append_records
 from src.services.finetune import stage_params
 
 _SWEPT_KEY = "view_radius_by_grid"
-_SWEPT_GRID = 5
+_SWEPT_GRID = 4  # sweep the 4x4 focus-stage view radius (5x5 training is too slow to sweep)
 
 
 def make_variant(cfg: dict, radius: int) -> dict:
@@ -35,7 +35,7 @@ def sensitivity_records(  # noqa: PLR0913 — cfg + swept value + run keys + his
     """Tag one training history with the swept param/value (final-round capture only)."""
     return [
         {
-            "param": "view_radius_5",
+            "param": f"view_radius_{_SWEPT_GRID}",
             "value": int(radius),
             "algorithm": algorithm,
             "seed": int(seed),

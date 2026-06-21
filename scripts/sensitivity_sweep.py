@@ -1,8 +1,9 @@
-"""§9 sensitivity sweep runner (T10.6; slow, governed) — view_radius_5 ∈ {1, 2}.
+"""§9 sensitivity sweep runner (T10.6; governed) — the 4x4 view radius ∈ {1, 2}.
 
-Sweeps ``env.view_radius_by_grid[5]`` ONLY (everything else pinned) at the 5x5 stage and
-writes ``results/runs/sensitivity_view_radius.jsonl`` + the figure. Run AFTER
-``run_results.py`` — never two training processes at once (the compute-governance rule):
+Sweeps ``env.view_radius_by_grid[4]`` ONLY (everything else pinned) at the 4x4 focus stage
+and writes ``results/runs/sensitivity_view_radius.jsonl`` + the figure. (The 4x4 stage is
+used because 5x5 training is too slow to sweep.) Run AFTER ``run_results.py`` — never two
+training processes at once (the compute-governance rule):
 ``uv run python scripts/sensitivity_sweep.py``.
 """
 
@@ -15,20 +16,20 @@ from src.results.sensitivity import aggregate_sensitivity, run_sensitivity
 from src.sdk.sdk import MarlSDK
 from src.utils.config_loader import load_config
 
-_STAGE_5X5 = 3
+_STAGE_4X4 = 2
 _VALUES = [1, 2]
 
 
 def main(cfg: dict | None = None) -> Path:
-    """Sweep the 5x5 view radius across a bounded seed set; write the JSONL + figure."""
+    """Sweep the 4x4 view radius across a bounded seed set; write the JSONL + figure."""
     cfg = cfg or load_config()
     seeds = [int(s) for s in cfg["training"]["seeds"][:3]]  # 3 seeds give SE bars; compute-bounded
     out = Path(cfg["paths"]["runs_dir"]) / "sensitivity_view_radius.jsonl"
-    records = run_sensitivity(MarlSDK, cfg, _VALUES, seeds, _STAGE_5X5, out)
+    records = run_sensitivity(MarlSDK, cfg, _VALUES, seeds, _STAGE_4X4, out)
     figure = Path(cfg["paths"]["figures_dir"]) / "sensitivity_view_radius.png"
     plot_sensitivity(
         aggregate_sensitivity(records),
-        "5x5 execution view radius",
+        "4x4 execution view radius",
         "§9 sensitivity — capture rate vs view radius",
         figure,
     )

@@ -85,3 +85,29 @@ enough to demand a near-Bayes model, loose enough to remain attainable. A single
 > `tests/unit/test_bc_train.py`; `P*` is estimable from
 > `build_bc_dataset(cfg, grid, n, seed, role)` by grouping records on the exact
 > `(image, scalars)` observation and averaging the per-group majority fraction.
+
+## §9 Sensitivity analysis — `env.view_radius_by_grid[4]` ∈ {1, 2}
+
+A controlled SINGLE-parameter sweep: vary ONLY the 4×4 execution view radius (1 → 2)
+with everything else pinned (algorithm = QMIX, nets / replay / γ / target cadence / 3
+seeds identical). This is the §9 sensitivity analysis — distinct from the IQL/VDN/QMIX
+ablation (which swaps the *algorithm*). `scripts/sensitivity_sweep.py` →
+`results/runs/sensitivity_view_radius.jsonl` → `results/figures/sensitivity_view_radius.png`.
+
+| 4×4 view radius | final capture (mean ± SE, 3 seeds) |
+|---|---|
+| 1 (3×3 window — partial) | **0.763 ± 0.078** |
+| 2 (5×5 window — covers the 4×4 board) | 0.587 ± 0.293 |
+
+**Finding (honest, possibly counterintuitive).** Capture is genuinely *sensitive* to the
+view radius — but **more observability did NOT help** at the 50-round budget: radius 2's
+mean is lower and its variance is ~4× larger (±0.29). The wider window is mostly
+out-of-bounds padding on a 4×4 board and enlarges the encoder's effective input, so it is
+harder to learn *stably* within budget (the high SE = some seeds converge, some stall) —
+the same monotonic-mixer instability story as F5, now driven by observation size rather
+than mixer richness. With only 3 seeds this is a directional result, not a tight estimate;
+the takeaway is that the model is view-radius-sensitive and that "see more" is not free.
+
+> Reproduce: `uv run python scripts/sensitivity_sweep.py` (4×4 used because 5×5 training
+> is too slow to sweep); the one-key-only guarantee is asserted by
+> `tests/unit/test_sensitivity.py::test_make_variant_changes_only_the_one_key`.
