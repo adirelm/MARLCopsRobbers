@@ -10,6 +10,7 @@ OLoRA-``finetune`` up the curriculum, ``build_policy`` for acting, and ``export`
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -123,6 +124,17 @@ class MarlSDK:
     def load_weights(self, role: str, path: str | Path, n_agents: int) -> object:
         """Rebuild a dense role net from an exported ``state_dict`` (inverse of export_weights)."""
         return load_agent_weights(path, self._cfg, role, n_agents)
+
+    def run_local_match(self, cop_net, thief_net, players, seed, stage=(5, 5, 1), num_games=None) -> dict:  # noqa: PLR0913
+        """Play a full local match over MCP; assemble + validate the §3.5 report (no send).
+
+        The single entry the orchestrator script uses: both servers play the
+        referee-driven match over the canonical tool contract, then the §3.5 body
+        is assembled + validated and dry-run sent. Returns ``{report, num_games, ack}``.
+        """
+        from src.mcp.match import run_local_match as _run  # noqa: PLC0415 — lazy: breaks the sdk<->mcp cycle
+
+        return asyncio.run(_run(self._cfg, cop_net, thief_net, players, seed, stage, num_games))
 
     def write_subgame_json(self, result: dict, path: str | Path) -> None:
         """Write a minimal sub-game record to ``path`` as pretty JSON.

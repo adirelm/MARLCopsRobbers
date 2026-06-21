@@ -40,12 +40,12 @@ class AgentClient:
         """Close the underlying client connection."""
         await self._client.__aexit__(*exc)
 
-    async def _call(self, tool: str, payload: dict) -> object:
+    async def _call(self, tool: str, args: dict) -> object:
         """Call ``tool`` with bounded retries + structured logging; return result data."""
         last: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
-                data = (await self._client.call_tool(tool, {"req": payload})).data
+                data = (await self._client.call_tool(tool, args)).data
                 _log.info("mcp_call tool=%s attempt=%d status=ok", tool, attempt)
                 return data
             except Exception as exc:  # retried up to max_retries, then re-raised on exhaustion
@@ -55,27 +55,29 @@ class AgentClient:
                 )
         raise last  # type: ignore[misc]
 
+    async def health(self) -> dict:
+        """Liveness handshake (used by the orchestrator to absorb cold-start)."""
+        return await self._call("health", {})
+
     async def new_sub_game(self, session_id: str, grid: tuple, position: tuple | None = None) -> dict:
         """Start/reset a sub-game session on the server (fresh hidden ``z_0``)."""
         pos = list(position) if position is not None else None
-        return await self._call(
-            "new_sub_game", {"session_id": session_id, "grid": list(grid), "position": pos}
-        )
+        req = {"session_id": session_id, "grid": list(grid), "position": pos}
+        return await self._call("new_sub_game", {"req": req})
 
     async def request_move(
         self, session_id: str, tick: int, image: list, scalars: list, legal_mask: list
     ) -> int:
         """Send LOCAL obs for one tick; return the agent's chosen action int."""
-        payload = {
-            "session_id": session_id,
-            "tick": tick,
-            "image": image,
-            "scalars": scalars,
-            "legal_mask": legal_mask,
-        }
-        return int((await self._call("request_move", payload))["action"])
+        req = {"session_id": session_id, "tick": tick, "image": image}
+        req.update(scalars=scalars, legal_mask=legal_mask)
+        return int((await self._call("request_move", {"req": req}))["action"])
 
     async def reveal_location(self, session_id: str, requester: str, requester_pos: tuple) -> dict:
         """Radius-gated location query (evidence-only; never fed to request_move)."""
-        payload = {"session_id": session_id, "requester": requester, "requester_pos": list(requester_pos)}
-        return await self._call("reveal_location", payload)
+        req = {"session_id": session_id, "requester": requester, "requester_pos": list(requester_pos)}
+        return await self._call("reveal_location", {"req": req})
+
+    async def send_final_report(self, report: dict) -> dict:
+        """Cop-only: send the §3.5 report (dry-run at P6); returns the ReportAck."""
+        return await self._call("send_final_report", {"report": report})
