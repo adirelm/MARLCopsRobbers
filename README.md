@@ -75,7 +75,7 @@ IGM/monotonicity → QPLEX/Weighted-QMIX). Figures F1–F6 + GUI + MCP-comms scr
 Reported plainly — the brief grades honest analysis over a polished narrative:
 
 - **QMIX under-converges at the 50-round budget.** At 4×4 it is the *least* stable arm
-  (0.63 ± 0.05 < VDN 0.85, IQL 0.82) — the documented monotonic-mixer instability (R1). It is
+  (0.63 ± 0.05 < VDN 0.84, IQL 0.82) — the documented monotonic-mixer instability (R1). It is
   not a bug (3×3 ≈ 0.92; the math is verified) but a real "more expressive ⇒ harder to train"
   effect. *Would do differently:* more seeds + a longer budget, and Weighted-QMIX/QPLEX `[9,10]`
   to lift the IGM-monotonicity ceiling.
@@ -134,7 +134,7 @@ the joint max over the centrally-mixed value removes the marginalization. CTDE t
 branch) differs (5 seeds, mean±SE). The expressive QMIX mixer is the **least stable at this budget**.
 At 3×3 all three converge close (IQL = VDN = **0.95**, QMIX **0.92**); but at the harder **4×4
 two-cop** stage QMIX's monotonic hypernetwork **destabilizes** — its F1 curve oscillates and lands at
-**0.63 ± 0.05**, *below* the simpler **VDN (0.85, the most consistent)** and **IQL (0.82, a strong
+**0.63 ± 0.05**, *below* the simpler **VDN (0.84, the most consistent)** and **IQL (0.82, a strong
 baseline)**. This is the studied non-convergence phenomenon (risk R1) and a well-known MARL result:
 QMIX is strictly **more expressive** than VDN/IQL but **harder to train**, so at a bounded 50-round
 budget the simpler decompositions win. Honoring the replay warmup (the audit fix) confirmed this is a
@@ -170,7 +170,7 @@ pins arms / seeds / stages + a config hash (= 45 runs, zero README↔code drift,
 oscillation is the monotonic-mixer training instability (R1). Train reads global `s`, exec local `o_i`.*
 
 ![F5 baseline comparison](results/figures/baseline_comparison.png)
-*F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers): VDN most consistent (0.85), IQL a
+*F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers): VDN most consistent (0.84), IQL a
 strong baseline (0.82); the more expressive QMIX is the least stable at this 50-round budget (0.63±0.05).*
 
 ![F6 scaling](results/figures/scaling.png)
