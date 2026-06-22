@@ -430,7 +430,7 @@ paths:
   runs_dir: "results/runs"
   figures_dir: "results/figures"
   checkpoint_dir: "results/checkpoints"
-  experiment_manifest: "results/experiment_manifest.json"
+  experiment_manifest: "results/figures/experiment_manifest.json"
 logging:     { level: "INFO", redact_secrets: true }
 ```
 

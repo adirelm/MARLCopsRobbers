@@ -192,7 +192,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 - [ ] **T4.7 — Seeded sweep harness → JSONL** · _A_
   Build the controlled experiment (D10 §C): arms **IQL/VDN/QMIX**, ladder **2×2→3×3→4×4→5×5**, seeds **`[7,17,37,71,107]`**; identical nets/replay/ε-decay/γ/target cadence (only the mixer differs). Append per-episode records to `results/runs/*.jsonl` (schema: `{method,seed,grid,episode,reward_team,reward_cop,reward_thief,td_loss,captured,steps,stage}`). Also run the **4×4 2-cop scenario** (`env.curriculum.num_cops_by_stage:[1,1,2,1]`) for non-vacuous credit-assignment evidence (this is the genuine multi-agent mixer arm — the K1 KPI evidence, NOT the degenerate 1-cop 5×5).
-  **DoD:** loss decreasing; 3×3 converges; acceptance `QMIX ≥ VDN ≥ IQL` on 5×5 capture-rate OR README honestly explains failure with the curves (a "bad" IQL curve is a §7.2 feature); `results/experiment_manifest.json` records seeds, config hashes, git commit, run IDs.
+  **DoD:** loss decreasing; 3×3 converges; acceptance `QMIX ≥ VDN ≥ IQL` on 5×5 capture-rate OR README honestly explains failure with the curves (a "bad" IQL curve is a §7.2 feature); `results/figures/experiment_manifest.json` records seeds, config hashes, git commit, run IDs.
 
 - [ ] **T4.8 — SDK training entry + thin scripts** · _A_
   Wire `MarlSDK.train(algorithm,seed)` / `build_policy(role,algo,stage)` / `export_weights(role,path)` (saves **GRUQNet state_dict ONLY** + shape sidecar JSON `{obs_dim,hidden,A,radius,P,C_obs}`; mixer/opponent-heads/global-state **never** exported). `scripts/train_ctde.py` + `scripts/train_iql_baseline.py` are thin wrappers.
