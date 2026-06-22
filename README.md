@@ -70,6 +70,27 @@ IGM/monotonicity → QPLEX/Weighted-QMIX). Figures F1–F6 + GUI + MCP-comms scr
 
 ---
 
+## 6. Bugs & limitations (honest self-assessment)
+
+Reported plainly — the brief grades honest analysis over a polished narrative:
+
+- **QMIX under-converges at the 50-round budget.** At 4×4 it is the *least* stable arm
+  (0.63 ± 0.05 < VDN 0.85, IQL 0.82) — the documented monotonic-mixer instability (R1). It is
+  not a bug (3×3 ≈ 0.92; the math is verified) but a real "more expressive ⇒ harder to train"
+  effect. *Would do differently:* more seeds + a longer budget, and Weighted-QMIX/QPLEX `[9,10]`
+  to lift the IGM-monotonicity ceiling.
+- **Dec-POMDP proxy, not the faithful POSG.** Self-play with a frozen-opponent window collapses
+  the adversary into `T` (§7.1); the true game is general-sum (§2.1). A faithful treatment would
+  train both roles as a POSG (true adversarial RL), not a cooperative-team proxy.
+- **The genuine multi-agent signal is the 4×4 2-cop stage**; the graded 5×5 is 1-cop, where the
+  QMIX mixer is a trivial scalar gain (§7.2 caveat). 5×5 is excluded from the figure matrix for
+  compute (training too slow to sweep all arms).
+- **OLoRA is a stability/efficiency aid, not the non-stationarity cure** (§7.2, `[7]`).
+- **Cloud deploy + the Gmail send are built + tested, not live-run** — they are account/cred-gated
+  (a deliberate scope line, ADR-D10-E; the localhost match F4 is canonical).
+
+---
+
 ## 7. Academic analysis (brief §7)
 
 > Equation/citation numbering follows **ex06/BRIEF as primary** (R13): ex06 "eq 2" ≡ L10 "eq 4";
