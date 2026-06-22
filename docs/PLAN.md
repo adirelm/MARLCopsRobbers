@@ -628,11 +628,11 @@ email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladd
 |---|---|---|
 | ≤150 LOC/file (excl blanks/comments) | every module budgeted in §3; cop/thief servers split from `tools`, mixer from q-net, env across 9 files | `scripts/check_file_sizes.py` **after** `ruff format`; `test_final_gates` |
 | ≥85% coverage | DI + mocked httpx peer & Gmail; pure `transition`/`gatekeeper`/`builder` unit-tested; FakeEmailSender | `pytest --cov=src --cov-fail-under=85` |
-| Ruff 0 violations | `ruff check` + `ruff format --check`; PLR2004 ignored in tests only | CI steps 4–5 |
-| Docstring gate (every module/class/public fn) | Ruff `D` rules in the lint select (`D` per-file-ignored for `tests/`); every package `__init__.py` carries a one-line module docstring | `ruff check` (Ruff `D`); CI step 4 |
+| Ruff 0 violations | `ruff check` + `ruff format --check`; PLR2004 ignored in tests only | the CI "Ruff lint" + "Ruff format check" steps |
+| Docstring gate (every module/class/public fn) | Ruff `D` rules in the lint select (`D` per-file-ignored for `tests/`); every package `__init__.py` carries a one-line module docstring | `ruff check` (Ruff `D`); the CI "Ruff lint" step |
 | 0 hardcoded values | grid/moves/games/barriers/scoring/ports/hyperparams/recipient/templates in `config.yaml`; render literals local | `scripts/check_no_hardcode.py`; `test_config_single_source` |
 | 0 secrets + `.env-example` | tokens/keys/App-Password/PII in `.env` + `secrets/`; `.env-example` names-only; `.gitignore` covers `.env *.pem *.key credentials*.json secrets/` | `scripts/check_secrets.py`; redaction middleware + `redact_logs.py` before screenshots |
-| uv-only | CI uses `uv`; no pip/conda; `uv.lock` committed | CI step 3 `uv sync --frozen` |
+| uv-only | CI uses `uv`; no pip/conda; `uv.lock` committed | the CI "Sync deps" step (`uv sync --frozen`) |
 | Single SDK entry (UIs) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers (exempt) | `test_sdk_single_entry`, `test_mcp_servers_have_no_logic` |
 | Version starts at 1.00 | `1.0.0` in `src/__init__.py` + `config.version` | `scripts/check_version.py`; `test_version_consistency` |
 | PRD/PLAN/TODO + ADRs | this PLAN + PRD + TODO + ADRs 0001–0014 with §1.4 sign-off | `test_required_docs_present` + ADR-count check |

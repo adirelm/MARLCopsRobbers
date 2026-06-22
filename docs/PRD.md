@@ -166,8 +166,8 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **AC:** scheduler promotes on capture-rate ≥ `env.curriculum.promotion_threshold` (0.8) over `env.curriculum.promotion_window` (100); a full ≤25-move episode runs at each graded stage; the generic env also accepts a non-square grid (e.g. 3×2).
   - **Evidence:** `tests/unit/test_curriculum.py`; F6 scaling figure.
 - **FR-ENV-9 (no-hardcode gate).** ALL env numerics live in `config/config.yaml`.
-  - **AC:** `scripts/check_no_hardcode.py` + `tests/unit/test_config_loader.py` find zero hardcoded env numerics in `src/`.
-  - **Evidence:** CI step 7.
+  - **AC:** every env numeric resolves from `config/config.yaml` via the config loader (config single-source — verified by the exhaustive dead-config sweep: every algo-relevant key is read or removed); `tests/unit/test_config_loader.py` validates the config contract; `ruff` + code review enforce no inline magic.
+  - **Evidence:** `config/config.yaml` + `src/utils/config_loader.py`; `tests/unit/test_config_loader.py`.
 
 ### 5.2 MARL Algorithm & CTDE Training (§2.1, §5.2, §7.2)
 
@@ -202,7 +202,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
 ### 5.3 OLoRA, Pre-trained Models & Dataset (§5.2, [7])
 
 - **FR-OLoRA-1 (locally pre-trained encoders).** Produce locally pre-trained role encoders (CopNet, ThiefNet) via **behavior cloning** on Manhattan-heuristic data over small grids (2×2/3×3) — the only honest reading of "pre-trained model" that satisfies "training MUST be local".
-  - **AC:** `scripts/pretrain_bc.py` runs offline; held-out heuristic-label validation accuracy ≥ the **per-grid** gate `bc.val_acc_gate_by_grid[min(H,W)]` (`{2: 0.50, 3: 0.78}`; honest privileged-expert-vs-local-obs ceilings — see ANALYSIS.md §0) before OLoRA attach; base checkpoints saved under `checkpoints/base/`.
+  - **AC:** `scripts/finetune_ctde.py` (the BC-pretrain stage) runs offline; held-out heuristic-label validation accuracy ≥ the **per-grid** gate `bc.val_acc_gate_by_grid[min(H,W)]` (`{2: 0.50, 3: 0.78}`; honest privileged-expert-vs-local-obs ceilings — see ANALYSIS.md §0) before OLoRA attach; base checkpoints saved under `checkpoints/base/`.
   - **Evidence:** `docs/ANALYSIS.md` §0 (defensible interpretation + 3 rejected readings); BC val-acc log.
 - **FR-OLoRA-2 (paper-exact OLoRA, eq 10-11).** Apply OLoRA exactly per [7]: QR-decompose the **pretrained** encoder weight `W0` (eq 3 of [7]); init `B = Q_r[:, :r]` (orthonormal), `A = R_r[:r, :]`; re-base `W0 ← W0 − s·B@A` (eq 4); forward `W_adapted = W0 + s·B@A` (eq 5). Explicitly **reject** QR-of-a-random-matrix init (that is orthonormal-LoRA, not OLoRA) — the rejection is §7.2 grade evidence.
   - **AC:** unit test asserts `‖W_adapted − W0‖ < 1e-5` at init (function-preserving); `Bᵀ@B ≈ I_r` (orthonormality); QR runs on `W0`, not a random matrix.
@@ -329,7 +329,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `tests/unit/test_mailer.py`; ADR-D8-1.
 - **FR-RPT-8 (subject template, no hardcoding).** The subject is built from a config template: `[MARL Cops&Robbers] {group_name} | Final {num_games} sub-games | Cop {cop_total} - Thief {thief_total} | {date}` (no names/ids/emails in the subject).
   - **AC:** CI grep fails if `src/` contains the literal `rmisegal+marl` or the score magnitudes as inline literals.
-  - **Evidence:** `tests/integration/test_mcp_servers.py`; CI step 7.
+  - **Evidence:** `tests/integration/test_mcp_servers.py`; the CI "Secrets + recipient guard" step.
 
 ### 5.8 Academic Analysis, Figures & §9 Bonus Interface (§7, §9)
 
@@ -398,12 +398,12 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
 
 | ID | Gate | A6 mechanism | Acceptance / Evidence |
 |---|---|---|---|
-| **NFR-1** | **≤150 LOC/file** (excl. blanks/comments) | `scripts/check_file_sizes.py`; split servers/tools, mixer/q_net, env modules | runs **AFTER** ruff format (MEMORY: file-size gate after format); CI step 6 |
-| **NFR-2** | **≥85% coverage** | DI + mocked `httpx` peer & Gmail; pure gatekeeper/builder/env unit tests | `pytest --cov=src --cov-fail-under=85`; CI step 11 |
-| **NFR-3** | **Ruff 0 violations** | `ruff check` + `ruff format --check`; `PLR2004` ignored in tests only | CI steps 4–5 |
-| **NFR-4** | **No hardcoded values → config** | all §3.6 params + ports + URLs + hyperparams in `config/config.yaml`; `scripts/check_no_hardcode.py` | `tests/unit/test_config_loader.py` |
+| **NFR-1** | **≤150 LOC/file** (excl. blanks/comments) | `scripts/check_file_sizes.py`; split servers/tools, mixer/q_net, env modules | runs **AFTER** ruff format (MEMORY: file-size gate after format); the CI "File-size gate" step |
+| **NFR-2** | **≥85% coverage** | DI + mocked `httpx` peer & Gmail; pure gatekeeper/builder/env unit tests | `pytest --cov=src --cov-fail-under=85`; the CI "Tests + coverage" step |
+| **NFR-3** | **Ruff 0 violations** | `ruff check` + `ruff format --check`; `PLR2004` ignored in tests only | the CI "Ruff lint" + "Ruff format check" steps |
+| **NFR-4** | **No hardcoded values → config** | all §3.6 params + ports + URLs + hyperparams in `config/config.yaml` (config single-source — verified by the exhaustive dead-config sweep: every algo-relevant key is read or removed); `ruff` + code review | `tests/unit/test_config_loader.py`; `config/config.yaml` |
 | **NFR-5** | **No secrets + `.env-example` only** | tokens/OAuth/App-Password/PII in `.env`; `.env-example` committed (names only); `.gitignore` covers `.env`, `*.pem`, `*.key`, `credentials*.json`, `secrets/` | the CI "Secrets + recipient guard" step (`.github/workflows/ci.yml`) |
-| **NFR-6** | **uv-only** | CI uses `uv`; no pip/conda; `uv.lock` committed; `uv sync --frozen` | CI step 3 |
+| **NFR-6** | **uv-only** | CI uses `uv`; no pip/conda; `uv.lock` committed; `uv sync --frozen` | the CI "Sync deps" step |
 | **NFR-7** | **Single SDK entry for UIs** | `src/sdk/sdk.py::MarlSDK` is the only business-logic entry; GUI/MCP/report/scripts import only `src.sdk` (scripts exempt from the single-entry rule, NOT from size/lint) | `tests/architecture/test_import_boundary.py`, `test_mcp_servers_have_no_logic.py` |
 | **NFR-8** | **Version starts at stated version** | `__version__ = "1.0.0"` in `src/__init__.py` == `config.version` (3-segment mapping of V3 "1.00", A5-accepted) | `tests/unit/test_config_loader.py`; ADR-0011 |
 | **NFR-9** | **§5 External-API governance (flips N/A→REQUIRED)** | A6 makes real runtime HTTP (peer MCP) + Gmail + Prefect-deploy calls → `src/api/gatekeeper.py::ApiGatekeeper` (`execute` + `get_queue_status`; per-channel token-bucket from versioned `config/rate_limits.json`; FIFO overflow queue `max_queue:256`, no crash; all calls logged) — see FR-API-1 | `tests/architecture/test_egress_via_gatekeeper.py`; ADR-0006 |

@@ -470,7 +470,7 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 |---|---|---|---|
 | 1 | **≤150 LOC/file** (excl blanks/comments) | env/mixers/learner/mcp/gui/reporting all split into ≤150-LOC modules; cop/thief servers split from `tools.py`; mixer split from q-net | `scripts/check_file_sizes.py` (AFTER `ruff format`); `test_final_gates.py` |
 | 2 | **≥85% coverage** | DI + mocked `httpx` peer + `FakeEmailSender` + headless SDL; pure `transition.py`/`reward.py`/`gatekeeper`/`builder` unit-tested | `pytest --cov=src --cov-fail-under=85` |
-| 3 | **Ruff 0** | `ruff check` + `ruff format --check`; PLR2004 ignored in tests only | CI steps 4-5 |
+| 3 | **Ruff 0** | `ruff check` + `ruff format --check`; PLR2004 ignored in tests only | the CI "Ruff lint" + "Ruff format check" steps |
 | 4 | **0 hardcoded values → config** | grid/moves/games/barriers/scoring/ports/hyperparams/seeds in `config.yaml`; UI literals local in `palette.py` (CLAUDE.md §4) | `check_no_hardcode.py`; `test_config_single_source.py` |
 | 5 | **0 secrets + `.env-example`** | tokens/JWT keys/App-Password/PII in `.env` + repo-root `players.local.yaml`; `.env-example` names-only committed; `.gitignore` covers `.env *.pem *.key credentials*.json players.local.yaml secrets/` | `check_secrets.py`; `test_no_secrets_committed.py` |
 | 6 | **uv-only (NO requirements.txt)** | CI uses `uv`; no pip/conda; `uv.lock` committed; deploy deps come from `pyproject.toml` / `uv export` — **NO `deploy/requirements.txt`** (V3 forbids requirements.txt) | CI `uv sync --frozen`; `check_no_requirements_txt.py` |
@@ -481,6 +481,6 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 | 11 | **PRD/PLAN/TODO + ADRs** | `docs/PRD.md`, `docs/PLAN.md`, this `docs/TODO.md`, `docs/prd/*`, ADRs 0001-0014 + dimension ADRs; human §1.4 sign-off before code | `test_required_docs_present.py` |
 | 12 | **Cover sheet git-ignored** | `adrl-001-ex06.pdf` ignored, Moodle-only | `test_cover_sheet_gitignored.py` (**skip-when-absent** — MEMORY) |
 | 13 | **CI hygiene** | gate order `ruff check → ruff format --check → check_file_sizes → check_* → pytest --cov`; `fetch-depth:0`; never pin mutable git SHAs in tests; CI never sends Gmail / calls cloud MCP (dry-run + mocks) | `.github/workflows/ci.yml` |
-| 14 | **Docstring gate (Ruff `D`)** (#18) | Ruff `D` added to the lint `select` (per-file `D`-ignore for `tests/`); every package `__init__.py` carries a one-line module docstring | `ruff check` (`D` rules); CI step 4 |
+| 14 | **Docstring gate (Ruff `D`)** (#18) | Ruff `D` added to the lint `select` (per-file `D`-ignore for `tests/`); every package `__init__.py` carries a one-line module docstring | `ruff check` (`D` rules); the CI "Ruff lint" step |
 
 **Carried lessons (MEMORY):** add `rmisegal` as read collaborator on the repo; never assert a git-ignored cover sheet exists (skip-when-absent); Google Drive can silently delete `.git` mid-session — push often and keep a `/tmp` clone to restore `.git`.
