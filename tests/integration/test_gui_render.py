@@ -104,7 +104,11 @@ def test_handle_key_maps_all_spectator_commands():
     assert slower == fps - 2  # '-' slows down
     # an unbound key is a no-op (state incl. fps passes through unchanged)
     assert render._handle_key(_key(pygame.K_a), client, True, False, False, frame, fps) == (
-        True, False, False, frame, fps,
+        True,
+        False,
+        False,
+        frame,
+        fps,
     )
 
 
