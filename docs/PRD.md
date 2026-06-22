@@ -134,52 +134,52 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
 
 - **FR-ENV-1 (eq 1 formalism).** A custom **grid-agnostic** `CopsRobbersEnv` implements the formal Dec-POMDP tuple ⟨N,S,A,T,R,Ω,O,γ⟩ (eq 1, cite [1]).
   - **AC:** a unit test asserts the Dec-POMDP agent set is the **cop team** with `\|N\| == env.num_cops` (=1 in the graded 5×5, =2 on the 4×4 2-cop stage — NOT a literal 2), per-role action enums (`\|A_cop\|=5`, `\|A_thief\|=4`), and `γ` read from config; README §7.1 maps each tuple symbol to code and notes the full game is a **2-role POSG** `{cop, thief}` (§3.1) whose Thief is folded into `T`, so the Dec-POMDP `N` is the cop team only.
-  - **Evidence:** `tests/env/test_tuple.py`; README §7.1.
+  - **Evidence:** `tests/unit/test_env.py`; README §7.1.
 - **FR-ENV-2 (train/exec split — top-graded).** `step()` returns **LOCAL** per-agent observations only; global state is reachable ONLY via `env.state()`.
   - **AC:** a full-episode test asserts `step()` output contains no full-board positions / no `GlobalState` fields; `state()` and `render_state()` are the only global accessors; an MCP-payload test proves only local obs is transmitted.
-  - **Evidence:** `tests/env/test_state_leak.py`; `tests/architecture/test_egress_via_gatekeeper.py`.
+  - **Evidence:** `tests/architecture/test_step_no_leak.py`; `tests/architecture/test_egress_via_gatekeeper.py`.
 - **FR-ENV-3 (actions).** Per-agent action set with `PLACE_BARRIER` cop-only; invalid actions map to NOOP, are logged, and still consume the step. Action-selection masking is **additive `−inf`** (`Q.masked_fill(~legal, -inf)` before the argmax/softmax), **NOT** multiplicative `mask·Q` — multiplicative masking is wrong for **negative** Q-values (it would make an illegal action with `Q=0` look better than a legal action with `Q<0`).
   - **AC:** action-mask tests for thief-`PLACE_BARRIER`-masked, out-of-bounds, barrier-blocked, and budget-exhausted cases; a test asserts that with a **negative-Q** vector an illegal action is never selected (i.e. additive `−inf` masking, not `mask·Q`).
-  - **Evidence:** `tests/env/test_actions.py`.
+  - **Evidence:** `tests/unit/test_actions.py`.
 - **FR-ENV-4 (transition & barriers, §3.3).** Transition is **simultaneous-resolution** (`env.move_resolution:simultaneous`); barriers and board edges are impassable to **both** agents; a barrier is placed on the cop's current cell and consumes the move; ≤`game.max_barriers` (5) per sub-game.
   - **TransitionResult contract.** `transition.resolve_joint_action(state, joint_a, cfg)` returns a **frozen `TransitionResult(next_state: GlobalState, winner: str|None, capture: bool)`** (the env's only dynamics kernel). It is **PURE** (no RNG, no mutation): every intended next cell is computed from the SAME pre-move `state` (positions + `state.barriers`), so resolution is order-independent and replay-deterministic. `next_state` is a NEW frozen `GlobalState` at `step+1` with updated `cop_pos`/`thief_pos`/`barriers`/`barriers_used` and the `terminal` flag set per FR-ENV-5.
   - **Deterministic over-budget (codex F1).** Barrier placement honors the **TEAM** budget cap (`game.max_barriers`) iterated **by cop index**: a `PLACE_BARRIER` is honored only while `barriers_used < max_barriers`; once the team cap is hit, later cops' `PLACE` **deterministically** degrades to a stay (lowest cop index wins the last barrier). This makes a 2-cop simultaneous over-budget tick resolve identically on every replay.
   - **Double-occupancy allowed.** On the 4×4 2-cop training stage there is **no inter-cop collision** — two cops may share a cell (cooperative team; not a graded rule). Only a cop↔thief co-location (or swap) is a capture.
   - **AC:** tests for edge==wall (stay-in-place), barrier blocks entry for both agents, barrier-budget cap, placement increments `step_count`, **2-cop simultaneous over-budget resolves deterministically by cop index**, **2-cop double-occupancy is permitted**.
-  - **Evidence:** `tests/env/test_transition.py`.
+  - **Evidence:** `tests/unit/test_transition.py`.
 - **FR-ENV-5 (capture & termination, §3.2).** Capture occurs when cop and thief share a cell after the simultaneous update, **including a one-step swap** (`env.capture_on_swap:true`). Termination = capture OR `step ≥ game.max_moves` (25). Treating a simultaneous cop↔thief cell-swap as a capture is a **deliberate, documented architect game-rule call** (BRIEF §3.2 is silent on swap-through under simultaneous resolution; counting it as capture keeps the pursuit well-posed) — a human-decided, non-delegable rule clarification (CLAUDE.md §1.4).
   - **Capture beats timeout (edge-case rule).** Capture is checked **BEFORE** timeout, so a capture **on the final move** yields `winner="cop"` even when `(state.step + 1) >= game.max_moves` (ADR-0004 extended). Timeout (`winner="thief"`) fires only when NOT captured and `(state.step + 1) >= game.max_moves` — the tie `(step+1) == max_moves` is a thief win unless that same tick is also a capture.
   - **Any cop captures.** With ≥2 cops, capture is `any(cop ends on thief's cell) OR any cop↔thief swap` — **any** cop touching the thief ends the sub-game for the team (no per-cop tag distinction).
   - **AC:** tests for shared-cell capture, swap=capture, timeout at exactly `game.max_moves`, **capture-on-final-move beats timeout**, **any-of-N cops captures**, `winner ∈ {cop, thief}`.
-  - **Evidence:** `tests/env/test_transition.py`; ADR-001/ADR-0004 (move resolution + swap-as-capture + capture-beats-timeout clarification).
+  - **Evidence:** `tests/unit/test_transition.py`; ADR-001/ADR-0004 (move resolution + swap-as-capture + capture-beats-timeout clarification).
 - **FR-ENV-6 (reward decoupling, L3).** The RL reward is a config-driven shaped signal with **potential-based, grid-normalized** distance shaping (`F = γΦ(s') − Φ(s)`, Ng 1999, team potential `Φ = −min_{i∈N} Manhattan(cop_i, thief) / d_max`); per-agent POSG rewards are also computed. **Normative (architect decision #2): `d_max = (H − 1) + (W − 1)` is derived per live grid** from the state's own `h, w` (the max Manhattan span of an `H×W` board) — it is **NOT a config key**, so the same `Φ` is correct at every curriculum stage 2×2→5×5 without a per-stage constant. **Φ MUST be 0 on every absorbing/terminal state** (`reward.phi_terminal_zero:true`) — Ng-1999 policy-invariance requires `Φ(absorbing)=0`, so capture sets `Φ=0` automatically and the timeout + swap-capture terminals are the explicit edge cases to pin. The Table-1 game points (20/10/5/5) are produced by a **separate** `Scorer` and never reused as RL reward; shaping is toggled off at eval.
   - **AC:** a test asserts the potential-shaping identity; a test asserts `RewardModel` and `Scorer` are distinct modules; a test asserts `dec_pomdp` reward-dict entries are equal; a test on the **terminal transition** asserts `Φ(s_terminal)=0` (so `F = γ·0 − Φ(s) = −Φ(s)`) for capture, timeout, and swap-capture endings.
-  - **Evidence:** `tests/env/test_reward.py`, `tests/env/test_scorer.py`.
+  - **Evidence:** `tests/unit/test_reward.py`, `tests/unit/test_scorer.py`.
 - **FR-ENV-7 (partial observation Ω/O).** A fixed `5×5` egocentric image with `env.obs_channels`=5 channels (self, other_visible, barrier, out_of_bounds, time_norm) + an `env.obs_scalars`=6 scalar vector, **padded across all curriculum stages** to footprint `2·env.view_radius_max+1`=5 so one network spans 2×2→5×5 (enables OLoRA). View radius comes from `env.view_radius_by_grid` (auto `r = max(0, ⌈min(H,W)/2⌉ − 1)`: 2×2:0, 3×3:1, 4×4:1, 5×5:2) with config override; the opponent channel is zeroed beyond Manhattan radius.
   - **Env-owned visibility memory (ownership rule).** `build_observation` is **PURE given `memory`**; the **env owns and updates** the per-role visibility memory (`{role: VisibilityMemory(steps_since_seen)}`). `reset` re-initializes it; `step` resets a role's `steps_since_seen` to 0 when its opponent is in view, else `+1`. The memory feeds the `steps_since_seen_norm` aliasing-memory scalar — it is **train-and-exec state local to the env**, never a `GlobalState` field and never on a step()/reset() payload (see FR-ENV-2 leak test).
   - **AC:** tests assert obs image shape `(5,5,5)` at 2×2/3×3/4×4/5×5 and a length-6 scalar vector; `other_visible = 0` when out of radius; `steps_since_seen` resets on opponent-in-view and increments otherwise.
-  - **Evidence:** `tests/env/test_observation.py`, `tests/env/test_env.py`.
+  - **Evidence:** `tests/unit/test_observation.py`, `tests/unit/test_env.py`.
 - **FR-ENV-7b (stage-invariant centralized state pad).** The centralized critic/mixer global state from `env.state()` is encoded to a **stage-invariant 77-float footprint** (`3·G·G + 2`, G=`env.view_radius_max·2+1`=5) for **all** curriculum stages, mirroring the obs pad-to-5×5 (FR-ENV-7): cells outside the actual H×W board are **masked** (the out-of-board mask channel is set) so one centralized critic spans 2×2→5×5 with a fixed input dim. This is the train-only `S` encoding (never on the execution path).
   - **AC:** a test asserts `encode_state()` returns a length-77 vector at 2×2/3×3/4×4/5×5; a test asserts out-of-board cells are masked (not arbitrary) at the smaller stages.
-  - **Evidence:** `tests/env/test_state_encoding.py`.
+  - **Evidence:** `tests/unit/test_qmix_mixer.py`.
 - **FR-ENV-8 (dynamic-grid curriculum, Table 2).** The **graded square ladder** is `env.curriculum.stages` = `[[2,2],[3,3],[4,4],[5,5]]` with per-stage cop counts `env.curriculum.num_cops_by_stage` = `[1,1,2,1]` (the 4×4 stage trains a 2-cop team; L4); success-rate-gated promotion. The env is **generic over H≠W** (non-square supported) but the graded ladder is square.
   - **AC:** scheduler promotes on capture-rate ≥ `env.curriculum.promotion_threshold` (0.8) over `env.curriculum.promotion_window` (100); a full ≤25-move episode runs at each graded stage; the generic env also accepts a non-square grid (e.g. 3×2).
-  - **Evidence:** `tests/env/test_curriculum.py`; F6 scaling figure.
+  - **Evidence:** `tests/unit/test_curriculum.py`; F6 scaling figure.
 - **FR-ENV-9 (no-hardcode gate).** ALL env numerics live in `config/config.yaml`.
-  - **AC:** `scripts/check_no_hardcode.py` + `tests/architecture/test_config_single_source.py` find zero hardcoded env numerics in `src/`.
+  - **AC:** `scripts/check_no_hardcode.py` + `tests/unit/test_config_loader.py` find zero hardcoded env numerics in `src/`.
   - **Evidence:** CI step 7.
 
 ### 5.2 MARL Algorithm & CTDE Training (§2.1, §5.2, §7.2)
 
 - **FR-ALG-1 (value decomposition, L2).** Train a value-based CTDE MARL agent for the Cop side using value decomposition. **QMIX is the graded PRIMARY** (`algo.name:qmix`, monotonic mixer eq 7; L2/ADR-D10-A); **VDN is the ablation arm** (eq 6, selected via `algo.mixer.type:vdn`); **IQL is the §7.2 baseline** (`algo.baseline:iql`). The arm is selected via `algo.name` ∈ {qmix, vdn, iql}.
   - **AC:** with `algo.mixer.type=vdn` a unit test asserts `Q_tot == Σ_{i∈cop} Q_i` over the cop team; with `algo.name=qmix` a numeric test on an explicit **N=2 mixer fixture** (two cop Q-streams, a sampled global state) asserts `∂Q_tot/∂Q_i ≥ 0` for **both** inputs and IGM-consistency (eq 5: decentralized greedy joint action == argmax of mixer output). **Optional negative control:** a deliberately non-monotone mixer (negative hypernet weight) must **fail** the `∂Q_tot/∂Q_i ≥ 0` assertion, proving the test has teeth.
-  - **Evidence:** `tests/unit/test_mixer.py` (N=2 fixture + optional negative control).
+  - **Evidence:** `tests/unit/test_mixers.py` (N=2 fixture + optional negative control).
 - **FR-ALG-2 (IQL baseline, §7.2).** Implement an IQL baseline (independent recurrent Double-DQN per agent, eq 2/4, no mixer, no global state) for the mandated comparison.
   - **AC:** an `algo=iql` run produces learning curves on the same seeds/obs space as VDN/QMIX; README §7.2 shows the IQL-vs-CTDE non-stationarity contrast (IQL oscillates/diverges where CTDE converges).
   - **Evidence:** F5; `src/marl/learner/learners.py::IqlLearner` (IQL is a no-mixer LEARNER branch — it overrides `_compute_target` for the per-agent eq4 target and drops the mixer + global state; there is NO `iql_mixer.py`).
 - **FR-ALG-3 (adversarial boundary, L2).** Cop and Thief NEVER share a cooperative mixer; the Thief is a separate adversarial learner folded into `T(s'│s,ā)`.
   - **AC:** code review + README §7.1/§7.2 document the POSG-vs-Dec-POMDP boundary (eq 3, NEXP^NP); a test asserts no mixer instance receives thief Q-values; two distinct learners + two replay buffers exist.
-  - **Evidence:** ADR-D1-B / ADR-D3-A; `tests/unit/test_learner_isolation.py`.
+  - **Evidence:** ADR-D1-B / ADR-D3-A; `tests/unit/test_learners.py`.
 - **FR-ALG-4 (shared net + swappable learner/mixer seam, DRY).** "Shared net" means a **shared architecture** (one `RecurrentQNet` class + GRU trunk), not a single shared output head: each role keeps its own action head (`cop` head = 5 logits, `thief` head = 4 logits). All three algorithms share ONE `RecurrentQNet` (GRU, eq 8) and ONE centralized episode replay buffer. VDN↔QMIX differ **only** in the `Mixer` ABC, but **IQL is NOT a mixer swap**: it drops the mixer AND the centralized global state and uses an **independent per-agent target** (a distinct learner branch). So the variation point is the (learner × mixer) seam, not the mixer alone.
   - **AC:** a single `agent_net.py` + buffer is imported by the iql/vdn/qmix paths (no duplication); a test asserts the IQL learner branch carries **no** mixer instance and **no** global-state tensor (it is a learner-level branch, not a `Mixer` subclass).
   - **Evidence:** ADR-D1-C / ADR-D3-C; import graph.
@@ -188,7 +188,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `tests/architecture/test_import_boundary.py`; K3.
 - **FR-ALG-6 (centralized episodic replay).** Store whole padded episodes with global state; loss is masked (`filled` mask) so padding past termination contributes zero gradient.
   - **AC:** masked-loss test (padded steps → 0 gradient); overfit-one-episode test (loss → ~0).
-  - **Evidence:** `tests/unit/test_replay.py`, `tests/unit/test_learner.py`.
+  - **Evidence:** `tests/unit/test_episode_buffer.py`, `tests/unit/test_learner.py`.
 - **FR-ALG-7 (self-play stabilization).** Self-play uses alternating best-response (`selfplay.rounds`=50 best-response rounds per curriculum stage) with frozen-opponent windows (`selfplay.window_k`=1 update-ratio tick) + an opponent pool (`selfplay.pool_size`=5) seeded with a Manhattan heuristic to mitigate non-stationarity/cycling; `selfplay.rounds`×`selfplay.episodes_per_round` = 5000 self-play episodes per stage.
   - **AC:** the trainer logs opponent-pool sampling; fixed-seed evaluation shows non-degenerate (non-cycling) convergence; self-play knobs are read from `selfplay.*` (zero hardcoded).
   - **Evidence:** `src/services/selfplay.py`; F1 learning curves.
@@ -206,7 +206,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `docs/ANALYSIS.md` §0 (defensible interpretation + 3 rejected readings); BC val-acc log.
 - **FR-OLoRA-2 (paper-exact OLoRA, eq 10-11).** Apply OLoRA exactly per [7]: QR-decompose the **pretrained** encoder weight `W0` (eq 3 of [7]); init `B = Q_r[:, :r]` (orthonormal), `A = R_r[:r, :]`; re-base `W0 ← W0 − s·B@A` (eq 4); forward `W_adapted = W0 + s·B@A` (eq 5). Explicitly **reject** QR-of-a-random-matrix init (that is orthonormal-LoRA, not OLoRA) — the rejection is §7.2 grade evidence.
   - **AC:** unit test asserts `‖W_adapted − W0‖ < 1e-5` at init (function-preserving); `Bᵀ@B ≈ I_r` (orthonormality); QR runs on `W0`, not a random matrix.
-  - **Evidence:** `tests/unit/test_olora_init.py`, `test_olora_linear.py`.
+  - **Evidence:** `tests/unit/test_olora_linear.py`, `test_olora_linear.py`.
 - **FR-OLoRA-3 (freeze discipline).** After attach, ONLY adapters `{A,B}`, the plain Q-head, and the mixer are trainable; every encoder `W0` is frozen.
   - **AC:** a test asserts every encoder `W0.requires_grad is False` and optimizer param-groups contain exactly `{A, B, head, mixer}`; the trainable-param count (full vs OLoRA, ~8× fewer; 64×64 @ r=4: 4096→512) is printed for §7.3 evidence.
   - **Evidence:** param-count log; ANALYSIS.md table.
@@ -218,10 +218,10 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `tests/unit/test_obs_encoder.py`.
 - **FR-OLoRA-6 (four §5.2 data sources).** Implement all four §5.2 data sources (Manhattan-heuristic experts, earlier-policy self-play, random-legal coverage, live CTDE transitions) feeding a single `CentralizedReplayBuffer` storing local obs + global state + joint action.
   - **AC:** a `TransitionDTO` schema test passes; `sample()` returns the documented dict with correct shapes.
-  - **Evidence:** `tests/unit/test_replay_dto.py`.
+  - **Evidence:** `tests/unit/test_types.py`.
 - **FR-OLoRA-7 (CTDE leakage guard at the type boundary).** `global_state` appears in `TransitionDTO`/replay only; the MCP inference tool signature **cannot** accept it.
   - **AC:** a unit test asserts no `global_state` parameter exists in the inference path and `used_global_state == False` in every response.
-  - **Evidence:** `tests/architecture/test_no_global_state_in_mcp.py`.
+  - **Evidence:** `tests/unit/test_mcp_schemas.py`.
 - **FR-OLoRA-8 (ablation — stretch, high §7.2 value).** An OLoRA ablation (OLoRA vs full-finetune vs frozen-base-no-adapter [vs standard-LoRA]) is plotted with learning curves + trainable-param counts and an honest verdict.
   - **AC:** `results/` contains the ablation chart; `docs/ANALYSIS.md` states OLoRA is a **stability aid, not the non-stationarity cure**, citing [7] §III and [4], [8].
   - **Evidence:** ablation chart; ANALYSIS.md.
@@ -239,7 +239,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** ADR-D5-02; `tests/unit/test_schemas.py`.
 - **FR-MCP-3b (recurrent server-side session state, eq 8).** The decentralized recurrent GRU carries hidden state `z_t = f_φ(z_{t-1}, o_t)` across the ≤25 `request_move` ticks of a sub-game. Each agent server therefore holds **per-sub-game server-side session hidden state** keyed by a `session_id`, **reset on `new_sub_game`**. The agent servers MUST NOT run with `FASTMCP_STATELESS_HTTP=true` (stateless would break GRU continuity); per-session server-side state is the chosen design.
   - **AC:** a test asserts a fresh `new_sub_game` zeroes the session hidden state; a test asserts the hidden state for a given `session_id` is carried (mutated, non-zero) across consecutive `request_move` calls within one sub-game and is isolated per session; the agent servers do not set `FASTMCP_STATELESS_HTTP=true`.
-  - **Evidence:** ADR-D5-05; `tests/unit/test_session_state.py`; `tests/integration/test_match.py`.
+  - **Evidence:** ADR-D5-05; `tests/unit/test_agent_runtime.py`; `tests/integration/test_match.py`.
 - **FR-MCP-4 (state/policy hiding).** No tool returns weights, Q-values, logits, hidden state, or the full board; `reveal_location` is radius-gated; no `get_state`/`get_policy` tool exists.
   - **AC:** schema test asserts the `request_move` response has no value/logit/hidden-state field; `reveal_location` returns `{visible:false}` when the requester is outside `mcp.observation.view_radius` (2); no state/policy tool is registered.
   - **Evidence:** ADR-D5-03; `tests/unit/test_schemas.py`.
@@ -260,7 +260,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** K4; `tests/integration/test_match.py`.
 - **FR-MCP-10 (zero hardcoded ports/URLs/tokens).** All ports/URLs/tokens live in `config.yaml`/`.env`; cloud vs local selected by env (`*_PUBLIC_URL`).
   - **AC:** grep shows no literal ports/URLs/tokens in `src`; one env-switched URL code path.
-  - **Evidence:** `scripts/check_secrets.py`; `tests/architecture/test_config_single_source.py`.
+  - **Evidence:** `scripts/check_secrets.py`; `tests/unit/test_config_loader.py`.
 
 ### 5.5 Cloud Deployment (§5.3 Stage 2, §6 step 8, §8)
 
@@ -272,7 +272,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** K6; F4 `_cloud.png`.
 - **FR-CLOUD-3 (inference-only, CTDE faithful).** Cloud `request_move` operates on local observation only; deployed model files contain **actor weights only** (no trainer/mixer/replay buffer/global-state code).
   - **AC:** a unit test asserts `request_move` rejects a request containing a `global_state` field; `export_weights()` saves the GRU agent-net `state_dict` only + a shape sidecar.
-  - **Evidence:** ADR-D6-3; `tests/architecture/test_no_global_state_in_mcp.py`.
+  - **Evidence:** ADR-D6-3; `tests/unit/test_mcp_schemas.py`.
 - **FR-CLOUD-4 (revocable, idempotent, resilient).** Tokens are revocable (jti deny-list primary; key rotation hard lever) and externally minted with a short TTL verified via the `exp` claim — no token is minted in-repo (deploy is inference-only; token VALUES live in `.env`, see ADR-0012); the client uses `mcp.client.timeout_s`=10, `mcp.client.max_retries`=3 with `backoff_s`=0.5, and a pre-game warm-up ping (`prewarm_ping:true`); `request_move` is idempotent per `(session_id, tick)`.
   - **AC:** after revoking a `jti` (or rotating the key) the old token returns 401 while a fresh token returns 200, both screenshotted; a retried move never double-applies.
   - **Evidence:** `cloud_revoke.png`; ADR-D6-6.
@@ -293,7 +293,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** F3; screenshot matrix fixture table.
 - **FR-GUI-4 (HUD & scoreboard, §3.4).** The HUD shows sub-game i/6, move k/25, per-sub-game scores + cumulative totals (Table 1), last actions, and a winner banner on terminal.
   - **AC:** hud/score_view tests render all variants including winner and no-winner.
-  - **Evidence:** `tests/test_hud.py`, `tests/test_score_view.py`.
+  - **Evidence:** `tests/unit/test_draw_plan.py`, `tests/unit/test_scorer.py`.
 - **FR-GUI-5 (dynamic grid).** One renderer supports dynamic grid sizes with auto-scaled square cells; a mid-match `grid_size` change re-fits the view without distortion.
   - **AC:** `test_transform.py` covers sizes 2–5; `test_app.py` confirms `GridView` rebuild on `grid_size` change.
   - **Evidence:** `src/gui/transform.py`.
@@ -314,10 +314,10 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `docs/schema/report.schema.json` (loaded by `src/reporting/schema.py`); `tests/unit/test_reporting.py`.
 - **FR-RPT-3 (scores derived, not supplied, §3.4).** Scores are derived solely from `winner` + `game.scoring` (cop_win=20, thief_win=10, cop_loss=5, thief_loss=5 — the §3.4 REPORT scoreboard, NEVER the RL `reward.*` signal); callers cannot supply scores.
   - **AC:** a unit test asserts `winner=cop → {cop:20, thief:5}` and `winner=thief → {cop:5, thief:10}`; a record call attempting to pass scores is ignored/rejected.
-  - **Evidence:** `tests/unit/test_builder.py`.
+  - **Evidence:** `tests/integration/test_mcp_servers.py`.
 - **FR-RPT-4 (timezone-aware timestamps).** Timestamps are timezone-aware Asia/Jerusalem ISO-8601 captured at real sub-game boundaries.
   - **AC:** a unit test asserts `start`/`end` `isoformat(timespec="seconds")` ends with `+03:00` (or `+02:00` DST) and matches the schema regex; naive datetimes raise.
-  - **Evidence:** `tests/unit/test_collector.py`.
+  - **Evidence:** `tests/unit/test_run_log.py`.
 - **FR-RPT-5 (idempotent send).** A crash-restart or §3.7 technical-loss rerun never produces a duplicate email (sha256 of canonical report JSON + a sentinel written only after a successful send).
   - **AC:** calling `send_final_report` twice with the same report writes the sentinel once and the second call performs no network send (`FakeEmailSender` call count == 1).
   - **Evidence:** `src/reporting/idempotency.py`; ADR-D8-4.
@@ -329,7 +329,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `tests/unit/test_mailer.py`; ADR-D8-1.
 - **FR-RPT-8 (subject template, no hardcoding).** The subject is built from a config template: `[MARL Cops&Robbers] {group_name} | Final {num_games} sub-games | Cop {cop_total} - Thief {thief_total} | {date}` (no names/ids/emails in the subject).
   - **AC:** CI grep fails if `src/` contains the literal `rmisegal+marl` or the score magnitudes as inline literals.
-  - **Evidence:** `tests/unit/test_builder.py`; CI step 7.
+  - **Evidence:** `tests/integration/test_mcp_servers.py`; CI step 7.
 
 ### 5.8 Academic Analysis, Figures & §9 Bonus Interface (§7, §9)
 
@@ -362,7 +362,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `docs/schema/report.schema.json` (extensible); §9 interface spec doc; ADR-D8 §13.
 - **FR-ANL-10 (§9 bonus rules — role alternation + scoring).** The §9 inter-group match is 6 sub-games with **role alternation**: sub-games **1–3 = group-1 Cop vs group-2 Thief**; sub-games **4–6 = swapped** (group-2 Cop vs group-1 Thief). Bonus scoring: **winning group +10, losing group +7, tie → +5 each**; the bonus counts **only if BOTH groups send a valid bonus email AND `mutual_agreement: true`** (otherwise both groups score 0). README §9 documents group names, final bonus scores, and screenshots.
   - **AC:** a serializer/validator test asserts `cop_group`/`thief_group` alternate per the 1–3 / 4–6 pattern; a scoring test asserts winner=+10, loser=+7, tie=+5 each; a gate test asserts the bonus is voided (0/0) unless both `bonus_claim` present and `mutual_agreement==true`.
-  - **Evidence:** §9 interface spec doc; `tests/unit/test_bonus_report.py`; ADR-D8 §13.
+  - **Evidence:** §9 interface spec doc; `tests/unit/test_reporting.py`; ADR-D8 §13.
 
 ### 5.9 V3 Cross-Cutting Requirements (§5 egress, §9 sensitivity, §11 cost, §13 quality)
 
@@ -388,7 +388,7 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
   - **Evidence:** `docs/UX.md`; ADR-0010; NFR-10.
 - **FR-COMP-1 (§16 component contract — Input/Output/Setup + input validation).** Every public component documents its **Input / Output / Setup** in its module docstring (matching the DI + `_validate_config()` discipline already specified). In addition, the **MCP tool handlers** (`request_move`, `reveal_location`, `query_opponent`, `new_sub_game`, `send_final_report`) and the **report builder** expose a `_validate_input()` that raises **`TypeError`** on a malformed/typed-wrong payload (distinct from the value-level `_validate_config()`).
   - **AC:** a test asserts each MCP tool handler and the report builder has a `_validate_input()` that raises `TypeError` on a wrong-typed payload (e.g. non-dict observation, missing `session_id`); each documents Input/Output/Setup in its docstring.
-  - **Evidence:** `tests/unit/test_validate_input.py`; module docstrings.
+  - **Evidence:** `tests/unit/test_mixers.py`; module docstrings.
 
 ---
 
@@ -401,11 +401,11 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
 | **NFR-1** | **≤150 LOC/file** (excl. blanks/comments) | `scripts/check_file_sizes.py`; split servers/tools, mixer/q_net, env modules | runs **AFTER** ruff format (MEMORY: file-size gate after format); CI step 6 |
 | **NFR-2** | **≥85% coverage** | DI + mocked `httpx` peer & Gmail; pure gatekeeper/builder/env unit tests | `pytest --cov=src --cov-fail-under=85`; CI step 11 |
 | **NFR-3** | **Ruff 0 violations** | `ruff check` + `ruff format --check`; `PLR2004` ignored in tests only | CI steps 4–5 |
-| **NFR-4** | **No hardcoded values → config** | all §3.6 params + ports + URLs + hyperparams in `config/config.yaml`; `scripts/check_no_hardcode.py` | `tests/architecture/test_config_single_source.py` |
+| **NFR-4** | **No hardcoded values → config** | all §3.6 params + ports + URLs + hyperparams in `config/config.yaml`; `scripts/check_no_hardcode.py` | `tests/unit/test_config_loader.py` |
 | **NFR-5** | **No secrets + `.env-example` only** | tokens/OAuth/App-Password/PII in `.env`; `.env-example` committed (names only); `.gitignore` covers `.env`, `*.pem`, `*.key`, `credentials*.json`, `secrets/` | `scripts/check_secrets.py`; CI step 8 |
 | **NFR-6** | **uv-only** | CI uses `uv`; no pip/conda; `uv.lock` committed; `uv sync --frozen` | CI step 3 |
-| **NFR-7** | **Single SDK entry for UIs** | `src/sdk/sdk.py::MarlSDK` is the only business-logic entry; GUI/MCP/report/scripts import only `src.sdk` (scripts exempt from the single-entry rule, NOT from size/lint) | `tests/architecture/test_sdk_single_entry.py`, `test_mcp_servers_have_no_logic.py` |
-| **NFR-8** | **Version starts at stated version** | `__version__ = "1.0.0"` in `src/__init__.py` == `config.version` (3-segment mapping of V3 "1.00", A5-accepted) | `tests/architecture/test_version_consistency.py`; ADR-0011 |
+| **NFR-7** | **Single SDK entry for UIs** | `src/sdk/sdk.py::MarlSDK` is the only business-logic entry; GUI/MCP/report/scripts import only `src.sdk` (scripts exempt from the single-entry rule, NOT from size/lint) | `tests/architecture/test_import_boundary.py`, `test_mcp_servers_have_no_logic.py` |
+| **NFR-8** | **Version starts at stated version** | `__version__ = "1.0.0"` in `src/__init__.py` == `config.version` (3-segment mapping of V3 "1.00", A5-accepted) | `tests/unit/test_config_loader.py`; ADR-0011 |
 | **NFR-9** | **§5 External-API governance (flips N/A→REQUIRED)** | A6 makes real runtime HTTP (peer MCP) + Gmail + Prefect-deploy calls → `src/api/gatekeeper.py::ApiGatekeeper` (`execute` + `get_queue_status`; per-channel token-bucket from versioned `config/rate_limits.json`; FIFO overflow queue `max_queue:256`, no crash; all calls logged) — see FR-API-1 | `tests/architecture/test_egress_via_gatekeeper.py`; ADR-0006 |
 | **NFR-10** | **§10 Nielsen heuristics (flips N/A→REQUIRED)** | GUI is now mandatory → `docs/UX.md` maps all 10 heuristics with a screenshot per state | `tests/architecture/test_required_docs_present.py`; ADR-0010 |
 | **NFR-11** | **Docs-first SDLC (PRD/PLAN/TODO + per-area PRDs + ADRs)** | this PRD + `docs/PLAN.md` (C4/UML/deployment + ADRs **0001–0014**) + `docs/TODO.md` + the four per-area `docs/prd/PRD-{ENV,CTDE,MCP,REPORT}.md` exist with human §1.4 sign-off before feature code | `test_required_docs_present.py` enumerates `docs/prd/PRD-ENV.md`, `PRD-CTDE.md`, `PRD-MCP.md`, `PRD-REPORT.md` (+ COST_ANALYSIS/QUALITY/UX/PROMPTS) + ADR-count check (0001–0014) |
