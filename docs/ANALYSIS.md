@@ -89,24 +89,25 @@ enough to demand a near-Bayes model, loose enough to remain attainable. A single
 ## §9 Sensitivity analysis — `env.view_radius_by_grid[4]` ∈ {1, 2}
 
 A controlled SINGLE-parameter sweep: vary ONLY the 4×4 execution view radius (1 → 2)
-with everything else pinned (algorithm = QMIX, nets / replay / γ / target cadence / 3
-seeds identical). This is the §9 sensitivity analysis — distinct from the IQL/VDN/QMIX
-ablation (which swaps the *algorithm*). `scripts/sensitivity_sweep.py` →
-`results/runs/sensitivity_view_radius.jsonl` → `results/figures/sensitivity_view_radius.png`.
+with everything else pinned (algorithm = QMIX, nets / replay / γ / target cadence / the
+256-episode warmup / 3 seeds identical). This is the §9 sensitivity analysis — distinct
+from the IQL/VDN/QMIX ablation (which swaps the *algorithm*). `scripts/sensitivity_sweep.py`
+→ `results/runs/sensitivity_view_radius.jsonl` → `results/figures/sensitivity_view_radius.png`.
 
 | 4×4 view radius | final capture (mean ± SE, 3 seeds) |
 |---|---|
-| 1 (3×3 window — partial) | **0.763 ± 0.078** |
-| 2 (5×5 window — covers the 4×4 board) | 0.587 ± 0.293 |
+| 1 (3×3 window — partial) | **0.713 ± 0.073** |
+| 2 (5×5 window — covers the 4×4 board) | 0.670 ± 0.315 |
 
 **Finding (honest, possibly counterintuitive).** Capture is genuinely *sensitive* to the
-view radius — but **more observability did NOT help** at the 50-round budget: radius 2's
-mean is lower and its variance is ~4× larger (±0.29). The wider window is mostly
-out-of-bounds padding on a 4×4 board and enlarges the encoder's effective input, so it is
-harder to learn *stably* within budget (the high SE = some seeds converge, some stall) —
-the same monotonic-mixer instability story as F5, now driven by observation size rather
-than mixer richness. With only 3 seeds this is a directional result, not a tight estimate;
-the takeaway is that the model is view-radius-sensitive and that "see more" is not free.
+view radius — but **more observability did NOT clearly help** at the 50-round budget: the
+means are close (0.71 vs 0.67) yet radius 2's variance is **~4× larger** (±0.32 vs ±0.07).
+The wider window is mostly out-of-bounds padding on a 4×4 board and enlarges the encoder's
+effective input, so it is harder to learn *stably* within budget (the high SE = some seeds
+converge, some stall) — the same monotonic-mixer instability story as F5, now driven by
+observation size rather than mixer richness. With only 3 seeds this is a directional
+result, not a tight estimate; the takeaway is that the model is view-radius-sensitive and
+that "see more" is **not free** — it trades a marginal mean for markedly worse stability.
 
 > Reproduce: `uv run python scripts/sensitivity_sweep.py` (4×4 used because 5×5 training
 > is too slow to sweep); the one-key-only guarantee is asserted by
