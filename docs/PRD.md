@@ -386,9 +386,9 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
 - **FR-UX-1 (§10 Nielsen heuristics — flips N/A→REQUIRED via the mandatory GUI).** Ship `docs/UX.md` mapping all 10 Nielsen heuristics to the Pygame spectator GUI with a screenshot per state.
   - **AC:** `docs/UX.md` covers all 10 heuristics + a screenshot per screen/state; `test_required_docs_present.py` asserts its presence.
   - **Evidence:** `docs/UX.md`; ADR-0010; NFR-10.
-- **FR-COMP-1 (§16 component contract — Input/Output/Setup + input validation).** Every public component documents its **Input / Output / Setup** in its module docstring (matching the DI + `_validate_config()` discipline already specified). In addition, the **MCP tool handlers** (`request_move`, `reveal_location`, `query_opponent`, `new_sub_game`, `send_final_report`) and the **report builder** expose a `_validate_input()` that raises **`TypeError`** on a malformed/typed-wrong payload (distinct from the value-level `_validate_config()`).
-  - **AC:** a test asserts each MCP tool handler and the report builder has a `_validate_input()` that raises `TypeError` on a wrong-typed payload (e.g. non-dict observation, missing `session_id`); each documents Input/Output/Setup in its docstring.
-  - **Evidence:** `tests/unit/test_mixers.py`; module docstrings.
+- **FR-COMP-1 (§16 component contract — Input/Output/Setup + input validation).** Every public component documents its **Input / Output / Setup** in its module docstring (matching the DI + `_validate_config()` discipline already specified). In addition, the **MCP tool handlers** (`request_move`, `reveal_location`, `query_opponent`, `new_sub_game`, `send_final_report`) and the **report builder** guard their payloads with a `_require(...)` input check (`src/mcp/server_builder.py`) that raises **`TypeError`** on a malformed/typed-wrong payload (distinct from the value-level `_validate_config()`).
+  - **AC:** a test asserts the MCP tool input guard (`_require`) raises `TypeError` on a wrong-typed/malformed payload (e.g. missing `session_id`, bad report body); each component documents Input/Output/Setup in its docstring.
+  - **Evidence:** `tests/integration/test_mcp_servers.py` (`test_require_input_guard_raises_type_error`); `tests/integration/test_mcp_tools.py` (report-body `TypeError`); module docstrings.
 
 ---
 
