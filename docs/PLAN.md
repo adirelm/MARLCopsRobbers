@@ -339,8 +339,6 @@ env:
   move_resolution: simultaneous# simultaneous | cop_first | thief_first  (ADR-0004)
   capture_on_swap: true        # cop↔thief one-tick swap = CAPTURE (ADR-0004, architect rule call)
   reward_mode: dec_pomdp       # dec_pomdp | posg
-  transition_noise: 0.0
-  obs_noise: 0.0
   spawn_min_dist_mode: dist_gt_radius
   view_radius_by_grid: { 2: 0, 3: 1, 4: 1, 5: 2 }   # per-grid view radius (auto = ceil(min(H,W)/2)-1)
   view_radius_max: 2           # padding footprint = 2*view_radius_max+1 = 5×5
@@ -380,7 +378,6 @@ training:
   eps_start: 1.0
   eps_end: 0.05
   eps_anneal_env_steps: 20000
-  eval_epsilon: 0.0
 reward:                        # RL TRAINING SIGNAL ONLY (potential-based; SEPARATE from game.scoring)
   shaping_enabled: true
   shaping_eval_enabled: false

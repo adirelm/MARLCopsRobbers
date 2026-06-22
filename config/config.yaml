@@ -62,8 +62,6 @@ env:
                                   # as a CAPTURE (prevents a degenerate thief exploit).
   reward_mode: "dec_pomdp"        # §2.1 cooperative shared-R proxy (default) | posg
                                   # (role-specific R_i for the §7.2 POSG contrast).
-  transition_noise: 0.0           # T(s'|s,a) slip prob; 0.0 for grading reproducibility
-  obs_noise: 0.0                  # O flip prob on the other-visible channel; 0.0 default
   spawn_min_dist_mode: "dist_gt_radius"  # §5.1 Table 2: start distance > view radius at
                                   # partial/final stages so partial-obs genuinely bites.
 
@@ -241,14 +239,13 @@ training:
   eps_start: 1.0                  # epsilon-greedy exploration schedule (per role)
   eps_end: 0.05
   eps_anneal_env_steps: 20000     # linear anneal horizon in env steps
-  eval_epsilon: 0.0               # greedy at evaluation (reward shaping toggled OFF too)
 
 # ============================================================================
 # REWARD (RL TRAINING SIGNAL ONLY — strictly separate from the §3.4 scoreboard
 # above; ADR-D1-G/ADR-002). Potential-based shaping F = gamma*Phi(s') - Phi(s),
 # Phi = -min_i manhattan(cop_i, thief) / d_max  (the CLOSEST cop sets the team
 #   potential; Ng 1999: provably policy-invariant), enabled during TRAINING only
-#   and toggled OFF at eval (eval_epsilon path). d_max = (H-1)+(W-1) is DERIVED per
+#   and toggled OFF at eval (via the env eval_mode flag). d_max = (H-1)+(W-1) is DERIVED per
 #   live grid from the state's h,w (architect decision #2) -> NOT a config key.
 # ============================================================================
 reward:
@@ -376,8 +373,6 @@ paths:
   runs_dir: "results/runs"               # append-only per-episode JSONL run records
   figures_dir: "results/figures"         # F1-F6 PNGs referenced by README §7.3
   experiment_manifest: "results/figures/experiment_manifest.json"  # seeds/config-hash; by make_figures
-  bc_dataset_dir: "results/datasets"     # P3 (T3.2) seeded BC (o, a*) npz datasets
-  subgames_dir: "results/subgames"       # P3 (T3.3) minimal sub-game JSON records
   base_checkpoint_dir: "results/checkpoints/base"   # P4c BC-pretrained base encoders
   olora_bundle_dir: "results/checkpoints/olora"     # P4c OLoRA attach bundles {sha, A/B, head}
 

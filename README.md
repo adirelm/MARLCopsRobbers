@@ -85,7 +85,9 @@ Reported plainly — the brief grades honest analysis over a polished narrative:
 - **The genuine multi-agent signal is the 4×4 2-cop stage**; the graded 5×5 is 1-cop, where the
   QMIX mixer is a trivial scalar gain (§7.2 caveat). 5×5 is excluded from the figure matrix for
   compute (training too slow to sweep all arms).
-- **OLoRA is a stability/efficiency aid, not the non-stationarity cure** (§7.2, `[7]`).
+- **OLoRA is a stability/efficiency aid, not the non-stationarity cure** (§7.2, `[7]`); the OLoRA-vs-
+  full-fine-tune **ablation chart/table was descoped** (a PRD-designated stretch item) — the ~8×
+  trainable-param reduction it would visualize is still asserted by `tests/unit/test_olora_linear.py`.
 - **Cloud deploy + the Gmail send are built + tested, not live-run** — they are account/cred-gated
   (a deliberate scope line, ADR-D10-E; the localhost match F4 is canonical).
 
@@ -195,8 +197,9 @@ captured. The figure manifest:
 | **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |
 
 F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); F3/F4 are
-deterministically captured by their seeded scripts. The OLoRA ablation chart + trainable-param
-table also land here (§7.2 evidence).
+deterministically captured by their seeded scripts. (The OLoRA-vs-full-fine-tune ablation chart +
+trainable-param table were **descoped** — see §6; the ~8× trainable-param reduction is asserted by
+`tests/unit/test_olora_linear.py`.)
 
 ---
 

@@ -50,8 +50,7 @@ def test_round_trips_real_config():
         assert section in cfg
     assert cfg["game"]["grid_size"] == 5
     assert cfg["env"]["actions"]["a_cop"] == 5
-    assert cfg["paths"]["bc_dataset_dir"] == "results/datasets"
-    assert cfg["paths"]["subgames_dir"] == "results/subgames"
+    assert cfg["paths"]["runs_dir"] == "results/runs"
 
 
 def _write(tmp_path, body: str):
