@@ -13,7 +13,7 @@
 > **Companion docs:** `docs/PRD.md` (requirements/KPIs), `docs/TODO.md` (phase-tagged tasks),
 > `docs/THEORY.md` (Dec-POMDP/CTDE math), `docs/ANALYSIS.md` (OLoRA + §7.2 critique),
 > `docs/UX.md` (Nielsen heuristics), `docs/QUALITY.md` (ISO 25010), `docs/COST_ANALYSIS.md`,
-> `docs/adr/0001..0014.md`, `docs/schema/report.schema.json`.
+> the ADR index in §6 of this doc (ADR-0001..0014 + supporting-policy), `docs/schema/report.schema.json`.
 
 ---
 
