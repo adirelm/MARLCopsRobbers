@@ -46,7 +46,7 @@ class AgentController:
         }
 
     def end_session(self, session_id: str) -> None:
-        """Drop a session's hidden state (``end_sub_game``); a no-op if unknown."""
+        """Drop a session's hidden state (teardown; reset on ``new_sub_game``); a no-op if unknown."""
         self._sessions.pop(session_id, None)
 
     def has_session(self, session_id: str) -> bool:

@@ -427,7 +427,7 @@ logging:     { level: "INFO" }
 `{ "version":"1.0.0", "limits": { "peer_mcp":{"per_minute":120,"burst":10},
 "gmail":{"per_minute":5,"burst":1}, "prefect_deploy":{"per_minute":30,"burst":5} },
 "overflow_policy":"fifo_queue", "on_overflow":"enqueue", "max_queue":256, "log_all_calls":true }`
-`.env-example` (names only): `COP_MCP_TOKEN= THIEF_MCP_TOKEN= REFEREE_MCP_TOKEN= PEER_MCP_TOKEN= MCP_PUBLIC_KEY= MCP_PRIVATE_KEY= REVOKED_TOKEN_JTIS= PREFECT_API_KEY= GMAIL_SENDER= GMAIL_APP_PASSWORD= REPORT_RECIPIENT_OVERRIDE=`
+`.env-example` (names only): `COP_MCP_TOKEN= THIEF_MCP_TOKEN= REFEREE_MCP_TOKEN= PEER_MCP_TOKEN= MCP_PUBLIC_KEY= MCP_PRIVATE_KEY= REVOKED_TOKEN_JTIS= PREFECT_API_KEY= GMAIL_SENDER= GMAIL_APP_PASSWORD=`
 Secrets/PII NEVER in `config.yaml`: transport secrets + RSA keys → `.env`; real names/ids +
 GitHub owner slug → git-ignored `players.local.yaml` (placeholders in repo-root `players.example.yaml`).
 
