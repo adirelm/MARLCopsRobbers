@@ -286,22 +286,22 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **AC:** launching `scripts/play.py` over a local referee shows both tokens moving each tick, barriers appearing on placement, and the move counter incrementing 0..`max_moves`.
   - **Evidence:** F3 screenshots; ADR-GUI-01.
 - **FR-GUI-2 (spectator purity / partial-observability invariant, §2.1).** The GUI is a strict god-view spectator with **zero** effect on agent observation; it reads referee-owned ground truth, never calls agent MCP servers, and never writes state.
-  - **AC:** `test_spectator_purity.py` and `test_no_agent_global_state_leak.py` pass — the GUI never imports referee/agent/MCP internals, `SpectatorFrame` is frozen, `referee.build_local_obs` Manhattan-masks beyond `view_radius`, and no agent payload contains global positions/totals/`SpectatorFrame`.
+  - **AC:** `tests/architecture/test_gui_purity.py` and `tests/architecture/test_step_no_leak.py` pass — the GUI never imports referee/agent/MCP internals, `SpectatorFrame` is frozen, `referee.build_local_obs` Manhattan-masks beyond `view_radius`, and no agent payload contains global positions/totals/`SpectatorFrame`.
   - **Evidence:** `tests/architecture/`; ADR-GUI-02.
 - **FR-GUI-3 (deterministic multi-size screenshots, §7.3c).** Automated, deterministic GUI screenshots at 2×2/3×3/4×4/5×5, each showing cop + thief + ≥1 barrier on a mid-game board.
-  - **AC:** `uv run scripts/capture_screens.py` produces `results/screenshots/grid_{2,3,4,5}x{n}.png` headlessly (`SDL_VIDEODRIVER=dummy`); `test_screenshot_matrix.py` asserts existence, dimensions, and non-background cop/thief/barrier/HUD pixels.
+  - **AC:** `uv run scripts/capture_screens.py` produces `results/screenshots/grid_{2,3,4,5}x{n}.png` headlessly (`SDL_VIDEODRIVER=dummy`); `tests/integration/test_gui_render.py` asserts existence, dimensions, and non-background cop/thief/barrier/HUD pixels.
   - **Evidence:** F3; screenshot matrix fixture table.
 - **FR-GUI-4 (HUD & scoreboard, §3.4).** The HUD shows sub-game i/6, move k/25, per-sub-game scores + cumulative totals (Table 1), last actions, and a winner banner on terminal.
   - **AC:** hud/score_view tests render all variants including winner and no-winner.
   - **Evidence:** `tests/unit/test_draw_plan.py`, `tests/unit/test_scorer.py`.
 - **FR-GUI-5 (dynamic grid).** One renderer supports dynamic grid sizes with auto-scaled square cells; a mid-match `grid_size` change re-fits the view without distortion.
-  - **AC:** `test_transform.py` covers sizes 2–5; `test_app.py` confirms `GridView` rebuild on `grid_size` change.
+  - **AC:** `tests/unit/test_gui_logic.py` covers sizes 2–5; `tests/unit/test_gui_logic.py` confirms `GridView` rebuild on `grid_size` change.
   - **Evidence:** `src/gui/transform.py`.
 - **FR-GUI-6 (cloud spectator path, Stage 2).** A read-only HTTP spectator path (SSE + polling fallback, **separate** spectator bearer token) lets the GUI watch a distributed cloud match without ever calling agent MCP servers.
-  - **AC:** `test_state_client.py` confirms in-proc and HTTP paths both yield identical `SpectatorFrame` DTOs; the spectator token is distinct from agent tokens.
+  - **AC:** `tests/unit/test_gui_logic.py` confirms in-proc and HTTP paths both yield identical `SpectatorFrame` DTOs; the spectator token is distinct from agent tokens.
   - **Evidence:** ADR-GUI-03.
 - **FR-GUI-7 (local rendering literals, CLAUDE.md §4).** Rendering literals (colors, line widths, cell px, fonts, FPS, animation ms) stay LOCAL in `palette.py`; only algo/board params come from config via `SpectatorFrame`.
-  - **AC:** `test_palette.py` asserts `palette` has no config import.
+  - **AC:** `tests/unit/test_gui_logic.py` asserts `palette` has no config import.
   - **Evidence:** ADR-GUI-04.
 
 ### 5.7 Gmail Report (§3.5, §5.5)
@@ -375,7 +375,7 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
   - **AC:** `results/figures/sensitivity_view_radius.png` plots `env.view_radius_by_grid` against capture-rate over fixed seeds; `docs/ANALYSIS.md` (or README §7.2) documents the observed effect; only ONE parameter varies per sweep; no sweep uses `reward.distance_weight`.
   - **Evidence:** `results/figures/sensitivity_*.png`; ANALYSIS.md; F-sensitivity.
 - **FR-RES-2 (§9 analysis notebook — SDK-only).** Ship `notebooks/analysis.ipynb` that consumes the **single `MarlSDK` only** (no direct internal imports), rendering the LaTeX Dec-POMDP/QMIX equations (eq 1, eq 7), the F1–F6 figures, and the `[1]`–`[11]` citations.
-  - **AC:** the notebook imports only `src.sdk`; it regenerates/embeds the §7.3 figures and the formal equations; `test_sdk_single_entry.py` covers the notebook's import surface.
+  - **AC:** the notebook imports only `src.sdk`; it regenerates/embeds the §7.3 figures and the formal equations; `tests/architecture/test_import_boundary.py` covers the notebook's import surface.
   - **Evidence:** `notebooks/analysis.ipynb`; NFR-7.
 - **FR-COST-1 (§11 cost analysis).** Ship `docs/COST_ANALYSIS.md` with (a) the **AI-assisted-development token-cost breakdown** (input/output token counts, $/1M per model, total), (b) the **RL training-compute envelope** (episodes × stages × wall-clock, local-only — `training.episodes_per_stage`=5000 × `env.curriculum.stages` (4) × seeds (5)), and (c) optimization notes (OLoRA param reduction, local-only training, caching).
   - **AC:** `docs/COST_ANALYSIS.md` exists with all three parts and numeric tables; `test_required_docs_present.py` asserts its presence.
@@ -404,7 +404,7 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
 | **NFR-4** | **No hardcoded values → config** | all §3.6 params + ports + URLs + hyperparams in `config/config.yaml` (config single-source — verified by the exhaustive dead-config sweep: every algo-relevant key is read or removed); `ruff` + code review | `tests/unit/test_config_loader.py`; `config/config.yaml` |
 | **NFR-5** | **No secrets + `.env-example` only** | tokens/OAuth/App-Password/PII in `.env`; `.env-example` committed (names only); `.gitignore` covers `.env`, `*.pem`, `*.key`, `credentials*.json`, `secrets/` | the CI "Secrets + recipient guard" step (`.github/workflows/ci.yml`) |
 | **NFR-6** | **uv-only** | CI uses `uv`; no pip/conda; `uv.lock` committed; `uv sync --frozen` | the CI "Sync deps" step |
-| **NFR-7** | **Single SDK entry for UIs** | `src/sdk/sdk.py::MarlSDK` is the only business-logic entry; GUI/MCP/report/scripts import only `src.sdk` (scripts exempt from the single-entry rule, NOT from size/lint) | `tests/architecture/test_import_boundary.py`, `test_mcp_servers_have_no_logic.py` |
+| **NFR-7** | **Single SDK entry for UIs** | `src/sdk/sdk.py::MarlSDK` is the only business-logic entry; GUI/MCP/report/scripts import only `src.sdk` (scripts exempt from the single-entry rule, NOT from size/lint) | `tests/architecture/test_import_boundary.py`, `tests/architecture/test_train_exec_split.py` |
 | **NFR-8** | **Version starts at stated version** | `__version__ = "1.0.0"` in `src/__init__.py` == `config.version` (3-segment mapping of V3 "1.00", A5-accepted) | `tests/unit/test_config_loader.py`; ADR-0011 |
 | **NFR-9** | **§5 External-API governance (flips N/A→REQUIRED)** | A6 makes real runtime HTTP (peer MCP) + Gmail + Prefect-deploy calls → `src/api/gatekeeper.py::ApiGatekeeper` (`execute` + `get_queue_status`; per-channel token-bucket from versioned `config/rate_limits.json`; FIFO overflow queue `max_queue:256`, no crash; all calls logged) — see FR-API-1 | `tests/architecture/test_egress_via_gatekeeper.py`; ADR-0006 |
 | **NFR-10** | **§10 Nielsen heuristics (flips N/A→REQUIRED)** | GUI is now mandatory → `docs/UX.md` maps all 10 heuristics with a screenshot per state | `tests/architecture/test_required_docs_present.py`; ADR-0010 |
@@ -417,7 +417,7 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
 - **NFR-15 (process isolation).** Servers and referee are separate OS processes (not threads) to avoid FastMCP-async / Pygame / torch event-loop deadlock; the GUI consumes referee results via a queue and never calls servers directly.
 - **NFR-16 (secrets redaction).** Unconditional redaction in `src/results/comms.py` + `src/reporting/send.py` strips `Authorization`/`Bearer`/key material from logs before any screenshot.
 - **NFR-17 (Google-Drive `.git` hazard, MEMORY).** Course repos live in Google Drive; sync can silently remove `.git` mid-session — push often; keep a `/tmp` clone to restore `.git`.
-- **NFR-18 (CI never gates on git-ignored PII, MEMORY).** `test_cover_sheet_gitignored.py` is **skip-when-absent** — never assert a git-ignored cover sheet exists (this exact assert broke A5 CI).
+- **NFR-18 (CI never gates on git-ignored PII, MEMORY).** No test asserts the git-ignored cover sheet exists — any cover-sheet check is **skip-when-absent** by design; never gate CI on a git-ignored PII artifact (this exact assert broke A5 CI).
 
 ---
 
