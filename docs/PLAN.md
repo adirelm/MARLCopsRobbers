@@ -509,9 +509,10 @@ never shares a cooperative mixer with the Cop (POSG, eq 3; ADR-0006).
 
 ## 6. Architecture Decision Records (index)
 
-Full ADRs live in `docs/adr/0001..0014.md`. Each below: **title — decision — rationale.** All
-ADRs that alter a human-decided column (`CLAUDE.md` §1.4: rules, architecture, test acceptance)
-require explicit human sign-off before the corresponding code lands.
+This index IS the canonical ADR record — each entry below is **title — decision — rationale**
+(ADR-0001..0014 + the supporting-policy ADRs noted after the table). All ADRs that alter a
+human-decided column (`CLAUDE.md` §1.4: rules, architecture, test acceptance) require explicit
+human sign-off before the corresponding code lands.
 
 | ADR | Title | Decision | Rationale |
 |---|---|---|---|
