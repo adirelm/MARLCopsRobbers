@@ -21,7 +21,16 @@ def _tiny(cfg: dict) -> dict:
     c["selfplay"]["rounds"] = 2
     c["algo"]["batch_episodes"] = 2
     c["replay"]["buffer_episodes"] = 16
+    c["replay"]["min_replay_episodes"] = 2  # small warmup so the tiny stage still exercises updates
     return c
+
+
+def test_warmup_skips_updates_until_min_replay_episodes(cfg):
+    """With min_replay above the episodes collected, NO learner update runs (loss == 0.0)."""
+    c = _tiny(cfg)
+    c["replay"]["min_replay_episodes"] = 999  # never reached in a 2-episode round -> warmup only
+    history = SelfPlayTrainer(c, seed=7, h=2, w=2, num_cops=1).train_stage(rounds=2)
+    assert all(record["loss"] == 0.0 for record in history)  # collect-only, no update during warmup
 
 
 def test_train_stage_alternates_roles_and_returns_history(cfg):

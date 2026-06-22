@@ -74,6 +74,7 @@ class SelfPlayTrainer:
         self._thief = make_thief_learner(cfg, net=thief_net)
         self._cop_buf = make_role_buffer(cfg, _COP_SLOTS, int(seed))
         self._thief_buf = make_role_buffer(cfg, 1, int(seed) + 1)
+        self._min_replay = int(cfg["replay"]["min_replay_episodes"])  # warmup before the 1st update
         self._cop_pool = OpponentPool("cop", cfg, self._num_cops, int(seed) + 2)
         self._thief_pool = OpponentPool("thief", cfg, 1, int(seed) + 3)
         self._env_steps = 0
@@ -104,12 +105,13 @@ class SelfPlayTrainer:
             self._store(out)
             self._env_steps += len(out["cop"])
             captures += int(out["capture"])
-            losses += [trainee.update(buf.sample(self._batch))["loss"] for _ in range(self._update_ratio)]
+            if len(buf) >= self._min_replay:  # honor the configured replay warmup
+                losses += [trainee.update(buf.sample(self._batch))["loss"] for _ in range(self._update_ratio)]
         (self._cop_pool if role == "cop" else self._thief_pool).add(trainee.online_net)
         return {
             "round": round_idx,
             "role": role,
-            "loss": sum(losses) / len(losses),
+            "loss": (sum(losses) / len(losses)) if losses else 0.0,  # 0.0 during warmup (no updates)
             "capture_rate": captures / self._eps_per_round,
         }
 
