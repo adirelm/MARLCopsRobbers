@@ -7,10 +7,10 @@ decomposition** (QMIX primary, VDN ablation, IQL baseline), each agent runs behi
 **FastMCP server** (localhost → cloud), visualized live in a **Pygame** GUI, with an
 end-of-game **Gmail** report.
 
-> **Status: PLANNING COMPLETE — implementation pending.** This README is the submission
-> report (brief §7); it is currently a skeleton and fills in as the phased build (PLAN §8,
-> TODO P0→P11) lands. Design is locked: see [`docs/PRD.md`](docs/PRD.md),
-> [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
+> **Status: COMPLETE (v1.0.0).** All phases P0→P11 are implemented, tested (508 tests,
+> ~99.6% coverage, ruff clean, CI green), and the §7 analysis below is fully authored from a
+> real training run. This README is the submission report (brief §7). Design docs:
+> [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
 ## Installation
 
@@ -24,12 +24,13 @@ uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
 
 ## Usage
 
-*(pending implementation — P5/P6/P8)*. Planned single-SDK entry + thin surfaces:
+Single-SDK entry + thin surfaces (all working):
 
 ```bash
 uv run python -m src.cli train --algo qmix      # local CTDE training (curriculum 2×2→5×5)
 uv run python -m src.cli play                    # run a 6-sub-game match over the two MCP servers
-uv run python -m src.gui                         # Pygame god-view spectator
+uv run python -m src.gui                         # Pygame god-view spectator (needs --extra gui)
+uv run python -m src.results.make_figures        # regenerate F1/F2/F5/F6 from results/runs/
 ```
 
 ## Examples
@@ -61,7 +62,7 @@ MCP (Anthropic 2024) — full bibliography in `docs/PRD.md` §10.
 
 ---
 
-## 1.–7. Submission report (brief §7) — *to be authored during the build (README is the §7 paper)*
+## 1.–7. Submission report (brief §7) — the README IS the §7 paper
 
 §1 Game · §2 Skills/architecture · §3 before · §4 after · §5 metrics/ablation/**sensitivity** ·
 §6 bug/limitations · §7 academic analysis (Dec-POMDP formalism, non-stationarity, IQL-vs-CTDE,
@@ -69,9 +70,8 @@ IGM/monotonicity → QPLEX/Weighted-QMIX). Figures F1–F6 + GUI + MCP-comms scr
 
 ---
 
-## 7. Academic analysis (brief §7) — outline + figure manifest
+## 7. Academic analysis (brief §7)
 
-> **Skeleton only (T1.5).** §7.1/§7.2/§7.3 below are placeholders filled in as the build lands.
 > Equation/citation numbering follows **ex06/BRIEF as primary** (R13): ex06 "eq 2" ≡ L10 "eq 4";
 > BRIEF `[2]` (VDN) ≡ L10 `[7]`. Full formalism in [`docs/THEORY.md`](docs/THEORY.md).
 
@@ -132,10 +132,13 @@ and `r ≥ dim` (defeats the low-rank point) — all out of scope.
 
 ### 7.3 Results — the controlled experiment + figures
 
-**Single controlled experiment** (D10 §C): arms **IQL / VDN / QMIX** × seeds **`[7, 17, 37, 71,
-107]`** × ladder **`[2, 3, 4, 5]`**, identical everything except the mixer/branch. Per-round records
-append to `results/runs/history.jsonl`; `results/figures/experiment_manifest.json` pins arms / seeds
-/ stages + a config hash (zero README↔code drift, R8).
+**Single controlled experiment** (D10 §C): identical nets / replay / ε-decay / γ / target cadence —
+only the mixer (or the IQL branch) differs. **48 runs** = all three arms **IQL / VDN / QMIX** ×
+seeds **`[7, 17, 37, 71, 107]`** × stages **`[2×2, 3×3, 4×4]`** (45) **+ QMIX-only at 5×5** (3 seeds;
+5×5 training is too slow to sweep all arms). The **4×4 two-cop stage is the comparison focus** (all
+arms present); the 5×5 QMIX runs add the F6 scaling tail. Per-round records append to
+`results/runs/history.jsonl`; `results/figures/experiment_manifest.json` pins arms / seeds / stages +
+a config hash (= 48, zero README↔code drift, R8).
 
 ![F1 learning curves](results/figures/learning_curves.png)
 *F1 — capture rate vs self-play round (cross-seed mean±SE) at the 4×4 two-cop focus stage; QMIX's

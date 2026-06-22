@@ -89,16 +89,15 @@ def test_cop_already_on_thief_returns_legal_move(make_state, cfg):
     assert 0 <= nxt[0] < 3 and 0 <= nxt[1] < 3
 
 
-def test_cop_fully_boxed_in_with_epsilon_does_not_crash(make_state, cfg):
-    """A fully-walled cop with epsilon>0 + rng returns a safe action, no crash.
+def test_cop_with_no_legal_moves_and_epsilon_does_not_crash(make_state, cfg):
+    """A cop with NO legal moves + epsilon>0 + rng returns a safe action, no crash.
 
-    Every directional neighbour is sealed by a barrier, so _legal_moves is empty.
-    The epsilon-explore path must NOT call rng.choice([]) (which raises); it must
-    return a safe no-op fallback action (B1).
+    On a degenerate 1x1 board the single-cell cop has no neighbours at all, so
+    _legal_moves is empty. The epsilon-explore path must NOT call rng.choice([])
+    (which raises); it must return a safe no-op fallback action (B1).
     """
-    # Seal all four neighbours of the corner cop on a 5x5 board.
-    barriers = [(0, 1), (1, 0)]
-    state = make_state(cop_pos=(0, 0), thief_pos=(4, 4), barriers=barriers, h=1, w=1)
+    # Degenerate 1x1 board: the cop occupies the only cell -> zero legal neighbours.
+    state = make_state(cop_pos=(0, 0), thief_pos=(0, 0), h=1, w=1)
     action = cop_expert(state, cfg, idx=0, rng=Random(0), epsilon=1.0)
     assert isinstance(action, Action)
 

@@ -53,7 +53,7 @@ def build_server(
         role: ``"cop"`` / ``"thief"`` (the server name).
         controller: The role's per-session :class:`AgentController`.
         verifier: The FastMCP auth verifier (Stage-1 static / Stage-2 JWT).
-        peer_query: Optional ``(requester_role, tick) -> {"visible", "position"}``
+        peer_query: Optional ``(session_id, requester_role, own_pos) -> {"visible", "position"}``
             seam backing ``query_opponent`` (the orchestrator wires it to the peer's
             radius-gated reveal); ``None`` yields no evidence.
 

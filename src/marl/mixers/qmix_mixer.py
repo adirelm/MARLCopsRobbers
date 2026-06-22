@@ -1,7 +1,8 @@
 """QMIX monotone hypernetwork mixer (T4.1, P4a Stage 3).
 
-QMIX (BRIEF eq5) factorises ``Q_tot`` as a monotone function of the per-agent
-``Q_i``, conditioned on the global state via hypernetworks. The first-layer
+QMIX (BRIEF eq7) factorises ``Q_tot`` as a monotone function of the per-agent
+``Q_i``, conditioned on the global state via hypernetworks (IGM is eq5; VDN eq6).
+The first-layer
 weights ``w1`` and second-layer weights ``w2`` are passed through ``softplus``
 so they are non-negative — this enforces ``∂Q_tot/∂Q_i ≥ 0`` (monotonicity),
 which in turn guarantees IGM: the decentralized per-agent argmax equals the
@@ -21,7 +22,7 @@ from src.marl.nets.dims import state_dim
 
 
 class QmixMixer(BaseMixer):
-    """Monotone state-conditioned hypernetwork mixer (eq5)."""
+    """Monotone state-conditioned hypernetwork mixer (eq7)."""
 
     def __init__(self, cfg: dict, n_agents: int) -> None:
         """Build the hypernetworks producing the monotone two-layer mixer.
