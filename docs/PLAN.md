@@ -163,7 +163,7 @@ Assignment6-MARLCopsRobbers/
 ├── .python-version                 # 3.11
 ├── .env-example                    # tokens + Gmail + (PII handled via secrets/, see ADR-0013) — committed
 ├── .gitignore                      # .env .env.* *.pem *.key credentials*.json secrets/ adrl-001-ex*.pdf instructions/ artifacts/
-│                                    #   + allow-list exception: !deploy/model/*.pt (the ONE committed actor checkpoint)
+│                                    #   + allow-list exception: !deploy/model/*.pt (reserved for the Stage-2 actor checkpoint, committed at deploy time)
 ├── .github/
 │   ├── pull_request_template.md    # Scope/Req/Human/AI/Tests/V3 checklist
 │   └── workflows/ci.yml            # ruff check → ruff format --check → file-size → check_* → pytest --cov
@@ -559,7 +559,7 @@ GitHub main ──push-to-deploy──▶  Prefect Horizon / FastMCP Cloud   (si
    (commit ONE actor-only ──┐     ├─ entrypoint src/mcp/cop_server.py:mcp   → https://adrl-001-cop.fastmcp.app/mcp
     inference checkpoint:    │     └─ entrypoint src/mcp/thief_server.py:mcp → https://adrl-001-thief.fastmcp.app/mcp
     GRU+MLP state_dict +     │     env: MCP_PUBLIC_KEY, issuer, audience, REVOKED_TOKEN_JTIS,
-    shape sidecar, sub-MB,   │          MODEL_PATH = deploy/model/cop_actor.pt (tracked; actor weights ONLY —
+    shape sidecar, sub-MB,   │          MODEL_PATH = deploy/model/cop_actor.pt (Stage-2; actor weights ONLY —
     under deploy/model/)  ───┘          NO mixer / NO critic / NO replay / NO global state)
                                   NOT stateless: each server keeps per-sub-game server-side GRU
                                        hidden state z_t (keyed by session id), reset on new_sub_game.
@@ -585,8 +585,8 @@ GitHub main ──push-to-deploy──▶  Prefect Horizon / FastMCP Cloud   (si
 `global_state` field; deployed model files contain actor weights only — no trainer, mixer, replay,
 or global-state code reaches the cloud (`test_egress_via_gatekeeper` + actor-only checkpoint test).
 **Model delivery mechanism:** ONE small actor-only inference checkpoint (the GRU+MLP `state_dict` +
-its shape sidecar, sub-MB) is committed under the non-ignored `deploy/model/` path (a `.gitignore`
-allow-list exception); `MODEL_PATH` points the deployed entrypoints at it. The trainer's
+its shape sidecar, sub-MB) **will be committed at deploy time** under the non-ignored `deploy/model/`
+path (a `.gitignore` allow-list exception reserves it); `MODEL_PATH` points the deployed entrypoints at it. The trainer's
 `export_weights()` writes exactly this actor-net `state_dict` (mixer/critic/replay/`s` excluded).
 Per-sub-game GRU hidden state is held **server-side** (keyed by session id, reset on `new_sub_game`)
 so the recurrent policy (eq 8) carries `z_t` across the ~25 `request_move` ticks — the agent servers

@@ -8,7 +8,7 @@
 #
 # SECRETS / PII LIVE ELSEWHERE (V3 secrets gate, A1-A5 PII deny-list):
 #   - transport secrets (tokens, App Password, RSA keys) -> .env  (git-ignored;
-#     placeholders in config/.env-example)
+#     placeholders in .env-example)
 #   - real student names/IDs + GitHub owner slug        -> players.local.yaml
 #     (git-ignored; placeholders in players.example.yaml)
 # Cover sheet adrl-001-ex06.pdf is git-ignored, Moodle-only (never asserted).

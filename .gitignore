@@ -61,9 +61,9 @@ planning/source_pdfs/
 results/checkpoints/
 results/**/*.pt
 results/**/*.pth
-# Exception: ONE committed actor-only inference checkpoint for the §7.2 cloud
-# deploy (GRU+MLP state_dict + shape sidecar, sub-MB; NO mixer/critic/replay).
-# MODEL_PATH points here; it is the only .pt that travels in tracked content.
+# Exception: reserves the path for the Stage-2 actor-only inference checkpoint for the
+# §7.2 cloud deploy (GRU+MLP state_dict + shape sidecar, sub-MB; NO mixer/critic/replay).
+# MODEL_PATH points here; committed at deploy time (the only .pt allowed in tracked content).
 !deploy/model/
 !deploy/model/*.pt
 results/history/

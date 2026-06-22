@@ -80,7 +80,7 @@ literal prompts) and in the per-section commit messages naming the § addressed.
 
 NO secrets and NO PII in tracked files. Transport secrets (MCP tokens, RSA keys,
 Gmail App Password) live in `.env` (git-ignored; placeholders in
-`config/.env-example`). Real student names/IDs + the GitHub owner slug live in
+`.env-example`). Real student names/IDs + the GitHub owner slug live in
 `players.local.yaml` (git-ignored; placeholders in `players.example.yaml`). The
 numeric self-grade lives ONLY on the git-ignored Moodle cover sheet
 `adrl-001-ex06.pdf` — the tracked repo claims no self-grade. `check_pii.py` MUST
