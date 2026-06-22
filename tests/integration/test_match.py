@@ -20,7 +20,11 @@ from src.reporting.players import load_players
 from src.sdk.sdk import MarlSDK
 
 SEED = 7
-_PLAYERS = {"group": "adrl-001", "students": [{"full_name": "Placeholder Student", "id": "000000000"}]}
+_PLAYERS = {
+    "group_name": "adrl-001",
+    "students": [{"role": "A", "full_name": "Placeholder Student", "id": "000000000"}],
+    "github_repo": "https://github.com/example/marl",
+}
 
 
 def test_full_local_match_assembles_validated_report(cfg):
@@ -51,8 +55,8 @@ def test_query_opponent_evidence_cannot_reach_request_move():
 
 
 def test_load_players_returns_placeholder_group_and_students():
-    """load_players reads the tracked placeholder (group + at least one student)."""
+    """load_players reads the tracked placeholder (group_name + students[role,name,id] + repo)."""
     players = load_players()
-    assert players["group"]
+    assert players["group_name"] and players["github_repo"]
     assert players["students"]
-    assert {"full_name", "id"} <= set(players["students"][0])
+    assert {"role", "full_name", "id"} <= set(players["students"][0])

@@ -22,16 +22,20 @@ def _default_path() -> Path:
 
 
 def load_players(path: str | Path | None = None) -> dict:
-    """Return ``{"group", "students": [{"full_name", "id"}, ...]}`` for the report.
+    """Return ``{"group_name", "students": [{"role","full_name","id"}], "github_repo"}``.
+
+    The §3.5 report identity block (BRIEF p.7): the group name, the per-student
+    role/full_name/id, and the GitHub repo URL (PII-adjacent, so it lives in the
+    git-ignored players.local.yaml, not config).
 
     Args:
         path: Optional explicit players file; defaults to the local file when
             present, otherwise the tracked placeholder.
 
     Returns:
-        The group code + the per-student name/id list (placeholders when no local
-        file exists — never real PII in tracked content).
+        The group name + the per-student role/name/id list + the repo URL
+        (placeholders when no local file exists — never real PII in tracked content).
     """
     raw = yaml.safe_load(Path(path or _default_path()).read_text(encoding="utf-8"))
-    students = [{"full_name": s["full_name"], "id": s["id"]} for s in raw["students"]]
-    return {"group": raw["group_name"], "students": students}
+    students = [{"role": s["role"], "full_name": s["full_name"], "id": s["id"]} for s in raw["students"]]
+    return {"group_name": raw["group_name"], "students": students, "github_repo": raw["github_repo"]}

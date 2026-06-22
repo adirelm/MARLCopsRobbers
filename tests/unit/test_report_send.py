@@ -17,12 +17,7 @@ from src.sdk.sdk import MarlSDK
 def test_validate_enforces_expected_game_count():
     full = _report()  # 6 sub-games
     validate(full, expected_games=6)  # the §3.5 count -> passes
-    short = {
-        **full,
-        "num_games": 5,
-        "sub_games": full["sub_games"][:5],
-        "totals": {"cop": 100, "thief": 25},  # 5 cop-wins: 20*5 / 5*5
-    }
+    short = {**full, "sub_games": full["sub_games"][:5], "totals": {"cop": 100, "thief": 25}}
     validate(short)  # structural-only (no count) -> passes
     with pytest.raises(ValueError, match="exactly 6"):
         validate(short, expected_games=6)  # the send-path gate rejects a short report
@@ -31,20 +26,20 @@ def test_validate_enforces_expected_game_count():
 def _report() -> dict:
     games = [
         {
-            "game_id": f"g{i}",
-            "grid": [5, 5],
+            "id": i + 1,
+            "start": f"2026-06-17T18:0{i}:00.000+03:00",
+            "end": f"2026-06-17T18:0{i}:30.000+03:00",
+            "moves": 4,
             "winner": "cop",
-            "capture": True,
-            "steps": 4,
             "scores": {"cop": 20, "thief": 5},
-            "seed": i,
         }
         for i in range(6)
     ]
     return {
-        "group": "adrl-001",
-        "students": [{"full_name": "Pat Doe", "id": "000000000"}],
-        "num_games": 6,
+        "group_name": "adrl-001",
+        "students": [{"role": "A", "full_name": "Pat Doe", "id": "000000000"}],
+        "github_repo": "https://github.com/example/marl",
+        "timezone": "Asia/Jerusalem",
         "sub_games": games,
         "totals": {"cop": 120, "thief": 30},
     }
@@ -70,8 +65,12 @@ def test_redact_report_strips_student_pii():
     assert "full_name" not in redacted["students"][0]
 
 
-def test_report_hash_is_stable():
-    assert send_mod.report_hash(_report()) == send_mod.report_hash(_report())
+def test_report_hash_is_canonical_and_content_sensitive():
+    base = _report()
+    reordered = {key: base[key] for key in reversed(list(base))}  # same content, keys reversed
+    assert send_mod.report_hash(base) == send_mod.report_hash(reordered)  # key-order independent
+    changed = {**base, "totals": {"cop": 999, "thief": 30}}
+    assert send_mod.report_hash(base) != send_mod.report_hash(changed)  # content-sensitive
 
 
 def test_build_date_returns_iso_date(cfg):

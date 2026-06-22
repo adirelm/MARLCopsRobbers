@@ -23,16 +23,16 @@ from src.reporting.schema import Student, build_report
 SEED = 7
 _VALID_REPORT = build_report(
     "adrl-001",
-    [Student("Placeholder Student", "000000000")],
+    [Student("A", "Placeholder Student", "000000000")],
+    "https://github.com/example/marl",
+    "Asia/Jerusalem",
     [
         {
-            "game_id": "g",
-            "grid": [5, 5],
+            "start": "2026-06-17T18:00:05.000+03:00",
+            "end": "2026-06-17T18:00:06.000+03:00",
+            "moves": 1,
             "winner": "cop",
-            "capture": True,
-            "steps": 1,
             "scores": {"cop": 20, "thief": 5},
-            "seed": 7,
         }
     ],
 ).to_dict()

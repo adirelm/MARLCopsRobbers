@@ -11,6 +11,9 @@ referee is the environment, NOT a third player.
 
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from src.marl.data.obs_encoder import encode_obs_batch
 from src.marl.env.actions import Action
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
@@ -31,9 +34,11 @@ class Referee:
         self._env = CopsRobbersEnv(cfg, h=h, w=w, num_cops=int(num_cops))
         self._scorer = Scorer(cfg)
         self._grid = (h, w)
+        self._tz = ZoneInfo(cfg["project"]["timezone"])  # §3.5 report timestamps (Asia/Jerusalem)
 
     async def play_sub_game(self, cop: object, thief: object, seed: int, session_id: str = "sg") -> dict:
         """Drive ONE full sub-game over MCP; adjudicate winner + scores (Table 1)."""
+        start = datetime.now(self._tz).isoformat(timespec="milliseconds")  # §3.5 start (Jerusalem)
         obs, info = self._env.reset(seed=seed)
         state = self._env.state()
         await cop.new_sub_game(session_id, self._grid, state.cop_pos[0])
@@ -57,6 +62,9 @@ class Referee:
             "winner": winner,
             "capture": capture,
             "steps": tick,
+            "moves": tick,  # §3.5 "moves" (alias of internal steps) for the report
+            "start": start,  # §3.5 ISO-8601 Jerusalem start
+            "end": datetime.now(self._tz).isoformat(timespec="milliseconds"),  # §3.5 end
             "seed": int(seed),
             "scores": {"cop": int(scores["cop"]), "thief": int(scores["thief"])},
         }

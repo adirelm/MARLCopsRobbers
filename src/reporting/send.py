@@ -24,8 +24,8 @@ from src.reporting.schema import validate
 def format_subject(cfg: dict, report: dict, date_str: str) -> str:
     """Render ``gmail.subject_template`` from the report totals + build date (no PII)."""
     return cfg["gmail"]["subject_template"].format(
-        group_name=report["group"],
-        num_games=report["num_games"],
+        group_name=report["group_name"],
+        num_games=len(report["sub_games"]),
         cop_total=report["totals"]["cop"],
         thief_total=report["totals"]["thief"],
         date=date_str,
@@ -33,9 +33,9 @@ def format_subject(cfg: dict, report: dict, date_str: str) -> str:
 
 
 def redact_report(report: dict) -> dict:
-    """Return a copy with student PII reduced to role labels (A/B/C) only."""
+    """Return a copy with student PII reduced to role labels only (drops full_name/id)."""
     redacted = copy.deepcopy(report)
-    redacted["students"] = [{"role": chr(ord("A") + i)} for i in range(len(report["students"]))]
+    redacted["students"] = [{"role": s["role"]} for s in report["students"]]
     return redacted
 
 

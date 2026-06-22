@@ -63,7 +63,13 @@ async def run_local_match(  # noqa: PLR0913 — cfg + 2 nets + players + seed + 
     ):
         await cop.health()  # absorb (trivial in-memory) cold-start
         match = await runner.play_match(cop, thief)
-        report = build_report(players["group"], students, match["sub_games"]).to_dict()
+        report = build_report(
+            players["group_name"],
+            students,
+            players["github_repo"],
+            cfg["project"]["timezone"],
+            match["sub_games"],
+        ).to_dict()
         validate(report)
         ack = await cop.send_final_report(report)  # dry-run — no email at P6
     return {"report": report, "num_games": match["num_games"], "ack": ack}
