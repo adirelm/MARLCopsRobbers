@@ -27,10 +27,22 @@ def test_required_docs_exist():
         "docs/PLAN.md",
         "docs/ANALYSIS.md",
         "docs/UX.md",
+        "docs/shared/PROMPTS.md",
+        "docs/prd/PRD-ENV.md",  # NFR-11 per-area PRDs (V3 §2 dedicated-PRD-per-mechanism)
+        "docs/prd/PRD-CTDE.md",
+        "docs/prd/PRD-MCP.md",
+        "docs/prd/PRD-REPORT.md",
         "notebooks/analysis.ipynb",
     ]
     for rel in required:
         assert (_ROOT / rel).exists(), f"missing required doc: {rel}"
+
+
+def test_plan_indexes_all_adrs_0001_through_0014():
+    """NFR-11 ADR-count gate: PLAN §6 is the canonical ADR record indexing ADR-0001..0014."""
+    text = (_ROOT / "docs" / "PLAN.md").read_text(encoding="utf-8")
+    for i in range(1, 15):
+        assert f"**{i:04d}**" in text, f"PLAN.md ADR index missing ADR {i:04d}"
 
 
 def test_quality_doc_covers_all_iso_25010_characteristics():

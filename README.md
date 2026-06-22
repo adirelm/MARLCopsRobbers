@@ -7,7 +7,7 @@ decomposition** (QMIX primary, VDN ablation, IQL baseline), each agent runs behi
 **FastMCP server** (localhost → cloud), visualized live in a **Pygame** GUI, with an
 end-of-game **Gmail** report.
 
-> **Status: COMPLETE (v1.0.0).** All phases P0→P11 are implemented, tested (514 tests,
+> **Status: COMPLETE (v1.0.0).** All phases P0→P11 are implemented, tested (515 tests,
 > ~99.6% coverage, ruff clean, CI green), and the §7 analysis below is fully authored from a
 > real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
@@ -189,7 +189,7 @@ captured. The figure manifest:
 
 | Fig | Content | Generator | Path |
 |---|---|---|---|
-| **F1** | Both-agent learning curves (reward vs episode, mean±SE) | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
+| **F1** | Per-algorithm learning curves (capture rate vs self-play round, cross-seed mean±SE) | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
 | **F2** | Per-stage TD-loss curves | `python -m src.results.make_figures` | `results/figures/loss_curves.png` |
 | **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png` |
 | **F4** | MCP-comms proof — localhost canonical (cloud = Stage-2, not in repo) (CAPTURED) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |

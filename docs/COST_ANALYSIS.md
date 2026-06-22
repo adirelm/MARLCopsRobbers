@@ -29,7 +29,7 @@ config-pinned: `selfplay.rounds (50) × selfplay.episodes_per_round (100) = 5000
 | Curriculum stages | 4 (2×2 → 3×3 → 4×4 → 5×5) |
 | Algorithm arms | 3 (QMIX, VDN, IQL) |
 | Seeds | 5 (7, 17, 37, 71, 107) |
-| Figure matrix | 3 × 5 × 4 = 60 runs |
+| Full compute envelope (4 stages) | 3 × 5 × 4 = 60 runs (the rendered **figure matrix** is 45 — 5×5 excluded) |
 | Measured rate (2×2) | ~1.8 s/round → ~1.5 min per 50-round run |
 
 Wall-clock scales with episode length (larger grids → more steps/episode), so the 5×5 stage
