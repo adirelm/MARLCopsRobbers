@@ -1,5 +1,5 @@
 {
-  "runs": 48,
+  "runs": 45,
   "algorithms": [
     "iql",
     "qmix",
@@ -8,8 +8,7 @@
   "stages": [
     0,
     1,
-    2,
-    3
+    2
   ],
   "seeds": [
     7,

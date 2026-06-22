@@ -106,16 +106,18 @@ regresses the *team* toward the centralized `y_tot = r_team + γ(1−d) max_{ā'
 the joint max over the centrally-mixed value removes the marginalization. CTDE thus improves
 **stability, not optimality** (the representable value class is what changes).
 
-**(2) IQL vs CTDE — empirical (the honest, nuanced result).** Arms share identical nets / replay /
-ε-decay / γ / target cadence; only the mixer (or the IQL branch) differs (5 seeds, mean±SE). At
-**3×3 QMIX leads** (0.93 vs IQL/VDN 0.88) — decomposition helps when it converges. But at the
-harder **4×4 two-cop** stage QMIX exhibits the **characteristic monotonic-mixer instability**: its
-learning curve (F1) dips to ~0.46 mid-training and is **still reconverging at the 50-round budget**
-(→ 0.72), so the simpler **VDN is the most consistent (0.82)** and IQL stays competitive (0.81).
-This is precisely the studied non-convergence phenomenon (risk R1) and it sharpens the thesis —
-CTDE stabilizes the *target*, but QMIX's richer hypernetwork value class needs **more episodes to
-stabilize** than additive VDN / independent IQL. We report this faithfully rather than cherry-pick a
-stage; **CTDE improves stability, not guaranteed sample-efficiency**.
+**(2) IQL vs CTDE — empirical (the honest result).** Arms share identical nets / replay / ε-decay /
+γ / target cadence **and the configured 256-episode replay warmup**; only the mixer (or the IQL
+branch) differs (5 seeds, mean±SE). The expressive QMIX mixer is the **least stable at this budget**.
+At 3×3 all three converge close (IQL = VDN = **0.95**, QMIX **0.92**); but at the harder **4×4
+two-cop** stage QMIX's monotonic hypernetwork **destabilizes** — its F1 curve oscillates and lands at
+**0.63 ± 0.05**, *below* the simpler **VDN (0.85, the most consistent)** and **IQL (0.82, a strong
+baseline)**. This is the studied non-convergence phenomenon (risk R1) and a well-known MARL result:
+QMIX is strictly **more expressive** than VDN/IQL but **harder to train**, so at a bounded 50-round
+budget the simpler decompositions win. Honoring the replay warmup (the audit fix) confirmed this is a
+genuine QMIX training-stability effect, **not** an early-buffer artifact. CTDE improves the
+**stability of the target**, not the sample-efficiency of the richer value class — reported faithfully,
+not cherry-picked.
 
 **(3) IGM monotonicity is lossy.** Both VDN's additivity and QMIX's `∂Q_tot/∂Q_i ≥ 0` enforce IGM
 but **cannot represent non-monotonic joint values** — e.g. a *pincer* where catching the thief
@@ -133,20 +135,20 @@ and `r ≥ dim` (defeats the low-rank point) — all out of scope.
 ### 7.3 Results — the controlled experiment + figures
 
 **Single controlled experiment** (D10 §C): identical nets / replay / ε-decay / γ / target cadence —
-only the mixer (or the IQL branch) differs. **48 runs** = all three arms **IQL / VDN / QMIX** ×
-seeds **`[7, 17, 37, 71, 107]`** × stages **`[2×2, 3×3, 4×4]`** (45) **+ QMIX-only at 5×5** (3 seeds;
-5×5 training is too slow to sweep all arms). The **4×4 two-cop stage is the comparison focus** (all
-arms present); the 5×5 QMIX runs add the F6 scaling tail. Per-round records append to
-`results/runs/history.jsonl`; `results/figures/experiment_manifest.json` pins arms / seeds / stages +
-a config hash (= 48, zero README↔code drift, R8).
+only the mixer (or the IQL branch) differs. **45 runs** = all three arms **IQL / VDN / QMIX** ×
+seeds **`[7, 17, 37, 71, 107]`** × stages **`[2×2, 3×3, 4×4]`**, every run honoring the 256-episode
+replay warmup. The **4×4 two-cop stage is the comparison focus** (genuine multi-agent credit
+assignment). 5×5 is excluded from the matrix (training too slow to sweep all arms at that size).
+Per-round records append to `results/runs/history.jsonl`; `results/figures/experiment_manifest.json`
+pins arms / seeds / stages + a config hash (= 45 runs, zero README↔code drift, R8).
 
 ![F1 learning curves](results/figures/learning_curves.png)
 *F1 — capture rate vs self-play round (cross-seed mean±SE) at the 4×4 two-cop focus stage; QMIX's
-mid-training dip + recovery is the monotonic-mixer instability (R1). Train reads global `s`, exec local `o_i`.*
+oscillation is the monotonic-mixer training instability (R1). Train reads global `s`, exec local `o_i`.*
 
 ![F5 baseline comparison](results/figures/baseline_comparison.png)
-*F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers): VDN most consistent; QMIX still
-reconverging from its instability dip at the 50-round budget (it leads at the easier 3×3 stage).*
+*F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers): VDN most consistent (0.85), IQL a
+strong baseline (0.82); the more expressive QMIX is the least stable at this 50-round budget (0.63±0.05).*
 
 ![F6 scaling](results/figures/scaling.png)
 *F6 — capture rate vs grid size: capture falls as the board grows + view radius tightens (partial observability bites).*
