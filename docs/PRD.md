@@ -115,7 +115,7 @@ The *faithful* game is a general-sum **POSG** (eq 3) `G = ⟨I, S, {A_i}, {O_i},
 
 | KPI | Target | Measurement | Evidence |
 |---|---|---|---|
-| **K1 Credit-assignment / decomposition ordering** | `QMIX ≥ VDN ≥ IQL` capture-rate evidenced on the **4×4 2-cop scenario** (`env.curriculum.num_cops_by_stage[2]=2`) — the genuinely multi-agent mixer, NOT the degenerate 1-cop 5×5 (where the QMIX mixer is a trivial scalar gain on a single Q, §7.2 caveat L4) | seeded sweep on the 4×4 2-cop stage, identical nets/replay/seeds/curriculum across arms | F5 `results/figures/baseline_comparison.png` (4×4 2-cop panel) |
+| **K1 Credit-assignment / decomposition (4×4 2-cop)** | Credit-assignment studied on the **4×4 2-cop scenario** (`env.curriculum.num_cops_by_stage[2]=2`) — the genuinely multi-agent mixer, NOT the degenerate 1-cop 5×5 (trivial scalar gain, §7.2 L4). **Honest empirical finding (reported faithfully, README §7.2): the `QMIX ≥ VDN ≥ IQL` hypothesis is FALSIFIED at the 50-round budget** — `VDN (0.85) ≥ IQL (0.82) > QMIX (0.63±0.05)`; QMIX's monotonic hypernetwork is more expressive but harder to train (R1 instability), so the simpler decompositions win at this bounded budget | seeded sweep on the 4×4 2-cop stage, identical nets/replay/seeds/curriculum across arms | F5 `results/figures/baseline_comparison.png` (4×4 2-cop panel) |
 | **K2 Cop policy quality (graded 5×5)** | Trained Cop capture-rate strictly **above IQL** **and above** the Manhattan-heuristic floor on the graded 1-cop 5×5 match, held-out seeds | held-out eval, shaping off | F5 + capture-rate plot (5×5 panel) |
 | **K3 Decentralized-execution invariant** | 100% — no global state reaches any execution/MCP path | architecture tests (import-boundary + MCP-schema leak tests) | `tests/architecture/` green |
 | **K4 Match completeness** | Exactly **6 valid** sub-games per match; technical losses replayed (§3.7) | integration test with fault injection | `tests/integration/test_match.py` |
@@ -260,7 +260,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** K4; `tests/integration/test_match.py`.
 - **FR-MCP-10 (zero hardcoded ports/URLs/tokens).** All ports/URLs/tokens live in `config.yaml`/`.env`; cloud vs local selected by env (`*_PUBLIC_URL`).
   - **AC:** grep shows no literal ports/URLs/tokens in `src`; one env-switched URL code path.
-  - **Evidence:** `scripts/check_secrets.py`; `tests/unit/test_config_loader.py`.
+  - **Evidence:** the CI "Secrets + recipient guard" step (`.github/workflows/ci.yml`); `tests/unit/test_config_loader.py`.
 
 ### 5.5 Cloud Deployment (§5.3 Stage 2, §6 step 8, §8)
 
@@ -320,10 +320,10 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **Evidence:** `tests/unit/test_run_log.py`.
 - **FR-RPT-5 (idempotent send).** A crash-restart or §3.7 technical-loss rerun never produces a duplicate email (sha256 of canonical report JSON + a sentinel written only after a successful send).
   - **AC:** calling `send_final_report` twice with the same report writes the sentinel once and the second call performs no network send (`FakeEmailSender` call count == 1).
-  - **Evidence:** `src/reporting/idempotency.py`; ADR-D8-4.
+  - **Evidence:** `src/reporting/send.py` (`report_digest`/`already_sent`/`mark_sent`); ADR-D8-4.
 - **FR-RPT-6 (no PII / no secrets in tracked files — hard).** Real `full_name`/`id` exist ONLY in the §3.5 email JSON, injected at send time from a git-ignored repo-root source (`players.local.yaml`; placeholders in the tracked repo-root `players.example.yaml`); the App Password lives only in git-ignored `.env` (placeholders in `.env-example`). Cover sheet `adrl-001-ex06.pdf` is git-ignored, Moodle-only.
   - **AC:** a CI deny-list grep over tracked files finds no real surnames, no student-id patterns, no secret values; a redacted (role-only) copy is written to `results/reports/*.redacted.json` with no `full_name`/`id` keys.
-  - **Evidence:** `scripts/check_pii.py`, `scripts/check_secrets.py`; ADR-D8-3.
+  - **Evidence:** the CI "Secrets + recipient guard" step (`.github/workflows/ci.yml`); `src/reporting/send.py` (role-only redaction); ADR-D8-3.
 - **FR-RPT-7 (send mechanism + fallback seam).** Send uses `smtplib` + STARTTLS + Gmail App Password by default behind an `EmailSender` Protocol, with a `GmailApiSender` (Google-API OAuth) drop-in fallback and a `FakeEmailSender` for tests/dry-run.
   - **AC:** a mailer test with an injected `smtp_factory` MagicMock asserts `starttls → login → send_message` order + UTF-8 body, with no network/creds; coverage ≥85% with zero live sends.
   - **Evidence:** `tests/unit/test_mailer.py`; ADR-D8-1.
@@ -342,7 +342,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
 - **FR-ANL-3 (non-stationarity contrast, §7.2).** §7.2 contrasts the independent IQL target (eq 2 ≡ eq 4) against the centralized CTDE target side-by-side, including the non-stationarity equation `P_i(s'│s,a_i)=Σ_{a_-i} π_-i·T`.
   - **AC:** both target equations + the drift explanation appear; the `eq2≡eq4` cross-reference is footnoted.
   - **Evidence:** README §7.2; R13.
-- **FR-ANL-4 (empirical IQL-vs-CTDE baseline, F5).** The §7.2 baseline is EMPIRICAL (figure F5), using identical nets/replay/seeds/curriculum so the mixer is the only difference. The credit-assignment ordering (`QMIX ≥ VDN ≥ IQL`, K1) is shown on the **4×4 2-cop** panel (genuinely multi-agent mixer); the graded 1-cop 5×5 panel shows trained-Cop-beats-IQL-and-heuristic (K2) with the N=1 trivial-decomposition caveat.
+- **FR-ANL-4 (empirical IQL-vs-CTDE baseline, F5).** The §7.2 baseline is EMPIRICAL (figure F5), using identical nets/replay/seeds/curriculum so the mixer is the only difference. The credit-assignment study (K1) on the **4×4 2-cop** panel (genuinely multi-agent mixer) shows the **honest empirical ordering `VDN ≥ IQL > QMIX`** — the `QMIX ≥ VDN ≥ IQL` hypothesis is FALSIFIED at the 50-round budget (QMIX's monotonic mixer destabilizes, R1; more-expressive-but-harder-to-train), reported faithfully per README §7.2; the graded 1-cop 5×5 panel shows trained-Cop-beats-IQL-and-heuristic (K2) with the N=1 trivial-decomposition caveat.
   - **AC:** F5 shows IQL vs VDN vs QMIX with final win-rate, time-to-capture, cross-seed variance, on BOTH the 4×4 2-cop and 5×5 1-cop panels.
   - **Evidence:** `results/figures/baseline_comparison.png`; K1, K2.
 - **FR-ANL-5 (IGM lossy-decomposition critique, §7.2).** §7.2 discusses IGM/QMIX monotonicity (eq 7) as a lossy decomposition with the non-monotonic (pincer) example, naming QPLEX [10] + Weighted-QMIX [9] as fixes (exact arXiv IDs) and reproducing L10 Table 3; with the honest N=1 cop-mixer "trivial-decomposition" caveat (L4).
@@ -402,7 +402,7 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
 | **NFR-2** | **≥85% coverage** | DI + mocked `httpx` peer & Gmail; pure gatekeeper/builder/env unit tests | `pytest --cov=src --cov-fail-under=85`; CI step 11 |
 | **NFR-3** | **Ruff 0 violations** | `ruff check` + `ruff format --check`; `PLR2004` ignored in tests only | CI steps 4–5 |
 | **NFR-4** | **No hardcoded values → config** | all §3.6 params + ports + URLs + hyperparams in `config/config.yaml`; `scripts/check_no_hardcode.py` | `tests/unit/test_config_loader.py` |
-| **NFR-5** | **No secrets + `.env-example` only** | tokens/OAuth/App-Password/PII in `.env`; `.env-example` committed (names only); `.gitignore` covers `.env`, `*.pem`, `*.key`, `credentials*.json`, `secrets/` | `scripts/check_secrets.py`; CI step 8 |
+| **NFR-5** | **No secrets + `.env-example` only** | tokens/OAuth/App-Password/PII in `.env`; `.env-example` committed (names only); `.gitignore` covers `.env`, `*.pem`, `*.key`, `credentials*.json`, `secrets/` | the CI "Secrets + recipient guard" step (`.github/workflows/ci.yml`) |
 | **NFR-6** | **uv-only** | CI uses `uv`; no pip/conda; `uv.lock` committed; `uv sync --frozen` | CI step 3 |
 | **NFR-7** | **Single SDK entry for UIs** | `src/sdk/sdk.py::MarlSDK` is the only business-logic entry; GUI/MCP/report/scripts import only `src.sdk` (scripts exempt from the single-entry rule, NOT from size/lint) | `tests/architecture/test_import_boundary.py`, `test_mcp_servers_have_no_logic.py` |
 | **NFR-8** | **Version starts at stated version** | `__version__ = "1.0.0"` in `src/__init__.py` == `config.version` (3-segment mapping of V3 "1.00", A5-accepted) | `tests/unit/test_config_loader.py`; ADR-0011 |
@@ -415,7 +415,7 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
 - **NFR-13 (reproducibility).** Fixed `training.seeds` `[7,17,37,71,107]`; single seeded RNG in the replay buffer; `torch.manual_seed` per learner from each `training.seeds` entry; `results/figures/experiment_manifest.json` (`paths.experiment_manifest`) pins seeds/config-hash/git-commit so README numbers cannot drift from code (R8).
 - **NFR-14 (resilience).** Cloud client `mcp.client.timeout_s`=10, `max_retries`=3 with `backoff_s`=0.5 backoff, pre-game warm-up ping (`prewarm_ping:true`); `request_move` idempotent per `(session_id, tick)`; server unreachable mid-sub-game → technical loss + replay (§3.7).
 - **NFR-15 (process isolation).** Servers and referee are separate OS processes (not threads) to avoid FastMCP-async / Pygame / torch event-loop deadlock; the GUI consumes referee results via a queue and never calls servers directly.
-- **NFR-16 (secrets redaction).** Redaction middleware + `scripts/redact_logs.py` strip `Authorization`/`Bearer`/key material from logs before any screenshot.
+- **NFR-16 (secrets redaction).** Unconditional redaction in `src/results/comms.py` + `src/reporting/send.py` strips `Authorization`/`Bearer`/key material from logs before any screenshot.
 - **NFR-17 (Google-Drive `.git` hazard, MEMORY).** Course repos live in Google Drive; sync can silently remove `.git` mid-session — push often; keep a `/tmp` clone to restore `.git`.
 - **NFR-18 (CI never gates on git-ignored PII, MEMORY).** `test_cover_sheet_gitignored.py` is **skip-when-absent** — never assert a git-ignored cover sheet exists (this exact assert broke A5 CI).
 
