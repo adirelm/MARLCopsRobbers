@@ -10,8 +10,8 @@
 The end-of-match **§3.5 report**: a structured JSON body assembled by the referee/Cop after exactly 6
 valid sub-games, validated against `docs/schema/report.schema.json`, scored by the **§3.4 scoreboard**
 (20/10/5/5 — separate from the RL reward), redacted of PII, rate-limited through the `ApiGatekeeper`,
-and emailed **once** by the Cop to `gmail.to`. PII (real names/ids) lives only in git-ignored
-`secrets/players.local.yaml`, injected at send time; only a role-only redacted copy is committed.
+and emailed **once** by the Cop to `gmail.to`. PII (real names/ids) lives only in the git-ignored repo-root
+`players.local.yaml`, injected at send time; only a role-only redacted copy is committed.
 
 ## Functional requirements (canonical text in `docs/PRD.md`)
 
