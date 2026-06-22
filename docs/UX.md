@@ -54,7 +54,7 @@ let an expert skim or a newcomer step slowly.
 ## 8. Aesthetic and minimalist design
 A dark, minimal board: background, a subtle checkerboard, thin gridlines, three
 token types, and a compact HUD. An optional **view-radius overlay** (key **v**,
-off by default per `gui.view_radius_overlay`) is available for teaching partial
+off by default) is available for teaching partial
 observability but never clutters the default view.
 
 ## 9. Help users recognize, diagnose, and recover from errors

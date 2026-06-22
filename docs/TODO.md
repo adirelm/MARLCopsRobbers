@@ -339,7 +339,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 > **Exit gate (P9):** Cop sends ONE end-of-game JSON email to `rmisegal+marl@gmail.com`; body validates vs §3.5 schema; idempotent; zero PII/secrets tracked.
 
 - [ ] **T9.1 — Report config + secrets + players** · _B_
-  Author/verify the `gmail.*` block (`gmail.{to:"rmisegal+marl@gmail.com", mechanism:smtplib_app_password, smtp_host:smtp.gmail.com, smtp_port:587, subject_template, output_dir:"results/reports", sentinel:"results/.report_sent", schema_path:"docs/schema/report.schema.json"}`; `project.timezone:"Asia/Jerusalem"`; `github_repo` injected from `players.local.yaml`) in config — there is NO top-level `report:`/`email:` block, all live under `gmail.*`. Create git-ignored repo-root `players.local.yaml` (real names/ids) + tracked repo-root `players.example.yaml` (placeholders).
+  Author/verify the `gmail.*` block (`gmail.{to:"rmisegal+marl@gmail.com", mechanism:smtplib_app_password, smtp_host:smtp.gmail.com, smtp_port:587, subject_template, output_dir:"results/reports", sentinel:"results/.report_sent"}`; `project.timezone:"Asia/Jerusalem"`; `github_repo` injected from `players.local.yaml`) in config — there is NO top-level `report:`/`email:` block, all live under `gmail.*`. Create git-ignored repo-root `players.local.yaml` (real names/ids) + tracked repo-root `players.example.yaml` (placeholders).
   **DoD:** recipient + `+marl` plus-tag live in `gmail.to` (never inlined); no PII/secret in tracked files.
 
 - [ ] **T9.2 — Schema + validators (TDD RED first)** · _B_

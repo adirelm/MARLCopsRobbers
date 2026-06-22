@@ -22,7 +22,7 @@ the GUI spectator reads referee ground truth without ever calling an agent serve
 `src/mcp/server_builder.py` (shared builder); `test_gui_purity.py` (GUI imports only sdk/gui/pygame).
 
 ## Usability
-A Pygame god-view spectator with pause / step / speed / reset / radius-overlay keys; the
+A Pygame god-view spectator with pause / next-sub-game / speed / reset / radius-overlay keys; the
 10 Nielsen heuristics are mapped in `docs/UX.md`; §7.3c screenshots at 2×2…5×5. Evidence:
 `docs/UX.md`; `results/screenshots/grid_*.png`; `tests/integration/test_gui_render.py`.
 

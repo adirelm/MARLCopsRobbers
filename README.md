@@ -7,7 +7,7 @@ decomposition** (QMIX primary, VDN ablation, IQL baseline), each agent runs behi
 **FastMCP server** (localhost → cloud), visualized live in a **Pygame** GUI, with an
 end-of-game **Gmail** report.
 
-> **Status: COMPLETE (v1.0.0).** All phases P0→P11 are implemented, tested (508 tests,
+> **Status: COMPLETE (v1.0.0).** All phases P0→P11 are implemented, tested (514 tests,
 > ~99.6% coverage, ruff clean, CI green), and the §7 analysis below is fully authored from a
 > real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).

@@ -339,7 +339,6 @@ env:
   move_resolution: simultaneous# simultaneous | cop_first | thief_first  (ADR-0004)
   capture_on_swap: true        # cop↔thief one-tick swap = CAPTURE (ADR-0004, architect rule call)
   reward_mode: dec_pomdp       # dec_pomdp | posg
-  spawn_min_dist_mode: dist_gt_radius
   view_radius_by_grid: { 2: 0, 3: 1, 4: 1, 5: 2 }   # per-grid view radius (auto = ceil(min(H,W)/2)-1)
   view_radius_max: 2           # padding footprint = 2*view_radius_max+1 = 5×5
   obs_channels: 5              # self, other_visible, barrier, out_of_bounds, time_norm
@@ -419,8 +418,7 @@ gmail:                         # was `report:` + `email:` — now unified under 
   subject_template: "[MARL Cops&Robbers] {group_name} | Final {num_games} sub-games | Cop {cop_total} - Thief {thief_total} | {date}"
   output_dir: "results/reports"
   sentinel: "results/.report_sent"
-  schema_path: "docs/schema/report.schema.json"
-gui:         { screenshot_sizes: [2, 3, 4, 5], screenshot_dir: "results/screenshots", view_radius_overlay: false }
+gui:         { screenshot_sizes: [2, 3, 4, 5], screenshot_dir: "results/screenshots" }
 paths:
   runs_dir: "results/runs"
   figures_dir: "results/figures"

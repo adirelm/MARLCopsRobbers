@@ -62,8 +62,6 @@ env:
                                   # as a CAPTURE (prevents a degenerate thief exploit).
   reward_mode: "dec_pomdp"        # §2.1 cooperative shared-R proxy (default) | posg
                                   # (role-specific R_i for the §7.2 POSG contrast).
-  spawn_min_dist_mode: "dist_gt_radius"  # §5.1 Table 2: start distance > view radius at
-                                  # partial/final stages so partial-obs genuinely bites.
 
   # Partial observation Omega/O (BRIEF §2.1 bounded Manhattan radius; §5.1 Table 2).
   # Egocentric window is ALWAYS padded to the max footprint (radius 2 -> 5x5) so ONE
@@ -347,7 +345,8 @@ gmail:
   subject_template: "[MARL Cops&Robbers] {group_name} | Final {num_games} sub-games | Cop {cop_total} - Thief {thief_total} | {date}"
   output_dir: "results/reports"   # role-only REDACTED copy written here (README §7.3 evidence)
   sentinel: "results/.report_sent"  # idempotency sentinel (sha256-keyed; write AFTER send)
-  schema_path: "docs/schema/report.schema.json"  # JSON-Schema draft-2020-12 contract
+  # The report JSON-Schema (draft-2020-12, docs/schema/report.schema.json) is a repo constant
+  # loaded by src/reporting/schema.py — not a config knob.
   # Sender + App Password come from .env: GMAIL_SENDER, GMAIL_APP_PASSWORD.
   #   github_repo from players.local.yaml. The recipient is unconditionally gmail.to
   #   above (no env override); any test redirection is test-injection only.
@@ -362,7 +361,6 @@ gmail:
 gui:
   screenshot_sizes: [2, 3, 4, 5]  # §7.3(c) capture matrix (2x2/3x3/4x4/5x5)
   screenshot_dir: "results/screenshots"
-  view_radius_overlay: false      # debug Manhattan-radius overlay (toggle 'v'); off by default
 
 # ============================================================================
 # PATHS / RESULTS (BRIEF §7.3 figures; D10 reproducibility manifest)
