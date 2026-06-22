@@ -83,7 +83,7 @@ def send_report(cfg: dict, report: dict, sender: object, date_str: str, gatekeep
     deferred call later drains (the §5 gatekeeper queues, it does not cancel). That makes
     a deferred send impossible to turn into an untracked duplicate.
     """
-    validate(report)
+    validate(report, expected_games=int(cfg["game"]["num_games"]))  # §3.5: exactly N at SEND
     digest = report_hash(report)
     redacted_path = str(write_redacted(cfg, report))
     sentinel = cfg["gmail"]["sentinel"]
@@ -94,6 +94,11 @@ def send_report(cfg: dict, report: dict, sender: object, date_str: str, gatekeep
     recipient = cfg["gmail"]["to"]
 
     def _send() -> None:
+        # Recheck INSIDE the thunk: if a previously-queued send for this same report
+        # already drained (gatekeeper drains queued calls before admitting new ones), the
+        # sentinel is now set — skip, so a retry-during-deferral can never double-email.
+        if already_sent(sentinel, digest):
+            return
         sender.send(subject, body, recipient)
         mark_sent(sentinel, digest)  # email + sentinel committed together
 

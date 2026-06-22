@@ -30,6 +30,10 @@ class InProcStateClient:
         """Advance one move and return the new frame."""
         return self._session.step()
 
+    def next_sub_game(self) -> SpectatorFrame:
+        """Advance to the next sub-game (banks the finished score; 'n' key)."""
+        return self._session.next_sub_game()
+
 
 class ReplayStateClient:
     """Replay a recorded sequence of frames (same interface; clamps at the end)."""

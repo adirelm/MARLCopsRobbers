@@ -30,15 +30,32 @@ class SpectatorSession:
         self._scorer = Scorer(cfg)
         self._rng = Random(int(seed))
         self._num_games = int(cfg["game"]["num_games"])
+        self._sub_game = 1
+        self._totals = {"cop": 0, "thief": 0}
         self.reset()
 
     def reset(self) -> SpectatorFrame:
-        """Restart the sub-game; return the opening frame (no winner / no action)."""
+        """Restart the CURRENT sub-game; return its opening frame (keeps the counter + totals)."""
         self._env.reset(seed=self._rng.randrange(2**31))
         self._move = 0
         self._winner: str | None = None
         self._last_action: dict | None = None
         return self._frame()
+
+    def next_sub_game(self) -> SpectatorFrame:
+        """Bank the finished sub-game's score + advance to the next (capped at num_games).
+
+        A no-op while the current sub-game is unfinished (no winner yet), so the 'n' key
+        can't skip a live game. On a finished game it accumulates the score into the running
+        totals, advances the counter, and resets the env for the next sub-game.
+        """
+        if self._winner is None:
+            return self._frame()
+        final = self._scorer.score(self._winner)
+        for role in ("cop", "thief"):
+            self._totals[role] += final[role]
+        self._sub_game = min(self._sub_game + 1, self._num_games)
+        return self.reset()
 
     def step(self) -> SpectatorFrame:
         """Advance one move via the heuristic joint action; return the new frame."""
@@ -67,10 +84,10 @@ class SpectatorSession:
             view_radius=radius,
             move=self._move,
             max_moves=god["max_moves"],
-            sub_game=1,
+            sub_game=self._sub_game,
             num_games=self._num_games,
             scores=scores,
-            totals=scores,
+            totals=dict(self._totals),
             winner=self._winner,
             last_action=self._last_action,
         )

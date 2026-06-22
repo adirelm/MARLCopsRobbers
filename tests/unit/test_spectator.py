@@ -82,3 +82,20 @@ def test_frame_is_god_view_with_full_positions(cfg):
     frame = MarlSDK(cfg).spectator_session(5, 5, num_cops=1, seed=3).reset()
     assert len(frame.thief_position) == 2
     assert all(len(p) == 2 for p in frame.cop_positions)
+
+
+def test_next_sub_game_advances_counter_and_accumulates_totals(cfg):
+    """next_sub_game banks the finished score + advances the counter (the 'n' key path)."""
+    session = MarlSDK(cfg).spectator_session(5, 5, num_cops=1, seed=7)
+    session.reset()
+    assert session.next_sub_game().sub_game == 1  # mid-game (no winner) -> no-op
+    frame = None
+    for _ in range(cfg["game"]["max_moves"] + 1):
+        frame = session.step()
+        if frame.winner is not None:
+            break
+    won_role, banked = frame.winner, frame.scores
+    advanced = session.next_sub_game()
+    assert advanced.sub_game == 2  # the counter advanced (was statically 1 before the fix)
+    assert advanced.winner is None and advanced.move == 0  # a fresh next sub-game
+    assert advanced.totals[won_role] == banked[won_role]  # finished score banked into running totals

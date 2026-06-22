@@ -5,10 +5,27 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from src.api.gatekeeper import DEFERRED
 from src.reporting import send as send_mod
 from src.reporting.mailer import FakeEmailSender
+from src.reporting.schema import validate
 from src.sdk.sdk import MarlSDK
+
+
+def test_validate_enforces_expected_game_count():
+    full = _report()  # 6 sub-games
+    validate(full, expected_games=6)  # the §3.5 count -> passes
+    short = {
+        **full,
+        "num_games": 5,
+        "sub_games": full["sub_games"][:5],
+        "totals": {"cop": 100, "thief": 25},  # 5 cop-wins: 20*5 / 5*5
+    }
+    validate(short)  # structural-only (no count) -> passes
+    with pytest.raises(ValueError, match="exactly 6"):
+        validate(short, expected_games=6)  # the send-path gate rejects a short report
 
 
 def _report() -> dict:
@@ -108,6 +125,18 @@ def test_send_report_deferral_stays_retryable_then_drain_commits_once(cfg, tmp_p
     gate.drain()
     assert len(sender.sent) == 1
     assert Path(cfg["gmail"]["sentinel"]).exists()  # a later retry will now see already_sent
+
+
+def test_shared_gate_retry_during_deferral_still_sends_once(cfg, tmp_path):
+    cfg = _cfg_tmp(cfg, tmp_path)
+    sender = FakeEmailSender()
+    gate = _QueueGate()  # a SHARED, exhausted gate: both calls defer (queue)
+    report = _report()
+    send_mod.send_report(cfg, report, sender, "2026-06-21", gatekeeper=gate)
+    send_mod.send_report(cfg, report, sender, "2026-06-21", gatekeeper=gate)  # retry before drain
+    assert len(gate.queue) == 2  # both queued (sentinel not yet written)
+    gate.drain()  # runs both thunks back-to-back
+    assert len(sender.sent) == 1  # the 2nd thunk rechecks the sentinel and skips -> no double-email
 
 
 def test_sdk_send_final_report_dry_run(cfg, tmp_path):

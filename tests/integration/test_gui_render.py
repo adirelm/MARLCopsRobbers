@@ -77,25 +77,35 @@ def test_render_frame_draws_cop_and_thief_on_their_cells():
     assert surface.get_at(_center(view, 2, 2))[:3] == palette.THIEF
 
 
-def test_handle_key_maps_pause_quit_and_reset():
-    """space->pause, esc->quit, r->reset (calls client.reset)."""
+def test_handle_key_maps_all_spectator_commands():
+    """space->pause, esc->quit, r->reset, v->radius, n->next_sub_game, =/- -> speed; fps threaded."""
 
     class _Client:
         def reset(self):
             return _frame(move=0)
 
-    frame = _frame()
-    _, paused, _, _ = render._handle_key(_key(pygame.K_SPACE), _Client(), True, False, False, frame)
+        def next_sub_game(self):
+            return _frame(sub_game=2)
+
+    client, frame, fps = _Client(), _frame(), 12
+    _, paused, _, _, _ = render._handle_key(_key(pygame.K_SPACE), client, True, False, False, frame, fps)
     assert paused is True
-    running, *_ = render._handle_key(_key(pygame.K_ESCAPE), _Client(), True, False, False, frame)
+    running, *_ = render._handle_key(_key(pygame.K_ESCAPE), client, True, False, False, frame, fps)
     assert running is False
-    *_, reset_frame = render._handle_key(_key(pygame.K_r), _Client(), True, False, False, frame)
+    *_, reset_frame, _ = render._handle_key(_key(pygame.K_r), client, True, False, False, frame, fps)
     assert reset_frame.move == 0
-    _, _, show_radius, _ = render._handle_key(_key(pygame.K_v), _Client(), True, False, False, frame)
+    _, _, show_radius, _, _ = render._handle_key(_key(pygame.K_v), client, True, False, False, frame, fps)
     assert show_radius is True
-    # an unbound key is a no-op (state passes through unchanged)
-    state = render._handle_key(_key(pygame.K_a), _Client(), True, False, False, frame)
-    assert state == (True, False, False, frame)
+    *_, ng_frame, _ = render._handle_key(_key(pygame.K_n), client, True, False, False, frame, fps)
+    assert ng_frame.sub_game == 2  # the 'n' key now actually advances the sub-game
+    *_, faster = render._handle_key(_key(pygame.K_EQUALS), client, True, False, False, frame, fps)
+    assert faster == fps + 2  # '=' speeds up
+    *_, slower = render._handle_key(_key(pygame.K_MINUS), client, True, False, False, frame, fps)
+    assert slower == fps - 2  # '-' slows down
+    # an unbound key is a no-op (state incl. fps passes through unchanged)
+    assert render._handle_key(_key(pygame.K_a), client, True, False, False, frame, fps) == (
+        True, False, False, frame, fps,
+    )
 
 
 def _key(code: int) -> pygame.event.Event:

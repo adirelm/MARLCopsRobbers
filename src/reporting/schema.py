@@ -95,7 +95,7 @@ def build_report(group: str, students: list[Student], results: list[dict]) -> Ma
     )
 
 
-def validate(report: dict) -> None:
+def validate(report: dict, expected_games: int | None = None) -> None:
     """Validate a report dict against the schema AND the §3.5 semantic invariants.
 
     The JSON schema alone permits a semantically-inconsistent body (e.g.
@@ -103,13 +103,23 @@ def validate(report: dict) -> None:
     check, assert ``num_games == len(sub_games)`` and each ``totals[role]`` equals
     the sum of the per-sub-game scores (the §3.5 totals are DERIVED, never trusted).
 
+    Args:
+        report: The assembled §3.5 body to check.
+        expected_games: When given, require EXACTLY this many sub-games — the §3.5
+            "a full game = N sub-games" contract (FR-RPT-2). The SEND path passes
+            ``game.num_games`` (6); mid-pipeline self-checks omit it so a parameterized
+            partial match (num_games < 6 in tests / the comms capture) still validates.
+
     Raises:
-        ValueError: On a schema violation OR a num_games / totals inconsistency.
+        ValueError: On a schema violation, a num_games / totals inconsistency, OR a
+            sub-game count that differs from ``expected_games`` when it is supplied.
     """
     _schema_validate(report, json.loads(_SCHEMA_PATH.read_text(encoding="utf-8")))
     sub_games = report["sub_games"]
     if report["num_games"] != len(sub_games):
         raise ValueError(f"num_games {report['num_games']} != len(sub_games) {len(sub_games)}")
+    if expected_games is not None and len(sub_games) != expected_games:
+        raise ValueError(f"§3.5 requires exactly {expected_games} sub-games, got {len(sub_games)}")
     for role in ("cop", "thief"):
         expected = sum(int(g["scores"][role]) for g in sub_games)
         if report["totals"][role] != expected:

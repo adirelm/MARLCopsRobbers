@@ -20,6 +20,10 @@ from src.gui.draw_plan import build_board_plan, build_hud_plan
 from src.gui.input_map import command_for
 from src.gui.transform import GridView
 
+_FPS_STEP = 2  # speed_up / slow_down increment (local UI behaviour, not a tuned param)
+_FPS_MIN = 1
+_FPS_MAX = 60
+
 
 def execute_plan(surface, font, plan) -> None:
     """Execute draw ops against a pygame surface (fill / rect / ellipse / text)."""
@@ -57,8 +61,8 @@ def run_app(client, width=720, height=560, fps=palette.FPS) -> None:  # pragma: 
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                running, paused, show_radius, frame = _handle_key(
-                    event, client, running, paused, show_radius, frame
+                running, paused, show_radius, frame, fps = _handle_key(
+                    event, client, running, paused, show_radius, frame, fps
                 )
         if not paused:
             frame = client.step()
@@ -68,8 +72,8 @@ def run_app(client, width=720, height=560, fps=palette.FPS) -> None:  # pragma: 
     pygame.quit()
 
 
-def _handle_key(event, client, running, paused, show_radius, frame):  # noqa: PLR0913
-    """Map a KEYDOWN to a spectator command; return the updated loop state."""
+def _handle_key(event, client, running, paused, show_radius, frame, fps):  # noqa: PLR0913
+    """Map a KEYDOWN to a spectator command; return the updated loop state (incl. fps)."""
     command = command_for(pygame.key.name(event.key))
     if command == "quit":
         running = False
@@ -79,4 +83,10 @@ def _handle_key(event, client, running, paused, show_radius, frame):  # noqa: PL
         frame = client.reset()
     elif command == "toggle_view_radius":
         show_radius = not show_radius
-    return running, paused, show_radius, frame
+    elif command == "next_sub_game":
+        frame = getattr(client, "next_sub_game", client.reset)()
+    elif command == "speed_up":
+        fps = min(fps + _FPS_STEP, _FPS_MAX)
+    elif command == "slow_down":
+        fps = max(fps - _FPS_STEP, _FPS_MIN)
+    return running, paused, show_radius, frame, fps
