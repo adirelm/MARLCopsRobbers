@@ -62,7 +62,9 @@ async def run_local_match(  # noqa: PLR0913 — cfg + 2 nets + players + seed + 
         AgentClient(Client(cop_srv), max_retries=rt, label="cop", backoff_s=bo, timeout_s=to) as cop,
         AgentClient(Client(thief_srv), max_retries=rt, label="thief", backoff_s=bo, timeout_s=to) as thief,
     ):
-        await cop.health()  # absorb (trivial in-memory) cold-start
+        if cc["prewarm_ping"]:  # honor mcp.client.prewarm_ping — warm BOTH connections (cold-start)
+            await cop.health()
+            await thief.health()
         match = await runner.play_match(cop, thief)
         report = build_report(
             players["group_name"],

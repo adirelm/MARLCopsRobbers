@@ -9,6 +9,7 @@ structurally cannot reach request_move. torch + the players are placeholders onl
 from __future__ import annotations
 
 import asyncio
+import copy
 import inspect
 
 import torch
@@ -38,6 +39,15 @@ def test_full_local_match_assembles_validated_report(cfg):
     totals = out["report"]["totals"]
     assert totals["cop"] == sum(g["scores"]["cop"] for g in out["report"]["sub_games"])
     assert out["ack"]["dry_run"] is True  # exactly one dry-run report send
+
+
+def test_match_runs_with_prewarm_ping_disabled(cfg):
+    """mcp.client.prewarm_ping=false skips the warm-up health pings; the match still runs."""
+    c = copy.deepcopy(cfg)
+    c["mcp"]["client"]["prewarm_ping"] = False
+    cop, thief = RecurrentQNet(c, "cop", 2), RecurrentQNet(c, "thief", 1)
+    out = MarlSDK(c).run_local_match(cop, thief, _PLAYERS, seed=SEED, stage=(2, 2, 1), num_games=1)
+    assert out["num_games"] == 1
 
 
 def test_verifier_rejects_unknown_token(cfg):

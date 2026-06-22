@@ -7,7 +7,8 @@ characteristics, with a concrete A6 artifact for each (no prose-only claims).
 The system trains CTDE QMIX/VDN/IQL pursuit policies and plays a 6-sub-game match over a
 dual-MCP contract, emailing the §3.5 report. Evidence: 490+ tests (happy + error paths)
 at ≥85% coverage; the §3.5 report passes `report.schema.json` + the derived-totals
-invariants (`src/reporting/schema.py::validate`); F5 shows QMIX/VDN above the IQL baseline.
+invariants (`src/reporting/schema.py::validate`); F5 reports the IQL/VDN/QMIX comparison —
+VDN most consistent, QMIX least stable at the 50-round budget (reported faithfully, not idealized).
 
 ## Performance Efficiency
 Compute is governed at the single SDK entry: `apply_compute_limits` caps the torch thread
