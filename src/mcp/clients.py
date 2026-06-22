@@ -28,13 +28,19 @@ class AgentClient:
     """Async typed wrapper over a FastMCP ``Client`` for one agent server."""
 
     def __init__(
-        self, client: Client, max_retries: int = 3, label: str = "peer", backoff_s: float = 0.0
+        self,
+        client: Client,
+        max_retries: int = 3,
+        label: str = "peer",
+        backoff_s: float = 0.0,
+        timeout_s: float | None = None,
     ) -> None:
-        """Wrap a (HTTP or in-memory) client with a bounded retry budget + backoff + a log label."""
+        """Wrap a (HTTP or in-memory) client with a bounded retry/backoff/timeout budget + a log label."""
         self._client = client
         self._max_retries = max(1, int(max_retries))
         self._label = label
         self._backoff_s = max(0.0, float(backoff_s))
+        self._timeout_s = float(timeout_s) if timeout_s else None  # None => no per-call timeout
 
     async def __aenter__(self) -> AgentClient:
         """Open the underlying client connection (reused across the sub-game)."""
@@ -56,7 +62,10 @@ class AgentClient:
         last: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
-                data = (await self._client.call_tool(tool, args)).data
+                call = self._client.call_tool(tool, args)
+                # wrap in the configured timeout so a hung call fails fast (then retries) vs blocking
+                result = await (asyncio.wait_for(call, self._timeout_s) if self._timeout_s else call)
+                data = result.data
                 _log.info(
                     "mcp_call client=%s tool=%s trace=%s attempt=%d status=ok",
                     self._label,

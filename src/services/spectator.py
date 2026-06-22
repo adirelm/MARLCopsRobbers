@@ -31,6 +31,7 @@ class SpectatorSession:
         self._rng = Random(int(seed))
         self._num_games = int(cfg["game"]["num_games"])
         self._sub_game = 1
+        self._banked = 0  # finished sub-games already accumulated into totals (caps the match)
         self._totals = {"cop": 0, "thief": 0}
         self.reset()
 
@@ -46,15 +47,19 @@ class SpectatorSession:
         """Bank the finished sub-game's score + advance to the next (capped at num_games).
 
         A no-op while the current sub-game is unfinished (no winner yet), so the 'n' key
-        can't skip a live game. On a finished game it accumulates the score into the running
-        totals, advances the counter, and resets the env for the next sub-game.
+        can't skip a live game, AND once all ``num_games`` are banked (the match is complete)
+        so the final game can't be re-banked into inflated totals. Otherwise it accumulates
+        the finished score, advances the counter, and resets the env for the next sub-game.
         """
-        if self._winner is None:
+        if self._winner is None or self._banked >= self._num_games:
             return self._frame()
         final = self._scorer.score(self._winner)
         for role in ("cop", "thief"):
             self._totals[role] += final[role]
-        self._sub_game = min(self._sub_game + 1, self._num_games)
+        self._banked += 1
+        if self._banked >= self._num_games:
+            return self._frame()  # final sub-game banked: match complete, do not start another
+        self._sub_game += 1
         return self.reset()
 
     def step(self) -> SpectatorFrame:

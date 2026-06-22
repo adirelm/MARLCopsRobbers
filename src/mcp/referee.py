@@ -90,5 +90,7 @@ class MatchRunner:
                 games.append(await self._ref.play_sub_game(cop, thief, seed, f"sg-{len(games)}"))
             except Exception:  # technical loss: not counted toward the 6, replay with the next seed
                 continue
+        if len(games) != self._n:  # never emit a short match: §3.5 requires EXACTLY num_games valid
+            raise RuntimeError(f"only {len(games)}/{self._n} valid sub-games after {offset} attempts")
         totals = {role: sum(g["scores"][role] for g in games) for role in ("cop", "thief")}
         return {"sub_games": games, "totals": totals, "num_games": len(games)}

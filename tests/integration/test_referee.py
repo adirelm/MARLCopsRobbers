@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
 import torch
 from fastmcp import Client
 
@@ -20,6 +21,18 @@ from src.mcp.referee import MatchRunner, Referee
 from src.mcp.thief_server import make_thief_server
 
 SEED = 7
+
+
+def test_play_match_raises_if_it_cannot_reach_num_games():
+    """A match that can't assemble N valid sub-games RAISES (never emits a short §3.5 report)."""
+
+    class _AlwaysTechnicalLoss:
+        async def play_sub_game(self, *args, **kwargs):
+            raise RuntimeError("technical loss")
+
+    runner = MatchRunner(_AlwaysTechnicalLoss(), num_games=2, base_seed=0)
+    with pytest.raises(RuntimeError, match="valid sub-games"):
+        asyncio.run(runner.play_match(None, None))
 
 
 def _servers(cfg):

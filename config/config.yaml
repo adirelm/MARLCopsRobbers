@@ -123,9 +123,7 @@ algo:
   grad_clip_norm: 10.0
   huber_delta: 1.0                # masked Huber loss (robust to self-play TD spikes)
   batch_episodes: 32              # recurrent replay sampled as whole episodes (BPTT)
-  target_update_interval: 200     # learner-steps between hard target syncs
-  target_mode: "hard"             # hard | soft
-  tau: 0.005                      # Polyak coefficient if target_mode == soft
+  target_update_interval: 200     # learner-steps between hard target syncs (the only mode)
 
   # QMIX monotonic mixer (BRIEF eq 7, [3]); softplus-constrained hypernet weights so
   # dQ_tot/dQ_i >= 0. With num_cops=1 the mixer is a state-conditioned positive
@@ -208,7 +206,6 @@ bc:
 replay:
   buffer_episodes: 5000           # capacity in whole episodes (per role; two buffers)
   min_replay_episodes: 256        # warmup before the first learner update
-  updates_per_episode: 4          # learner updates per collected episode
 
 # ============================================================================
 # SELF-PLAY (ADR-D1-E / ADR-D3-A): alternating best-response, frozen-opponent
@@ -381,7 +378,7 @@ paths:
   runs_dir: "results/runs"               # append-only per-episode JSONL run records
   figures_dir: "results/figures"         # F1-F6 PNGs referenced by README §7.3
   checkpoint_dir: "results/checkpoints"  # cop_weights.pth / thief_weights.pth (+ sidecar)
-  experiment_manifest: "results/experiment_manifest.json"  # seeds/config-hash/commit/run-ids
+  experiment_manifest: "results/figures/experiment_manifest.json"  # seeds/config-hash; by make_figures
   bc_dataset_dir: "results/datasets"     # P3 (T3.2) seeded BC (o, a*) npz datasets
   subgames_dir: "results/subgames"       # P3 (T3.3) minimal sub-game JSON records
   base_checkpoint_dir: "results/checkpoints/base"   # P4c BC-pretrained base encoders

@@ -56,10 +56,11 @@ async def run_local_match(  # noqa: PLR0913 — cfg + 2 nets + players + seed + 
     thief_srv = make_thief_server(cfg, thief_net, token=_token("thief"))
     runner = MatchRunner(Referee(cfg, h, w, num_cops), games, int(seed))
     students = [Student(**student) for student in players["students"]]
-    retries, backoff = int(cfg["mcp"]["client"]["max_retries"]), float(cfg["mcp"]["client"]["backoff_s"])
+    cc = cfg["mcp"]["client"]
+    rt, bo, to = int(cc["max_retries"]), float(cc["backoff_s"]), float(cc["timeout_s"])
     async with (
-        AgentClient(Client(cop_srv), max_retries=retries, label="cop", backoff_s=backoff) as cop,
-        AgentClient(Client(thief_srv), max_retries=retries, label="thief", backoff_s=backoff) as thief,
+        AgentClient(Client(cop_srv), max_retries=rt, label="cop", backoff_s=bo, timeout_s=to) as cop,
+        AgentClient(Client(thief_srv), max_retries=rt, label="thief", backoff_s=bo, timeout_s=to) as thief,
     ):
         await cop.health()  # absorb (trivial in-memory) cold-start
         match = await runner.play_match(cop, thief)

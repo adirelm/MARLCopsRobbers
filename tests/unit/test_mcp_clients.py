@@ -53,6 +53,25 @@ def test_agent_client_retries_with_backoff_then_reraises():
     assert boom.calls == 3
 
 
+def test_agent_client_times_out_a_hung_call():
+    """A call exceeding timeout_s is aborted (then re-raised after retries), never blocks forever."""
+
+    class _Hang(_Boom):
+        async def call_tool(self, tool, args):
+            self.calls += 1
+            await asyncio.sleep(5)  # far longer than the timeout below -> wait_for fires
+
+    hung = _Hang()
+
+    async def _run():
+        async with AgentClient(hung, max_retries=2, timeout_s=0.01) as client:
+            await client.request_move("s", 0, [[[0.0]]], [0.0], [True])
+
+    with pytest.raises(TimeoutError):
+        asyncio.run(_run())
+    assert hung.calls >= 1  # the hung call was attempted + timed out (not blocked)
+
+
 def test_reveal_location_round_trips_radius_gated(cfg):
     """reveal_location via the client returns a radius-gated visibility result."""
     torch.manual_seed(7)

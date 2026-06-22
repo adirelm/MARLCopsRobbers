@@ -77,9 +77,9 @@ def main(cfg: dict | None = None) -> list[str]:
         str(plot_comparison(records, "capture_rate", stage, fig_dir / "baseline_comparison.png")),
         str(plot_scaling(records, "capture_rate", fig_dir / "scaling.png")),
     ]
-    (fig_dir / "experiment_manifest.json").write_text(
-        json.dumps(_manifest(cfg, records), indent=2), encoding="utf-8"
-    )
+    manifest_path = Path(cfg["paths"]["experiment_manifest"])  # config-driven (no hardcoded path)
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(_manifest(cfg, records), indent=2), encoding="utf-8")
     print(f"[make_figures] {len(saved)} figures + manifest from {len(records)} records -> {fig_dir}")
     return saved
 

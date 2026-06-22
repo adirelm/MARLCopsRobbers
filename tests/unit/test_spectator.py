@@ -99,3 +99,17 @@ def test_next_sub_game_advances_counter_and_accumulates_totals(cfg):
     assert advanced.sub_game == 2  # the counter advanced (was statically 1 before the fix)
     assert advanced.winner is None and advanced.move == 0  # a fresh next sub-game
     assert advanced.totals[won_role] == banked[won_role]  # finished score banked into running totals
+
+
+def test_next_sub_game_is_noop_after_all_games_banked(cfg):
+    """Once all num_games are banked the match is complete — no 7th game, totals never inflate."""
+    session = MarlSDK(cfg).spectator_session(2, 2, num_cops=1, seed=7)  # 2x2 -> fast captures
+    for _ in range(cfg["game"]["num_games"]):
+        for _ in range(cfg["game"]["max_moves"] + 1):
+            if session.step().winner is not None:
+                break
+        session.next_sub_game()
+    final = session.next_sub_game()  # all banked -> no-op
+    again = session.next_sub_game()  # still a no-op
+    assert final.sub_game == cfg["game"]["num_games"]  # counter capped at num_games
+    assert again.totals == final.totals  # no re-banking / inflation past the match

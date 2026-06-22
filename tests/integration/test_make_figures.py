@@ -41,6 +41,7 @@ def _cfg_tmp(cfg: dict, tmp_path: Path) -> dict:
     cfg = json.loads(json.dumps(cfg))
     cfg["paths"]["runs_dir"] = str(tmp_path / "runs")
     cfg["paths"]["figures_dir"] = str(tmp_path / "figs")
+    cfg["paths"]["experiment_manifest"] = str(tmp_path / "figs" / "experiment_manifest.json")
     return cfg
 
 
