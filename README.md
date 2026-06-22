@@ -190,7 +190,7 @@ captured. The figure manifest:
 | **F1** | Both-agent learning curves (reward vs episode, mean±SE) | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
 | **F2** | Per-stage TD-loss curves | `python -m src.results.make_figures` | `results/figures/loss_curves.png` |
 | **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png` |
-| **F4** | MCP-comms proof — localhost canonical (cloud if P8) (CAPTURED) | redacted cop↔thief comms log / `scripts/smoke_cloud.py` | `results/figures/mcp_comms_local.png` (+ `_cloud.png`) |
+| **F4** | MCP-comms proof — localhost canonical (cloud = Stage-2, not in repo) (CAPTURED) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |
 | **F5** | IQL vs VDN vs QMIX win-rate/convergence (incl. 4×4 2-cop panel) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
 | **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |
 

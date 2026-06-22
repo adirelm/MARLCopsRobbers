@@ -1,6 +1,6 @@
-"""§9 single-parameter sensitivity sweep (T10.6) — vary ``env.view_radius_by_grid[5]`` ONLY.
+"""§9 single-parameter sensitivity sweep (T10.6) — vary ``env.view_radius_by_grid[4]`` ONLY.
 
-Sweeps the ONE config key config names as the §9 param (the 5x5 execution view radius)
+Sweeps the ONE config key config names as the §9 param (the 4x4 focus-stage view radius)
 over a small grid while holding EVERYTHING else fixed (seeds / nets / replay / gamma /
 target cadence identical). This is the §9 SENSITIVITY analysis — explicitly distinct from
 T4.7 IQL/VDN/QMIX ABLATION (which swaps the algorithm). ``make_variant`` changes exactly
@@ -23,7 +23,7 @@ _SWEPT_GRID = 4  # sweep the 4x4 focus-stage view radius (5x5 training is too sl
 
 
 def make_variant(cfg: dict, radius: int) -> dict:
-    """Deep-copy ``cfg`` with ONLY ``env.view_radius_by_grid[5]`` set to ``radius``."""
+    """Deep-copy ``cfg`` with ONLY ``env.view_radius_by_grid[4]`` set to ``radius``."""
     variant = copy.deepcopy(cfg)
     variant["env"][_SWEPT_KEY][_SWEPT_GRID] = radius
     return variant

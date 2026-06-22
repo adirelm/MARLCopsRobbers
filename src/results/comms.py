@@ -46,7 +46,7 @@ def capture(cfg: dict) -> list[str]:
     handler = _Capture()
     logger = logging.getLogger("marl.mcp.client")
     logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(cfg["logging"]["level"])  # config-driven level (no hardcoded INFO; §7.2)
     try:
         sdk = MarlSDK(cfg)
         seed = int(cfg["training"]["seeds"][0])

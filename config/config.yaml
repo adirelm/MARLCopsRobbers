@@ -305,7 +305,6 @@ mcp:
     algorithm: "RS256"
     cop_audience: "marl-cop"
     thief_audience: "marl-thief"
-    default_ttl_days: 7
     required_scopes: ["game:write"]  # scopes: position:read, game:write,
                                   #   report:send, admin:revoke
     # Token VALUES and RSA keys live in .env ONLY (see .env-example):
@@ -374,10 +373,8 @@ gui:
 # numbers can never drift from code (ADR-D10-C). Heavy artifacts are git-ignored.
 # ============================================================================
 paths:
-  results_dir: "results"
   runs_dir: "results/runs"               # append-only per-episode JSONL run records
   figures_dir: "results/figures"         # F1-F6 PNGs referenced by README §7.3
-  checkpoint_dir: "results/checkpoints"  # cop_weights.pth / thief_weights.pth (+ sidecar)
   experiment_manifest: "results/figures/experiment_manifest.json"  # seeds/config-hash; by make_figures
   bc_dataset_dir: "results/datasets"     # P3 (T3.2) seeded BC (o, a*) npz datasets
   subgames_dir: "results/subgames"       # P3 (T3.3) minimal sub-game JSON records
@@ -388,6 +385,6 @@ paths:
 # LOGGING
 # ============================================================================
 logging:
-  level: "INFO"
-  redact_secrets: true            # strip Authorization/Bearer/key material before any
-                                  #   §7.3(d) screenshot (secrets/PII gate; ADR-D6-7)
+  level: "INFO"                   # log level for the marl.* loggers; read by src/results/comms.py
+  # NB: secret/PII redaction is UNCONDITIONAL (src/results/comms.py + src/reporting/send.py),
+  # never gated on a config flag — there is deliberately no opt-out (ADR-0013 PII deny-list).

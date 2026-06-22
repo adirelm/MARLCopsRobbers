@@ -273,7 +273,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
 - **FR-CLOUD-3 (inference-only, CTDE faithful).** Cloud `request_move` operates on local observation only; deployed model files contain **actor weights only** (no trainer/mixer/replay buffer/global-state code).
   - **AC:** a unit test asserts `request_move` rejects a request containing a `global_state` field; `export_weights()` saves the GRU agent-net `state_dict` only + a shape sidecar.
   - **Evidence:** ADR-D6-3; `tests/architecture/test_no_global_state_in_mcp.py`.
-- **FR-CLOUD-4 (revocable, idempotent, resilient).** Tokens are revocable (jti deny-list primary; key rotation hard lever; short TTL `mcp.auth.default_ttl_days`=7); the client uses `mcp.client.timeout_s`=10, `mcp.client.max_retries`=3 with `backoff_s`=0.5, and a pre-game warm-up ping (`prewarm_ping:true`); `request_move` is idempotent per `(session_id, tick)`.
+- **FR-CLOUD-4 (revocable, idempotent, resilient).** Tokens are revocable (jti deny-list primary; key rotation hard lever) and externally minted with a short TTL verified via the `exp` claim — no token is minted in-repo (deploy is inference-only; token VALUES live in `.env`, see ADR-0012); the client uses `mcp.client.timeout_s`=10, `mcp.client.max_retries`=3 with `backoff_s`=0.5, and a pre-game warm-up ping (`prewarm_ping:true`); `request_move` is idempotent per `(session_id, tick)`.
   - **AC:** after revoking a `jti` (or rotating the key) the old token returns 401 while a fresh token returns 200, both screenshotted; a retried move never double-applies.
   - **Evidence:** `cloud_revoke.png`; ADR-D6-6.
 - **FR-CLOUD-5 (cloud match emits JSON, does NOT send).** A full 6-sub-game match runs over the two cloud URLs and emits the §3.5 JSON body; it does NOT send the email (that is §6 step 9).
@@ -308,10 +308,10 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
 
 - **FR-RPT-1 (single end-of-game send).** After the 6th **valid** sub-game, the Cop process sends exactly ONE email to `gmail.to` (`rmisegal+marl@gmail.com`) via the `send_final_report` MCP tool with a structured subject and a JSON body covering all 6 sub-games.
   - **AC:** an integration test with `FakeEmailSender` proves exactly one send occurs and the body validates against `gmail.schema_path` (`docs/schema/report.schema.json`).
-  - **Evidence:** `tests/integration/test_report.py`; ADR-D8-5.
+  - **Evidence:** `tests/unit/test_report_send.py`; `tests/integration/test_match.py`; ADR-D8-5.
 - **FR-RPT-2 (schema conformance, §3.5).** The JSON body conforms to `{group_name, students[]{role/full_name/id}, github_repo, timezone="Asia/Jerusalem", sub_games[6]{id,start,end,moves,winner,scores{cop,thief}}, totals{cop,thief}}`. Per the SOLO model (§1.3), the report-schema `students` array is **`minItems: 1`** (allows 1–3 entries; this submission carries exactly one, role A) — NOT `minItems: 2`.
   - **AC:** a `jsonschema` (draft-2020-12) test passes; the schema declares `students` `minItems: 1`; runtime `validate()` rejects `len(sub_games)!=6`, `ids!=[1..6]`, bad winner, `end<start`, and `totals != Σ scores`.
-  - **Evidence:** `gmail.schema_path` (`docs/schema/report.schema.json`); `tests/unit/test_schema.py`.
+  - **Evidence:** `gmail.schema_path` (`docs/schema/report.schema.json`); `tests/unit/test_reporting.py`.
 - **FR-RPT-3 (scores derived, not supplied, §3.4).** Scores are derived solely from `winner` + `game.scoring` (cop_win=20, thief_win=10, cop_loss=5, thief_loss=5 — the §3.4 REPORT scoreboard, NEVER the RL `reward.*` signal); callers cannot supply scores.
   - **AC:** a unit test asserts `winner=cop → {cop:20, thief:5}` and `winner=thief → {cop:5, thief:10}`; a record call attempting to pass scores is ignored/rejected.
   - **Evidence:** `tests/unit/test_builder.py`.

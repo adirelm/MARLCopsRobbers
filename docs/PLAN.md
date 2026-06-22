@@ -407,7 +407,6 @@ mcp:                           # was nested cop/thief/cloud blocks — now flat,
     algorithm: RS256
     cop_audience: "marl-cop"
     thief_audience: "marl-thief"
-    default_ttl_days: 7
     required_scopes: ["game:write"]
 cloud:                         # was `mcp.cloud` — now top-level `cloud:`
   platform: prefect_horizon
@@ -426,12 +425,10 @@ gmail:                         # was `report:` + `email:` — now unified under 
   schema_path: "docs/schema/report.schema.json"
 gui:         { screenshot_sizes: [2, 3, 4, 5], screenshot_dir: "results/screenshots", view_radius_overlay: false }
 paths:
-  results_dir: "results"
   runs_dir: "results/runs"
   figures_dir: "results/figures"
-  checkpoint_dir: "results/checkpoints"
   experiment_manifest: "results/figures/experiment_manifest.json"
-logging:     { level: "INFO", redact_secrets: true }
+logging:     { level: "INFO" }
 ```
 
 `config/rate_limits.json` (versioned, git-tracked, no secrets) →
