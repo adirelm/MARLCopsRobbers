@@ -127,6 +127,23 @@ def test_send_report_deferral_stays_retryable_then_drain_commits_once(cfg, tmp_p
     assert Path(cfg["gmail"]["sentinel"]).exists()  # a later retry will now see already_sent
 
 
+def test_inner_recheck_reports_already_sent_not_true(cfg, tmp_path):
+    cfg = _cfg_tmp(cfg, tmp_path)
+    sender = FakeEmailSender()
+    report = _report()
+    digest = send_mod.report_hash(report)
+
+    class _PreMarkGate:
+        # simulate a prior queued send draining (marking the sentinel) right before this thunk runs
+        def execute(self, channel, call):
+            send_mod.mark_sent(cfg["gmail"]["sentinel"], digest)
+            return call()
+
+    out = send_mod.send_report(cfg, report, sender, "2026-06-21", gatekeeper=_PreMarkGate())
+    assert out["sent"] is False and out["reason"] == "already_sent"  # accurate status, not sent=True
+    assert len(sender.sent) == 0  # the inner recheck prevented the duplicate send
+
+
 def test_shared_gate_retry_during_deferral_still_sends_once(cfg, tmp_path):
     cfg = _cfg_tmp(cfg, tmp_path)
     sender = FakeEmailSender()

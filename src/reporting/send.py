@@ -93,16 +93,20 @@ def send_report(cfg: dict, report: dict, sender: object, date_str: str, gatekeep
     body = json.dumps(report, indent=2, ensure_ascii=False)
     recipient = cfg["gmail"]["to"]
 
-    def _send() -> None:
+    def _send() -> str:
         # Recheck INSIDE the thunk: if a previously-queued send for this same report
         # already drained (gatekeeper drains queued calls before admitting new ones), the
         # sentinel is now set — skip, so a retry-during-deferral can never double-email.
         if already_sent(sentinel, digest):
-            return
+            return "already_sent"
         sender.send(subject, body, recipient)
         mark_sent(sentinel, digest)  # email + sentinel committed together
+        return "sent"
 
     gate = gatekeeper or ApiGatekeeper()
-    if gate.execute("gmail", _send) is DEFERRED:
+    outcome = gate.execute("gmail", _send)
+    if outcome is DEFERRED:
         return {"sent": False, "reason": "deferred", "redacted_path": redacted_path}
+    if outcome == "already_sent":  # the inner recheck skipped — a prior drain already delivered it
+        return {"sent": False, "reason": "already_sent", "redacted_path": redacted_path}
     return {"sent": True, "subject": subject, "to": recipient, "redacted_path": redacted_path}
