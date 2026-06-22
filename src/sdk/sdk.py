@@ -109,6 +109,17 @@ class MarlSDK:
             thief_net = wrap_encoder(thief_net, cfg)
         return finetune_curriculum(cfg, seed, stage_indices, cop_net, thief_net, rounds_per_stage)
 
+    def fresh_net(self, role: str, n_agents: int | None = None) -> object:
+        """Build an UNTRAINED role net (cop n_agents=2 / thief 1) — the SDK net factory.
+
+        Lets thin launchers / the results layer obtain a net WITHOUT importing the marl
+        net class directly (keeps the SDK the single seam, §4.1).
+        """
+        from src.marl.nets.agent_net import RecurrentQNet  # noqa: PLC0415 — lazy: keep import light
+
+        agents = n_agents if n_agents is not None else (2 if role == "cop" else 1)
+        return RecurrentQNet(self._cfg, role, agents)
+
     def build_policy(self, role: str, net: object, n_agents: int = 1) -> RecurrentPolicy:
         """Return an acting :class:`RecurrentPolicy` over ``net`` for ``n_agents``.
 

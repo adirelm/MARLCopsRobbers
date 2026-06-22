@@ -18,7 +18,6 @@ matplotlib.use("Agg")  # headless backend before pyplot
 
 import matplotlib.pyplot as plt
 
-from src.marl.nets.agent_net import RecurrentQNet
 from src.reporting.players import load_players
 from src.sdk.sdk import MarlSDK
 
@@ -49,8 +48,9 @@ def capture(cfg: dict) -> list[str]:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     try:
-        cop, thief = RecurrentQNet(cfg, "cop", 2), RecurrentQNet(cfg, "thief", 1)
-        MarlSDK(cfg).run_local_match(cop, thief, load_players(), seed=7, num_games=1)
+        sdk = MarlSDK(cfg)
+        seed = int(cfg["training"]["seeds"][0])
+        sdk.run_local_match(sdk.fresh_net("cop"), sdk.fresh_net("thief"), load_players(), seed, num_games=1)
     finally:
         logger.removeHandler(handler)
     return handler.lines

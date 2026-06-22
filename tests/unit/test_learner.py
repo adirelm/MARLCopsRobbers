@@ -108,7 +108,7 @@ def test_team_reward_is_active_mean_not_sum(cfg: dict) -> None:
     """Two equal active cop rewards give r_team == the shared value (mean, not sum)."""
     learner = _cop_learner(cfg, n_agents=2)
     batch = make_batch(b=4, t=2, n=2, active=[True, True], reward=3.0, seed=6)
-    r_team = learner._team_reward(batch)
+    r_team = learner._team_reward(to_tensors(batch, learner.device))
     # Active-MEAN over two cops sharing reward 3.0 == 3.0 (NOT 6.0).
     assert torch.allclose(r_team, torch.full_like(r_team, 3.0))
 
@@ -119,7 +119,7 @@ def test_team_reward_ignores_inactive_slot(cfg: dict) -> None:
     # Only slot 0 active; slot 1 is a zero-reward phantom -> mean over actives = 1.0.
     batch = make_batch(b=2, t=2, n=2, active=[True, False], reward=1.0, seed=8)
     batch["reward"][:, :, 1] = 0.0  # phantom slot carries no reward
-    r_team = learner._team_reward(batch)
+    r_team = learner._team_reward(to_tensors(batch, learner.device))
     assert torch.allclose(r_team, torch.ones_like(r_team))
 
 

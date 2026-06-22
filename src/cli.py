@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 
-from src.marl.nets.agent_net import RecurrentQNet
 from src.reporting.players import load_players
 from src.sdk.sdk import MarlSDK
 from src.utils.config_loader import load_config
@@ -30,8 +29,9 @@ def _train(sdk: object, cfg: dict, args: argparse.Namespace) -> dict:
 
 def _play(sdk: object, cfg: dict, args: argparse.Namespace) -> dict:
     """Run the 6-sub-game match over the in-memory MCP (dry-run); print + return the result."""
-    cop, thief = RecurrentQNet(cfg, "cop", 2), RecurrentQNet(cfg, "thief", 1)
-    out = sdk.run_local_match(cop, thief, load_players(), int(cfg["training"]["seeds"][0]))
+    out = sdk.run_local_match(
+        sdk.fresh_net("cop"), sdk.fresh_net("thief"), load_players(), int(cfg["training"]["seeds"][0])
+    )
     print(f"[cli play] {out['num_games']} sub-games | totals={out['report']['totals']}")
     return out
 

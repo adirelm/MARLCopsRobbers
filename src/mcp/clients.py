@@ -10,6 +10,7 @@ sub-game reuses ONE connection.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastmcp import Client
@@ -26,11 +27,14 @@ def make_client(url: str, token: str) -> Client:
 class AgentClient:
     """Async typed wrapper over a FastMCP ``Client`` for one agent server."""
 
-    def __init__(self, client: Client, max_retries: int = 3, label: str = "peer") -> None:
-        """Wrap a (HTTP or in-memory) client with a bounded retry budget + a log label."""
+    def __init__(
+        self, client: Client, max_retries: int = 3, label: str = "peer", backoff_s: float = 0.0
+    ) -> None:
+        """Wrap a (HTTP or in-memory) client with a bounded retry budget + backoff + a log label."""
         self._client = client
         self._max_retries = max(1, int(max_retries))
         self._label = label
+        self._backoff_s = max(0.0, float(backoff_s))
 
     async def __aenter__(self) -> AgentClient:
         """Open the underlying client connection (reused across the sub-game)."""
@@ -71,6 +75,8 @@ class AgentClient:
                     attempt,
                     type(exc).__name__,
                 )
+                if attempt < self._max_retries and self._backoff_s:
+                    await asyncio.sleep(self._backoff_s * attempt)  # configured linear backoff
         raise last  # type: ignore[misc]
 
     async def health(self) -> dict:

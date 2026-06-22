@@ -14,9 +14,11 @@ from src.utils.config_loader import load_config
 
 
 def main() -> None:
-    """Build a 5x5 spectator session via the SDK and run the god-view window loop."""
+    """Build a spectator session (final board, config seed) via the SDK; run the window loop."""
     cfg = load_config()
-    session = MarlSDK(cfg).spectator_session(5, 5, num_cops=1, seed=0)
+    height, width = cfg["env"]["curriculum"]["stages"][-1]  # the final (largest) curriculum board
+    seed = int(cfg["training"]["seeds"][0])
+    session = MarlSDK(cfg).spectator_session(height, width, num_cops=1, seed=seed)  # 1-cop view
     run_app(InProcStateClient(session))
 
 

@@ -59,6 +59,7 @@ def build_jwt_verifier(cfg: dict, role: str, public_key: str | None = None) -> R
         public_key=public_key,
         issuer=auth["issuer"],
         audience=auth[f"{role}_audience"],
+        algorithm=auth["algorithm"],  # honor the configured RS256 (was relying on the FastMCP default)
         required_scopes=list(auth["required_scopes"]),
         revoked_jtis=revoked_jtis(),
     )

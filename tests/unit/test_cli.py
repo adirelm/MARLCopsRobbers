@@ -18,6 +18,9 @@ class _FakeSDK:
     def train(self, algo, seed, stage):
         return [{"round": 0, "role": "cop", "loss": 0.1, "capture_rate": 0.5}]
 
+    def fresh_net(self, role, n_agents=None):
+        return f"net:{role}"
+
     def run_local_match(self, *args, **kwargs):
         return {"num_games": 6, "report": {"totals": {"cop": 20, "thief": 5}}}
 

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import sys
 
-from src.marl.nets.agent_net import RecurrentQNet
 from src.reporting.players import load_players
 from src.sdk.sdk import MarlSDK
 from src.utils.config_loader import load_config
@@ -22,10 +21,8 @@ def main(cfg: dict | None = None, send: bool = False) -> dict:
     """Run the full local match; print §3.5 totals + dry-run ack. ``send`` emails for real."""
     cfg = cfg or load_config()
     sdk = MarlSDK(cfg)
-    cop = RecurrentQNet(cfg, "cop", 2)
-    thief = RecurrentQNet(cfg, "thief", 1)
     seed = int(cfg["training"]["seeds"][0])
-    out = sdk.run_local_match(cop, thief, load_players(), seed)
+    out = sdk.run_local_match(sdk.fresh_net("cop"), sdk.fresh_net("thief"), load_players(), seed)
     print(f"[match] {out['num_games']} sub-games | totals={out['report']['totals']} | ack={out['ack']}")
     if send:  # pragma: no cover - real Gmail egress; requires creds + network + explicit go
         result = sdk.send_final_report(out["report"])

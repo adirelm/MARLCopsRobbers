@@ -95,9 +95,12 @@ class QmixLearner:
         """Active-MEAN of ``[B,T,N]`` over cops (active ``[B,1,N]``); NEVER a sum."""
         return (per_agent * active).sum(-1) / active.sum(-1).clamp(min=1.0)
 
-    def _team_reward(self, batch: dict) -> Tensor:
-        """Return the active-MEAN team reward ``[B, T]`` (NEVER a sum over cops)."""
-        data = to_tensors(batch, self.device)
+    def _team_reward(self, data: dict) -> Tensor:
+        """Return the active-MEAN team reward ``[B, T]`` from a tensorized batch (never a sum).
+
+        Takes the already-tensorized ``data`` (not a raw batch) so ``update`` reuses it
+        without re-running ``to_tensors`` — the single team-reward computation (DRY).
+        """
         return self._active_mean(data["reward"], data["active"].float().unsqueeze(1))
 
     def _unroll(self, net: RecurrentQNet, data: dict) -> Tensor:
@@ -142,7 +145,7 @@ class QmixLearner:
         q_chosen = gather_chosen(q_online[:, :t], data["actions"]) * active
         q_tot = self._mix(self.mixer, q_chosen, data["global_state"][:, :t])
         q_next_tot = self._compute_target(data, q_online[:, 1:].detach(), q_target[:, 1:]).detach()
-        r_team = self._active_mean(data["reward"], active)
+        r_team = self._team_reward(data)
         y = (r_team + self.gamma * (1.0 - data["done"].float()) * q_next_tot.squeeze(-1)).unsqueeze(-1)
         loss = masked_huber(q_tot - y, data["filled"].unsqueeze(-1), self.huber_delta)
         self.optimizer.zero_grad()

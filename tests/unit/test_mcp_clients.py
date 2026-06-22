@@ -39,12 +39,13 @@ def test_make_client_builds_a_bearer_http_client():
     assert isinstance(make_client("http://localhost:8001/mcp", "tok"), Client)
 
 
-def test_agent_client_retries_then_reraises():
-    """A persistently failing call is retried max_retries times, then re-raised."""
+def test_agent_client_retries_with_backoff_then_reraises():
+    """A persistently failing call is retried max_retries times (with backoff), then re-raised."""
     boom = _Boom()
 
     async def _run():
-        async with AgentClient(boom, max_retries=3) as client:
+        # backoff_s>0 exercises the configured inter-retry sleep (tiny so the test stays fast)
+        async with AgentClient(boom, max_retries=3, backoff_s=0.001) as client:
             await client.request_move("s", 0, [[[0.0]]], [0.0], [True])
 
     with pytest.raises(RuntimeError, match="boom"):
