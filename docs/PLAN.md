@@ -355,7 +355,6 @@ env:
     promotion_window: 100
 algo:                          # was top-level `marl:` — now nested under `algo:`
   name: "qmix"                 # qmix(primary) | vdn(ablation) | iql(baseline)  (ADR-0003)
-  baseline: "iql"
   double_q: true
   gamma: 0.99
   lr_agent: 3.0e-4
@@ -366,14 +365,13 @@ algo:                          # was top-level `marl:` — now nested under `alg
   batch_episodes: 32
   target_update_interval: 200            # hard target sync (the only mode implemented)
   mixer: { type: qmix, embed_dim: 32 }   # 2-cop 4×4 stage supplies the non-trivial-mixer evidence
-nets:        { hidden_dim: 64, gru: true, encoder_hidden: [64, 64] }   # flat-obs MLP trunk; NO conv (#5)
-olora:       { enabled: false, rank: 4, rank_sweep: [2, 4, 8], scale: 8.0, target_layers: ["encoder"] }  # assert rank≤min(m,n)//2
+nets:        { hidden_dim: 64, encoder_hidden: [64, 64] }   # flat-obs MLP trunk; NO conv (#5); recurrent GRU
+olora:       { rank: 4, rank_sweep: [2, 4, 8], scale: 8.0, target_layers: ["encoder"] }  # assert rank≤min(m,n)//2; default OFF (enabled via the SDK olora arg)
 bc:          { epochs: 30, lr: 1.0e-3, epsilon: 0.1, pretrain_grids: [[2,2],[3,3]], n_pairs: 40000, val_fraction: 0.2, split_seed: 7, val_acc_gate_by_grid: {2: 0.50, 3: 0.78} }  # per-grid honest gate
 replay:      { buffer_episodes: 5000, min_replay_episodes: 256 }   # cadence = selfplay.update_ratio
 selfplay:    { window_k: 1, pool_size: 5, update_ratio: 1, rounds: 50 }      # window_k=update-ratio tick; rounds/stage
 training:
   seeds: [7, 17, 37, 71, 107]
-  episodes_per_stage: 5000
   eps_start: 1.0
   eps_end: 0.05
   eps_anneal_env_steps: 20000
@@ -412,7 +410,6 @@ cloud:                         # was `mcp.cloud` — now top-level `cloud:`
   rate_limits: { peer_mcp_per_minute: 120, peer_mcp_burst: 10, gmail_per_minute: 5, gmail_burst: 1 }
 gmail:                         # was `report:` + `email:` — now unified under `gmail:`
   to: "rmisegal+marl@gmail.com"
-  mechanism: smtplib_app_password   # smtplib_app_password | gmail_api_oauth (fallback)
   smtp_host: "smtp.gmail.com"
   smtp_port: 587
   subject_template: "[MARL Cops&Robbers] {group_name} | Final {num_games} sub-games | Cop {cop_total} - Thief {thief_total} | {date}"

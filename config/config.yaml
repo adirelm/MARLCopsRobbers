@@ -109,7 +109,6 @@ env:
 # ============================================================================
 algo:
   name: "qmix"                    # qmix | vdn | iql  (BRIEF §5.2; ADR-D10-A)
-  baseline: "iql"                 # §7.2 mandated non-stationarity baseline ([4],[8])
   double_q: true                  # Double-DQN target action selection (curbs self-play
                                   #   overestimation; ADR-D3-E)
   gamma: 0.99                     # discount (<=25-step horizon)
@@ -137,7 +136,6 @@ algo:
 # ============================================================================
 nets:
   hidden_dim: 64                  # GRU hidden width H
-  gru: true                       # recurrent (GRU over LSTM: fewer params, ADR-D3-D)
   encoder_hidden: [64, 64]        # flat-MLP encoder trunk Linear widths (OLoRA-wrapped,
                                   #   D4); per L10 §5/eq8 the encoder is a Linear trunk
                                   #   over the flattened obs (no Conv2d) — OLoRA wraps
@@ -164,7 +162,6 @@ compute:
 # (BC-on-3x3 -> OLoRA-attach -> CTDE-finetune-to-5x5) + the full ablation arm.
 # ============================================================================
 olora:
-  enabled: false                  # ADR-D3-G/ADR-D4: off for from-scratch; on for transfer
   rank: 4                         # default r; sweep {2, 4, 8}. HARD GUARD: rank <=
                                   #   min(m,n)//2 (prevents degenerate rank on 64-dim layers)
   rank_sweep: [2, 4, 8]
@@ -233,7 +230,6 @@ selfplay:
 # ============================================================================
 training:
   seeds: [7, 17, 37, 71, 107]     # 5 seeds for mean +/- SE error bars (§7.3 F1/F5/F6)
-  episodes_per_stage: 5000        # self-play episodes at each curriculum grid size
   eps_start: 1.0                  # epsilon-greedy exploration schedule (per role)
   eps_end: 0.05
   eps_anneal_env_steps: 20000     # linear anneal horizon in env steps
@@ -338,7 +334,6 @@ cloud:
 # ============================================================================
 gmail:
   to: "rmisegal+marl@gmail.com"   # §3.5 recipient; the +marl plus-tag is MANDATORY
-  mechanism: "smtplib_app_password"  # smtplib_app_password | gmail_api_oauth (fallback)
   smtp_host: "smtp.gmail.com"
   smtp_port: 587                  # STARTTLS
   # §3.5 subject: structured, NO names/ids/emails. {date} = build date Asia/Jerusalem.

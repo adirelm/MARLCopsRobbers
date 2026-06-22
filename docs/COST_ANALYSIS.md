@@ -21,7 +21,7 @@ TTL avoids re-billing the conversation prefix uncached.
 ## (b) RL training-compute envelope (LOCAL only)
 
 Training is LOCAL by mandate (BRIEF §5.2 — no cloud training spend). The budget identity is
-config-pinned: `selfplay.rounds (50) × episodes_per_round (100) = 5000 = episodes_per_stage`.
+config-pinned: `selfplay.rounds (50) × selfplay.episodes_per_round (100) = 5000` episodes per stage.
 
 | Axis | Value |
 |---|---|
