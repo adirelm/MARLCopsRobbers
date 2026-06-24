@@ -150,7 +150,12 @@ projection) relax this; we reproduce the L10 Table 3 ordering qualitatively.
 
 **(4) Pursuit-evasion & curriculum.** The 2×2→5×5 ladder follows curriculum pursuit-evasion `[5]`;
 policy-gradient CTDE alternatives (MAPPO `[8]`, MADDPG/COMA) trade our value-decomposition for a
-centralized critic. **OLoRA honest limitation:** OLoRA `[7]`§III is a *stability/efficiency* aid
+centralized critic. The **competitive** cop↔thief regime has its own equilibrium learners —
+**Minimax-Q** (Littman 1994, zero-sum) and **Nash-Q** (Hu & Wellman 2003, general-sum), per L11; we
+use **alternating best-response self-play** instead because those guarantee convergence only for
+*tabular* `Q` (infeasible on our recurrent state), value decomposition is cooperative-only, and our
+discrete actions give no MADDPG (continuous-action) benefit — a tabular Minimax-Q/Nash-Q baseline is
+the natural next experiment. **OLoRA honest limitation:** OLoRA `[7]`§III is a *stability/efficiency* aid
 for curriculum transfer (orthonormal low-rank deltas on a frozen encoder), **not** a cure for
 non-stationarity (citing `[4]`,`[8]`). Rejected readings: random-matrix-QR init, an LLM bolt-on,
 and `r ≥ dim` (defeats the low-rank point) — all out of scope.

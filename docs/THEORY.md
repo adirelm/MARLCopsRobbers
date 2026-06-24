@@ -66,6 +66,22 @@ into the transition `T(s'│s, ā)` as a separate adversarial Double-DQN trained
 README §7.1 names the Dec-POMDP-with-shared-R as the deliberate proxy; §7.2 analyzes the
 limits (IGM / monotonicity → QPLEX `[10]` / Weighted-QMIX `[9]`).
 
+**Competitive-MARL algorithm choice — self-play best-response, not equilibrium learners (L11).**
+The cop↔thief interaction is the *competitive* regime of L11 (Segal 2026): **Minimax-Q** (Littman
+1994, zero-sum), **Nash-Q** (Hu & Wellman 2003, general-sum), and **MADDPG** (Lowe et al. 2017,
+continuous/mixed). We deliberately model the Thief as a deep recurrent **Double-DQN trained by
+alternating best-response self-play** rather than a tabular equilibrium learner, for three reasons:
+(i) **scalability** — Minimax-Q / Nash-Q carry convergence guarantees only when each stage-game `Q`
+is represented *exactly* (tabular) and re-solved by an LP / Nash operator per state, infeasible over
+our padded recurrent state; deep self-play is the scalable substitute (the standard modern reading);
+(ii) **discrete actions** — value-based learning fits directly, whereas MADDPG targets *continuous*
+actions (needing a Gumbel-Softmax relaxation here, for no gain); (iii) **decomposition validity** —
+value decomposition is a *cooperative* tool (one team reward to factor) and is invalid across the
+opposed cop/thief boundary (eq 7), so we factor only within the cop team `N` and keep the adversary
+in `T`. Honest trade-off: self-play can cycle on non-transitive payoffs and certifies no Nash point;
+the frozen-opponent window + heuristic-seeded opponent pool (FR-ALG-7) mitigate cycling. A tabular
+Minimax-Q / Nash-Q baseline on a small grid is the natural next experiment (the L11 §5 self-challenge).
+
 ---
 
 ## References
