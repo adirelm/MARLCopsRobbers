@@ -20,6 +20,7 @@ dependencies = [
     "numpy>=1.26",
     "matplotlib>=3.8",
     "pyyaml>=6.0",
+    "scipy>=1.17.1",
 ]
 
 # §5.4 GUI (Pygame god-view spectator) is an OPTIONAL extra, needed only at P7 —
