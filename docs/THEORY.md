@@ -79,8 +79,19 @@ actions (needing a Gumbel-Softmax relaxation here, for no gain); (iii) **decompo
 value decomposition is a *cooperative* tool (one team reward to factor) and is invalid across the
 opposed cop/thief boundary (eq 7), so we factor only within the cop team `N` and keep the adversary
 in `T`. Honest trade-off: self-play can cycle on non-transitive payoffs and certifies no Nash point;
-the frozen-opponent window + heuristic-seeded opponent pool (FR-ALG-7) mitigate cycling. A tabular
-Minimax-Q / Nash-Q baseline on a small grid is the natural next experiment (the L11 §5 self-challenge).
+the frozen-opponent window + heuristic-seeded opponent pool (FR-ALG-7) mitigate cycling.
+
+**We close the L11 §5 self-challenge with a P-bonus equilibrium baseline (F7).** `src/marl/baselines/`
+implements tabular **Minimax-Q** (Littman 1994): one Q-table `Q(s, a_cop, a_thief)` whose per-state
+value is the **maximin LP** `max_π min_j (πᵀQ)_j` (solved by `scipy.optimize.linprog`, validated on the
+L11 §2.2.1 worked example p=0.4, V=1.0), with decaying α + GLIE exploration for Robbins-Monro
+convergence. On the reduced 1-cop-vs-1-thief **3×3** zero-sum pursuit it converges to a **thief-favored
+equilibrium**: the certified game value is negative, bounded below by the **−γ^(H−1)** discounted-escape
+floor. This is the empirical proof that a *lone* minimax cop cannot corner an equal-speed evader on the
+open grid — which is exactly why capture needs the *cooperative* cop team (value decomposition over `N`),
+not a single equilibrium pursuer. The baseline is thus the theoretical floor the deep arms rise above,
+and the scalability contrast (tabular per-state LP vs deep recurrent self-play) is concrete, not
+hypothetical. Numbers + convergence figure: `docs/ANALYSIS.md` §10; comparison framing: README §7.2.
 
 ---
 

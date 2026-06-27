@@ -112,3 +112,51 @@ that "see more" is **not free** — it trades a marginal mean for markedly worse
 > Reproduce: `uv run python scripts/sensitivity_sweep.py` (4×4 used because 5×5 training
 > is too slow to sweep); the one-key-only guarantee is asserted by
 > `tests/unit/test_sensitivity.py::test_make_variant_changes_only_the_one_key`.
+
+## §10 Minimax-Q equilibrium baseline — the L11 §5 self-challenge (P-bonus)
+
+The deep arms (IQL/VDN/QMIX cops + a self-play Double-DQN thief) play *well* but certify no
+equilibrium (THEORY §3). To close that gap — and the **L11 §5 self-challenge** — `src/marl/baselines/`
+implements the tabular **Minimax-Q** learner L11 §2.2 prescribes for the *competitive* regime
+(Littman 1994): one Q-table `Q(s, a_cop, a_thief)` whose per-state value is the **maximin LP**
+`max_π min_j (πᵀQ)_j`, solved by `scipy.optimize.linprog` and validated against the L11 §2.2.1 worked
+example (payoff `[[-2,4],[3,-1]]` → cop mix p=0.4, game value V=1.0). It runs on the reduced
+**1-cop-vs-1-thief 3×3** zero-sum pursuit (capture → cop +1, escape/timeout → −1, γ=0.95, horizon
+H=25), **reusing the production `CopsRobbersEnv`** (`TabularPursuit` adapter) so the baseline shares the
+real transition/capture rules — only the deep-net observation/shaping path is bypassed.
+
+**Result — the certified value converges to a closed-form floor** (seed 7, 5000 episodes; figure F7):
+
+| metric (final window, ep 5000) | value | theory |
+|---|---|---|
+| game value at the reference start state | **−0.2915** | **−γ^(H−1) = −0.95²⁴ = −0.2920** (matches to 5e-4) |
+| cop capture rate (rolling, ε-annealed) | **0.036** | ≈ 0 — the equilibrium thief escapes |
+
+The certified game value descends monotonically to **−γ^(H−1)**, the discounted payoff of a *guaranteed
+escape at the horizon*: a sure escape pays the cop −1 on the H-th transition, discounted by γ^(H−1) back
+to the step-0 reference state. This is the genuine minimax equilibrium — on an **open** 3×3 grid with
+**equal-speed simultaneous** moves a single pursuer provably cannot corner the evader, so the thief
+survives to timeout and the cop's value is exactly the discounted escape penalty. The value **cannot fall
+below** this floor (it is the worst single-episode return), so the curve *asymptotes onto it* rather than
+diverging — the hallmark of correct convergence, and a closed-form check that the LP + learner are right.
+In lock-step the capture rate falls from ~0.50 to **~0.04** as GLIE exploration anneals: under near-greedy
+minimax play the lone cop catches the evader only ~4 % of the time.
+
+**Convergence needed decaying α + GLIE (honest methodology).** *Constant* α=0.1 does **not** converge — the
+value drifts *past* the floor to ≈−0.38 (an overshoot artifact of a non-vanishing step size on a moving
+target). Adding Robbins-Monro **α-decay** (0.5→0.01) bounds it but leaves ε-noise; adding **GLIE ε-decay**
+(0.3→0.01) lands it exactly on −γ^(H−1). This is the same "α must decay" lesson the course's tabular
+learners encode, now visible on a 2-player game.
+
+**Why this is the right contrast (README §7.2).** Minimax-Q buys an equilibrium *certificate* the deep
+self-play cannot — but only by being tabular (a per-state Q + a per-state LP), which does not scale to the
+padded recurrent multi-cop observation of the main task. And it certifies that **a lone minimax cop
+loses**: capture on the open grid requires *cooperation*. That is exactly why the main project factors a
+**team** of cops with VDN/QMIX value decomposition (which corners the thief a single minimax pursuer
+cannot) and keeps the adversary in `T` (ADR-0006). The baseline is the theoretical *floor* the cooperative
+deep arms rise above — not a competitor to them.
+
+> Reproduce: `uv run python scripts/plot_minimax_q.py` (seed = `training.seeds[0]`; slow — per-step maximin
+> LP, like the IQL/sensitivity baselines) → `results/figures/minimax_q.png`. The LP is checked against the
+> L11 worked example by `tests/unit/test_minimax_lp.py::test_l11_worked_example_mixed_strategy`, and
+> convergence-to-game-value by `tests/unit/test_minimax_q.py::test_q_table_converges_to_game_value`.
