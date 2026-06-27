@@ -235,6 +235,26 @@ training:
   eps_anneal_env_steps: 20000     # linear anneal horizon in env steps
 
 # ============================================================================
+# MINIMAX-Q BASELINE (P-bonus, L11 §5) — a tabular ZERO-SUM equilibrium learner
+# for the 1-cop-vs-thief pursuit; an empirical contrast to the deep self-play
+# arms (§7.2). Standalone (NOT used by the graded match / CTDE training).
+# ============================================================================
+minimax_q:
+  grid: 3                  # tabular 3x3 pursuit (L11 §5 patrol-vs-thief scale)
+  episodes: 5000           # training episodes (GLIE value reaches the -gamma^(H-1) floor by ~5k)
+  max_moves: 25            # per-episode horizon cap
+  alpha_start: 0.5         # initial tabular Q learning rate (Littman 1994 decays it)
+  alpha_end: 0.01          # learning-rate floor
+  alpha_decay: 0.997       # per-episode geometric decay -> Robbins-Monro convergence
+  gamma: 0.95              # discount
+  eps_start: 0.3           # initial exploration prob over the minimax mixed strategy
+  eps_end: 0.01            # exploration floor (GLIE: anneal toward greedy)
+  eps_decay: 0.997         # per-episode decay -> near-greedy late training
+  capture_reward: 1.0      # zero-sum cop payoff: capture = +capture_reward
+  escape_reward: -1.0      # timeout/escape = escape_reward (thief gets the negative)
+  window: 250              # rolling window for the capture-rate / game-value curve
+
+# ============================================================================
 # REWARD (RL TRAINING SIGNAL ONLY — strictly separate from the §3.4 scoreboard
 # above; ADR-D1-G/ADR-002). Potential-based shaping F = gamma*Phi(s') - Phi(s),
 # Phi = -min_i manhattan(cop_i, thief) / d_max  (the CLOSEST cop sets the team

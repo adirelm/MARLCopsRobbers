@@ -26,6 +26,7 @@ EXPECTED_SECTIONS = {
     "replay",
     "selfplay",
     "training",
+    "minimax_q",
     "reward",
     "mcp",
     "cloud",
