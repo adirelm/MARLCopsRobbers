@@ -7,9 +7,10 @@ decomposition** (QMIX primary, VDN ablation, IQL baseline), each agent runs behi
 **FastMCP server** (localhost → cloud), visualized live in a **Pygame** GUI, with an
 end-of-game **Gmail** report.
 
-> **Status: COMPLETE (v1.0.0).** All phases P0→P11 are implemented, tested (516 tests,
-> ~99.6% coverage, ruff clean, CI green), and the §7 analysis below is fully authored from a
-> real training run. This README is the submission report (brief §7). Design docs:
+> **Status: COMPLETE (v1.1.0).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
+> equilibrium baseline (P-bonus, the L11 §5 self-challenge; see §7.2 + ANALYSIS §10) — tested
+> (533 tests, ~99.5% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
 ## Installation
@@ -154,8 +155,13 @@ centralized critic. The **competitive** cop↔thief regime has its own equilibri
 **Minimax-Q** (Littman 1994, zero-sum) and **Nash-Q** (Hu & Wellman 2003, general-sum), per L11; we
 use **alternating best-response self-play** instead because those guarantee convergence only for
 *tabular* `Q` (infeasible on our recurrent state), value decomposition is cooperative-only, and our
-discrete actions give no MADDPG (continuous-action) benefit — a tabular Minimax-Q/Nash-Q baseline is
-the natural next experiment. **OLoRA honest limitation:** OLoRA `[7]`§III is a *stability/efficiency* aid
+discrete actions give no MADDPG (continuous-action) benefit. **We close that gap with a P-bonus
+equilibrium baseline (F7):** a tabular **Minimax-Q** learner (per-state maximin LP, decaying α + GLIE)
+on the 1-cop-vs-1-thief 3×3 zero-sum pursuit converges to a **thief-favored equilibrium** (negative
+game value, bounded below by the −γ^(H−1) escape floor) — empirically confirming a *lone* minimax cop
+cannot corner an equal-speed evader, which is exactly why capture needs the cooperative cop team. It
+also makes the tabular-vs-deep scalability trade-off concrete (per-state LP vs recurrent self-play).
+Numbers + figure: ANALYSIS §10; theory: THEORY §3. **OLoRA honest limitation:** OLoRA `[7]`§III is a *stability/efficiency* aid
 for curriculum transfer (orthonormal low-rank deltas on a frozen encoder), **not** a cure for
 non-stationarity (citing `[4]`,`[8]`). Rejected readings: random-matrix-QR init, an LLM bolt-on,
 and `r ≥ dim` (defeats the low-rank point) — all out of scope.
@@ -200,9 +206,12 @@ captured. The figure manifest:
 | **F4** | MCP-comms proof — localhost canonical (cloud = Stage-2, not in repo) (CAPTURED) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |
 | **F5** | IQL vs VDN vs QMIX win-rate/convergence (incl. 4×4 2-cop panel) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
 | **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |
+| **F7** | Minimax-Q equilibrium baseline (P-bonus, L11 §5): game-value + capture-rate convergence on the 3×3 zero-sum pursuit | `scripts/plot_minimax_q.py` (slow; per-step maximin LP) | `results/figures/minimax_q.png` |
 
 F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); F3/F4 are
-deterministically captured by their seeded scripts. (The OLoRA-vs-full-fine-tune ablation chart +
+deterministically captured by their seeded scripts; **F7** (the bonus equilibrium baseline) is
+regenerated on demand by `uv run python scripts/plot_minimax_q.py` (kept separate — its per-step LP
+solves are slow, like the IQL/sensitivity baselines — see ANALYSIS §10). (The OLoRA-vs-full-fine-tune ablation chart +
 trainable-param table were **descoped** — see §6; the ~8× trainable-param reduction is asserted by
 `tests/unit/test_olora_linear.py`.)
 

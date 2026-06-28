@@ -14,14 +14,14 @@ from typing import Any
 
 import yaml
 
-EXPECTED_VERSION = "1.0.0"
+EXPECTED_VERSION = "1.1.0"
 
 # `version` is a scalar string; every other required section is a YAML mapping.
 VERSION_KEY = "version"
 
-# The 19 frozen top-level sections (P1 spec line 19 + the P4d `compute` governance
-# block; the P3 `p3_smoke` block was removed with the throwaway smoke in P4d).
-# Order is documentation-only.
+# The 20 frozen top-level sections (P1 spec line 19 + the P4d `compute` governance
+# block + the P-bonus `minimax_q` baseline block; the P3 `p3_smoke` block was removed
+# with the throwaway smoke in P4d). Order is documentation-only.
 REQUIRED_SECTIONS: tuple[str, ...] = (
     VERSION_KEY,
     "project",
@@ -35,6 +35,7 @@ REQUIRED_SECTIONS: tuple[str, ...] = (
     "replay",
     "selfplay",
     "training",
+    "minimax_q",
     "reward",
     "mcp",
     "cloud",

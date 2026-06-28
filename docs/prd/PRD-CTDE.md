@@ -38,6 +38,15 @@ Centralized-Training / Decentralized-Execution value-based MARL for the **cooper
 - **Shared net + (learner × mixer) seam** — ADR-0008. **OLoRA = QR on pretrained `W0`** — ADR-0010.
 - Honest §7.2 result: at the 50-round budget **QMIX is the LEAST stable arm** (more-expressive ⇒ harder to
   train) — reported faithfully, not idealized (`docs/ANALYSIS.md`, `docs/QUALITY.md`).
+- **P-bonus (non-rubric, no new scope) — empirical equilibrium baseline backing ADR-0006.** The choice of
+  deep self-play over a tabular equilibrium learner (FR-ALG-3) is now empirically backed: `src/marl/baselines/`
+  implements **Minimax-Q** (Littman 1994) for the reduced 1-cop-vs-1-thief 3×3 zero-sum pursuit (per-state
+  maximin LP, L11 eq 2.1), with decaying α + GLIE exploration for convergence. It settles to a **thief-favored
+  equilibrium** (negative game value, bounded below by the −γ^(H−1) escape floor) — confirming a lone minimax
+  cop cannot corner an equal-speed evader, which is exactly why capture needs the **cooperative team**
+  (FR-ALG-1). Evidence: `tests/unit/test_minimax_lp.py`, `tests/unit/test_minimax_q.py`,
+  `tests/unit/test_tabular_pursuit.py`, `tests/unit/test_minimax_runner.py`; figure F7; write-up
+  `docs/ANALYSIS.md` §10 + `README` §7.2.
 
 ## Acceptance & evidence
 

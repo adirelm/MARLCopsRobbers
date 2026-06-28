@@ -111,3 +111,31 @@ def plot_sensitivity(stats: dict, xlabel: str, title: str, out_path: str | Path)
     ax.set_ylabel("final capture rate")
     ax.set_title(title)
     return _save(fig, out_path)
+
+
+def plot_minimax_q(history: list[dict], out_path: str | Path, escape_floor: float | None = None) -> Path:
+    """F7 (P-bonus, L11 §5): tabular Minimax-Q convergence on the 3x3 zero-sum pursuit.
+
+    Plots the rolling cop capture rate and the certified game value at a fixed reference start
+    state vs episode. ``escape_floor`` (= -gamma**(H-1), the discounted value of a guaranteed
+    escape at the horizon) is the lower bound the game value converges *down* toward: a lone cop
+    cannot corner an equal-speed evader, so the minimax value settles near the escape floor.
+    """
+    episodes = [row["episode"] for row in history]
+    fig, ax = plt.subplots(figsize=_FIGSIZE)
+    ax.plot(episodes, [row["capture_rate"] for row in history], marker="o", label="cop capture rate")
+    ax.plot(episodes, [row["ref_value"] for row in history], marker="s", label="game value (ref state)")
+    ax.axhline(0.0, color="gray", linewidth=0.8, linestyle=":")
+    if escape_floor is not None:
+        ax.axhline(
+            escape_floor,
+            color="crimson",
+            linewidth=1.0,
+            linestyle="--",
+            label=f"escape floor $-\\gamma^{{H-1}}$ = {escape_floor:.3f}",
+        )
+    ax.set_xlabel("training episode")
+    ax.set_ylabel("capture rate / game value")
+    ax.set_title("Minimax-Q convergence — 3x3 cop-vs-thief (zero-sum equilibrium)")
+    ax.legend()
+    return _save(fig, out_path)

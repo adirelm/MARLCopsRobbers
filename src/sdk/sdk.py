@@ -76,6 +76,17 @@ class MarlSDK:
         h, w, num_cops = stage_params(cfg, stage_idx)
         return SelfPlayTrainer(cfg, seed, h, w, num_cops).train_stage()
 
+    def run_minimax_q_baseline(self, seed: int) -> list[dict]:
+        """Train the tabular Minimax-Q zero-sum baseline (P-bonus, L11 §5); return the history.
+
+        A standalone equilibrium-learning contrast to the deep self-play arms (README §7.2):
+        a tabular 1-cop-vs-thief Minimax-Q on a small grid, each state solved by a maximin LP.
+        Routes through :func:`~src.marl.baselines.minimax_runner.train_minimax_q`.
+        """
+        from src.marl.baselines.minimax_runner import train_minimax_q  # noqa: PLC0415 — lazy import
+
+        return train_minimax_q(self._cfg, seed)
+
     def finetune(  # noqa: PLR0913 — base nets + seed + stages + olora flag + rounds are all distinct
         self,
         seed: int,
