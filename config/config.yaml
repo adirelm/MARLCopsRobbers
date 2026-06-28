@@ -19,7 +19,7 @@
 # ============================================================================
 
 # --- Project identity (BRIEF "Standing submission rules"; V3 version gate) ---
-version: "1.0.0"                  # V3 hard gate: version starts at stated "1.00"
+version: "1.1.0"                  # started at "1.00" (V3 gate); 1.1.0 adds the Minimax-Q P-bonus
                                   # (3-segment A5-accepted mapping; ADR-0011)
 project:
   group_code: "adrl-001"          # BRIEF: 8-char group code, no spaces

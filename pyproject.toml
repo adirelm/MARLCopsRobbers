@@ -10,7 +10,7 @@ packages = ["src"]
 
 [project]
 name = "marlcopsrobbers"
-version = "1.0.0"
+version = "1.1.0"
 description = "Bar-Ilan Vibe-Coding & RL Workshop — Assignment 6 (MARL Cops & Robbers: CTDE QMIX/VDN/IQL, dual-MCP, cloud, GUI)"
 readme = "README.md"
 license = "MIT"

@@ -14,7 +14,7 @@ from typing import Any
 
 import yaml
 
-EXPECTED_VERSION = "1.0.0"
+EXPECTED_VERSION = "1.1.0"
 
 # `version` is a scalar string; every other required section is a YAML mapping.
 VERSION_KEY = "version"

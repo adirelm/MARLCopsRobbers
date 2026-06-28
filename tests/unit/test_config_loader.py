@@ -46,7 +46,7 @@ def test_round_trips_real_config():
     """load_config() reads the real config and returns a validated dict."""
     cfg = load_config()
     assert isinstance(cfg, dict)
-    assert cfg["version"] == "1.0.0"
+    assert cfg["version"] == "1.1.0"
     for section in EXPECTED_SECTIONS:
         assert section in cfg
     assert cfg["game"]["grid_size"] == 5
@@ -61,7 +61,7 @@ def _write(tmp_path, body: str):
 
 
 def test_bad_version_raises(tmp_path):
-    """A version other than 1.0.0 raises ValueError."""
+    """A version other than 1.1.0 raises ValueError."""
     body = 'version: "9.9.9"\n'
     for section in EXPECTED_SECTIONS - {"version"}:
         body += f"{section}: {{}}\n"
@@ -72,7 +72,7 @@ def test_bad_version_raises(tmp_path):
 
 def test_missing_section_raises(tmp_path):
     """A missing required top-level section raises ValueError."""
-    body = 'version: "1.0.0"\n'
+    body = 'version: "1.1.0"\n'
     for section in EXPECTED_SECTIONS - {"version", "gui"}:
         body += f"{section}: {{}}\n"
     path = _write(tmp_path, body)
@@ -83,7 +83,7 @@ def test_missing_section_raises(tmp_path):
 def test_env_var_interpolation(tmp_path, monkeypatch):
     """${VAR} tokens expand from os.environ during load."""
     monkeypatch.setenv("TEST_VAR", "interpolated-value")
-    body = 'version: "1.0.0"\n'
+    body = 'version: "1.1.0"\n'
     for section in EXPECTED_SECTIONS - {"version", "project"}:
         body += f"{section}: {{}}\n"
     body += "project:\n  token: ${TEST_VAR}\n"
@@ -95,7 +95,7 @@ def test_env_var_interpolation(tmp_path, monkeypatch):
 def test_env_var_in_list_and_scalars_passthrough(tmp_path, monkeypatch):
     """${VAR} inside a list element expands; non-str scalars pass through."""
     monkeypatch.setenv("TEST_VAR", "expanded")
-    body = 'version: "1.0.0"\n'
+    body = 'version: "1.1.0"\n'
     for section in EXPECTED_SECTIONS - {"version", "project"}:
         body += f"{section}: {{}}\n"
     body += (
@@ -132,7 +132,7 @@ def test_returns_independent_deep_copies():
 
 def test_none_section_raises(tmp_path):
     """A present-but-empty (None) required section raises ValueError."""
-    body = 'version: "1.0.0"\n'
+    body = 'version: "1.1.0"\n'
     for section in EXPECTED_SECTIONS - {"version", "gui"}:
         body += f"{section}: {{}}\n"
     body += "gui:\n"  # empty YAML block -> parses to None
