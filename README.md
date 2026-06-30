@@ -92,6 +92,11 @@ Reported plainly — the brief grades honest analysis over a polished narrative:
 - **Cloud deploy + the Gmail send are built + tested, not live-run** — they are account/cred-gated
   (a deliberate scope line, ADR-D10-E; the localhost match F4 is canonical).
 
+**Self-grade.** No numeric self-grade is claimed in this public repo: the rubric self-score lives on the
+Moodle cover sheet (`adrl-001-ex06.pdf` — git-ignored, carries PII). The bullets above are the honest
+public self-assessment; per the brief's standing rule the self-grade recommendation drives grading
+strictness. (This README does not award itself a number — the work has real, named gaps above.)
+
 ---
 
 ## 7. Academic analysis (brief §7)
