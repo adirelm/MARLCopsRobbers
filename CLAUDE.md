@@ -73,7 +73,7 @@ literal prompts) and in the per-section commit messages naming the § addressed.
 - **Algorithms (§5.2 / §7.2):** **QMIX** primary (monotonic mixer), **VDN**
   ablation arm, **IQL** the mandated non-stationarity baseline.
 - **Seeds (§7.3 mean±SE):** **7, 17, 37, 71, 107**.
-- **Identity:** group code **adrl-001**; version **1.0.0** (`src/__init__.py`
+- **Identity:** group code **adrl-001**; version **1.1.0** (`src/__init__.py`
   `__version__` + `config.version` + `pyproject`).
 
 ## Secrets / PII Deny-List Rule
