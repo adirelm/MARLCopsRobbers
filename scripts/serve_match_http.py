@@ -27,11 +27,12 @@ _ROLES = ("cop", "thief")
 _READY_TIMEOUT_S = 90
 
 
-def _serve(role: str, port: int, token: str, host: str) -> subprocess.Popen:
-    """Start a role server as a SEPARATE OS process over HTTP (``fastmcp run``)."""
+def _serve(role: str, port: int, token: str, host: str, transport: str) -> subprocess.Popen:
+    """Start a role server as a SEPARATE OS process over ``transport`` (``fastmcp run``)."""
     env = {**os.environ, f"{role.upper()}_MCP_TOKEN": token}
     entry = f"src/mcp/localhost_{role}.py:mcp"
-    cmd = ["uv", "run", "fastmcp", "run", entry, "--transport", "http", "--host", host, "--port", str(port)]
+    cmd = ["uv", "run", "fastmcp", "run", entry]
+    cmd += ["--transport", transport, "--host", host, "--port", str(port)]
     return subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -68,7 +69,7 @@ def main() -> dict:
     m = cfg["mcp"]
     host, path = m["host"], m["path"]
     tokens = {r: secrets.token_hex(8) for r in _ROLES}
-    procs = {r: _serve(r, m[f"{r}_port"], tokens[r], host) for r in _ROLES}
+    procs = {r: _serve(r, m[f"{r}_port"], tokens[r], host, m["transport"]) for r in _ROLES}
     handler = _Capture()
     logger = logging.getLogger("marl.mcp.client")
     logger.addHandler(handler)

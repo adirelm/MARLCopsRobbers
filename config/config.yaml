@@ -22,7 +22,7 @@
 version: "1.1.0"                  # started at "1.00" (V3 gate); 1.1.0 adds the Minimax-Q P-bonus
                                   # (3-segment A5-accepted mapping; ADR-0011)
 project:
-  group_code: "adrl-001"          # BRIEF: 8-char group code, no spaces
+  group_code: "adrl-001"          # 8-char group code (NOT read by code — the §3.5 report's group id is players.local.yaml group_name)
   timezone: "Asia/Jerusalem"      # BRIEF §3.5 report timezone (IDT = +03:00 in June)
   # github_repo / owner slug is PII-adjacent -> injected from players.local.yaml
   # (key: github_repo) so the owner handle never lands in tracked content.
@@ -151,7 +151,7 @@ nets:
 compute:
   num_threads: 2                  # torch intra-op threads (matmul etc.); << core count
   num_interop_threads: 1          # torch inter-op threads (set once per process)
-  sweep_parallelism: 1            # run sweep configs SERIALLY (never N full-core procs at once)
+  sweep_parallelism: 1            # (NOT read — sweeps are serial by construction; single-worker, ADR-0011)
 
 # ============================================================================
 # OLoRA (BRIEF §5.2 "pre-trained models + OLoRA", cite [7] Buyukakyuz 2024)
@@ -164,7 +164,7 @@ compute:
 olora:
   rank: 4                         # default r; sweep {2, 4, 8}. HARD GUARD: rank <=
                                   #   min(m,n)//2 (prevents degenerate rank on 64-dim layers)
-  rank_sweep: [2, 4, 8]
+  rank_sweep: [2, 4, 8]           # (NOT read — the OLoRA rank ablation is DESCOPED, README §6; only olora.rank is used)
   scale: 8.0                      # paper's alpha; 8 (not 16) for tiny near-singular weights
   target_layers: ["encoder"]      # wrap encoder trunk Linears only (NOT head, NOT mixer);
                                   #   attach also FREEZES the GRU backbone -> only {A,B,head,mixer} train
@@ -277,7 +277,7 @@ reward:
                                   #   the optimal policy -> NOT a valid §9 sensitivity sweep
                                   #   param. The swept §9 param is env.view_radius_by_grid.
   barrier_cost: 0.25              # small cop cost per barrier placement
-  invalid_penalty: 0.1            # penalty for an illegal action (mapped to no-op)
+  invalid_penalty: 0.1            # (NOT read — illegal actions are masked before the env, so this never fires; defensive doc)
   evade_step: 0.1                 # posg-mode thief per-step survival reward
   timeout_bonus: 1.0              # posg-mode thief terminal evade reward
 
@@ -309,7 +309,7 @@ mcp:
     backoff_s: 0.5
     prewarm_ping: true            # warm-up health() ping before the tick loop
   auth:                           # BRIEF §5.3 revocable bearer token; §7.3(d) 401 proof
-    scheme: "bearer"
+    scheme: "bearer"              # (NOT read — scheme is implicit in the Static/JWT verifier choice)
     # Stage 1 local = FastMCP StaticTokenVerifier; Stage 2 cloud = JWTVerifier (RS256)
     #   with exp (natural expiry) + a jti deny-list (hard per-token revoke).
     issuer: "adrl-001-mcp-auth"

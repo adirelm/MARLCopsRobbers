@@ -63,6 +63,7 @@ def test_redact_report_strips_student_pii():
     redacted = send_mod.redact_report(_report())
     assert redacted["students"] == [{"role": "A"}]
     assert "full_name" not in redacted["students"][0]
+    assert "github.com" not in redacted["github_repo"]  # owner slug (PII) masked in the tracked copy
 
 
 def test_report_hash_is_canonical_and_content_sensitive():

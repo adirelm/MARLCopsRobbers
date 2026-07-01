@@ -33,9 +33,15 @@ def format_subject(cfg: dict, report: dict, date_str: str) -> str:
 
 
 def redact_report(report: dict) -> dict:
-    """Return a copy with student PII reduced to role labels only (drops full_name/id)."""
+    """Return a copy with ALL PII masked: students to role labels + the ``github_repo`` owner slug.
+
+    Drops student ``full_name``/``id`` to ``role`` only AND masks ``github_repo`` (its owner slug is
+    PII per the project deny-list). The real URL survives only in the git-ignored ``*.real.json`` copy
+    + the lecturer email; the tracked ``*.redacted.json`` stays PII-free (the QUALITY.md boundary).
+    """
     redacted = copy.deepcopy(report)
     redacted["students"] = [{"role": s["role"]} for s in report["students"]]
+    redacted["github_repo"] = "<redacted — real URL only in the git-ignored *.real.json + the email>"
     return redacted
 
 
