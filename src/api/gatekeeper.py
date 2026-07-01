@@ -1,12 +1,14 @@
-"""ApiGatekeeper — the SINGLE outbound-egress governor (§5 REQUIRED, T5.9).
+"""ApiGatekeeper — the outbound-egress governor (§5 REQUIRED, T5.9).
 
-EVERY outbound API call (peer-MCP HTTP, Gmail, Prefect deploy) routes through
-``ApiGatekeeper.execute(channel, call)``: a per-channel token bucket (rate + burst
-from the versioned ``config/rate_limits.json``) admits calls up to the burst, then a
-FIFO overflow queue absorbs the excess (NO crash) and DRAINS as tokens refill; a
-full queue (``max_queue``) rejects the new call with an explicit error and logs it.
-Every call is logged (``log_all_calls``). The clock is injectable for deterministic
-tests. ``get_queue_status`` reports per-channel queue depth.
+The governed-egress seam. ``execute(channel, call)`` runs a per-channel token bucket
+(rate + burst from the versioned ``config/rate_limits.json``) — admits up to the burst,
+then a FIFO overflow queue absorbs the excess (NO crash) and DRAINS as tokens refill; a
+full queue (``max_queue``) rejects with an explicit error and logs it. Every call is
+logged (``log_all_calls``); the clock is injectable for deterministic tests;
+``get_queue_status`` reports per-channel queue depth. At runtime the graded **Gmail
+report** send is routed through it (``reporting/send.py``); the ``peer_mcp`` /
+``prefect_deploy`` channels + the ``bearer_get``/``bearer_post`` httpx wrappers are the
+governed path for HTTP egress (peer-MCP traffic itself uses the FastMCP client transport).
 """
 
 from __future__ import annotations

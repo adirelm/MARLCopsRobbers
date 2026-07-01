@@ -7,11 +7,11 @@ match frame-by-frame. It reads ONLY `SDK.spectator_session()` → `SpectatorFram
 referee internals — enforced by `tests/architecture/test_gui_purity.py`).
 
 > **Screenshots.** Each heuristic below references a capture under
-> `results/screenshots/` produced by `scripts/capture_screens.py` (headless,
-> `SDL_VIDEODRIVER=dummy`). The capture matrix is `gui.screenshot_sizes`
-> (2×2 / 3×3 / 4×4 / 5×5). They are generated on a pygame-capable machine (this
-> repo's CI / a dev box with SDL); the spectator **contract + render logic** are
-> verified headless here, the pixels on that machine.
+> `results/screenshots/` produced by `scripts/capture_screens.py` (headless
+> pygame-ce, `SDL_VIDEODRIVER=dummy`). Beyond the §7.3c grid-size matrix
+> (`grid_{2x2,3x3,4x4,5x5}.png` — the running board), it captures the two distinct
+> GUI **states** §10.2 asks for: the view-radius overlay (`state_view_radius.png`)
+> and the terminal winner-banner (`state_terminal.png`).
 
 ## 1. Visibility of system status
 The HUD always shows **sub-game `i/6`**, **move `k/25`**, live **scores** and
@@ -54,13 +54,13 @@ let an expert skim or a newcomer step slowly.
 ## 8. Aesthetic and minimalist design
 A dark, minimal board: background, a subtle checkerboard, thin gridlines, three
 token types, and a compact HUD. An optional **view-radius overlay** (key **v**,
-off by default) is available for teaching partial
+off by default → `state_view_radius.png`) is available for teaching partial
 observability but never clutters the default view.
 
 ## 9. Help users recognize, diagnose, and recover from errors
 A terminal sub-game shows an explicit **winner banner** (cop capture vs thief
 timeout) rather than silently freezing; the move counter hitting `25/25` makes a
-timeout self-explanatory. Replay + reset let the user re-watch any contested call.
+timeout self-explanatory (→ `state_terminal.png`). Replay + reset let the user re-watch any contested call.
 
 ## 10. Help and documentation
 This `docs/UX.md` is the GUI's reference; `scripts/play.py --help` documents the
