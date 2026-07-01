@@ -229,7 +229,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
 ### 5.4 Dual-MCP Architecture (§5.3) — two servers + neutral referee
 
 - **FR-MCP-1 (two independent servers).** Run two independent FastMCP HTTP servers (Cop on `mcp.cop_port` = **8001**, Thief on `mcp.thief_port` = **8002**, Streamable HTTP at `mcp.path` = `/mcp`) as separate OS processes, each owning a private policy and grid position.
-  - **AC:** a health ping shows two distinct server processes on the two configured ports (8001/8002); neither imports the other's policy module.
+  - **AC:** `scripts/serve_match_http.py` boots two distinct server processes on the two configured ports (8001/8002) over Streamable HTTP (`fastmcp run … --transport http`, the same command `render.yaml` uses for cloud) and plays a bearer-authed sub-game over the wire; neither imports the other's policy module.
   - **Evidence:** F4 local-comms log; `tests/integration/test_match.py`.
 - **FR-MCP-2 (neutral referee = the environment).** A neutral referee process drives all 6 sub-games and is the **sole** holder of ground-truth global state (positions, barriers, capture, clock, scoring).
   - **AC:** an integration test plays a scripted sub-game; the referee adjudicates capture/timeout; neither server can read global state via any tool.

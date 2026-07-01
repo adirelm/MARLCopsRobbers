@@ -218,7 +218,12 @@ captured. The figure manifest:
 F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); F3/F4 are
 deterministically captured by their seeded scripts; **F7** (the bonus equilibrium baseline) is
 regenerated on demand by `uv run python scripts/plot_minimax_q.py` (kept separate — its per-step LP
-solves are slow, like the IQL/sensitivity baselines — see ANALYSIS §10). (The OLoRA-vs-full-fine-tune ablation chart +
+solves are slow, like the IQL/sensitivity baselines — see ANALYSIS §10). **§5.3 Stage-1 over REAL
+HTTP:** `scripts/serve_match_http.py` boots BOTH servers as separate OS processes on
+`mcp.cop_port`/`thief_port` (8001/8002) over Streamable HTTP + bearer auth and plays a sub-game over
+the wire (the SAME `session_id` on both servers), via the same `fastmcp run … --transport http`
+command `deploy/render.yaml` uses for cloud Stage-2; the F4 *figure* is captured in-memory for CI
+determinism, but the identical tool contract runs over real HTTP here. (The OLoRA-vs-full-fine-tune ablation chart +
 trainable-param table were **descoped** — see §6; the ~8× trainable-param reduction is asserted by
 `tests/unit/test_olora_linear.py`.)
 
