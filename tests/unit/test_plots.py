@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.results.aggregate import curve
 from src.results.plots import plot_curve_figure, plot_sensitivity
 
 
@@ -40,3 +41,7 @@ def test_curve_figure_skips_algo_absent_from_stage(tmp_path):
     ]
     out = plot_curve_figure(records, "capture_rate", 3, "title", "ylabel", tmp_path / "c.png")
     assert Path(out).exists() and Path(out).stat().st_size > 0
+    # Prove the fixture exercises the skip path: ghost has NO stage-3 data (so the
+    # `if not rounds: continue` guard skips it), while qmix DOES have stage-3 data.
+    assert curve(records, "capture_rate", "ghost", 3)[0] == []
+    assert curve(records, "capture_rate", "qmix", 3)[0] != []

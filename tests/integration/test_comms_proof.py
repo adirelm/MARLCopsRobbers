@@ -36,6 +36,15 @@ def test_capture_shows_shared_trace_across_servers(cfg):
     lines = capture(cfg)
     assert any("client=cop" in ln for ln in lines)
     assert any("client=thief" in ln for ln in lines)
-    # cop AND thief calls within a sub-game share one trace (the cross-server proof)
-    traces = {ln.split("trace=")[1].split()[0] for ln in lines if "trace=" in ln and "request_move" in ln}
-    assert any(trace != "-" for trace in traces)
+
+    # cop AND thief request_move calls share ONE per-sub-game trace (the cross-server proof)
+    def rm_traces(role: str) -> set[str]:
+        pref = f"client={role}"
+        return {
+            ln.split("trace=")[1].split()[0]
+            for ln in lines
+            if pref in ln and "request_move" in ln and "trace=" in ln
+        }
+
+    assert rm_traces("cop") and rm_traces("cop") == rm_traces("thief")
+    assert "-" not in rm_traces("cop")

@@ -36,9 +36,8 @@ uv run python -m src.results.make_figures        # regenerate F1/F2/F5/F6 from r
 
 ## Examples
 
-The graded deliverables (brief §7.3) — before/after pursuit, learning curves, loss curves,
-GUI screenshots at 2×2/3×3/4×4/5×5, and MCP-comms proof — will appear in §3–§7 below as the
-build completes.
+The graded deliverables (brief §7.3) — learning curves, loss curves, GUI screenshots at
+2×2/3×3/4×4/5×5, and the MCP-comms proof — are shown inline in §7.3 below.
 
 ## Configuration
 
@@ -67,7 +66,7 @@ MCP (Anthropic 2024) — full bibliography in `docs/PRD.md` §10.
 
 §1 Game · §2 Skills/architecture · §3 before · §4 after · §5 metrics/ablation/**sensitivity** ·
 §6 bug/limitations · §7 academic analysis (Dec-POMDP formalism, non-stationarity, IQL-vs-CTDE,
-IGM/monotonicity → QPLEX/Weighted-QMIX). Figures F1–F6 + GUI + MCP-comms screenshots land here.
+IGM/monotonicity → QPLEX/Weighted-QMIX). Figures F1–F7 + GUI + MCP-comms screenshots appear inline in §7.3.
 
 ---
 
@@ -197,7 +196,10 @@ strong baseline (0.82); the more expressive QMIX is the least stable at this 50-
 
 ![F4 MCP comms](results/figures/mcp_comms_local.png)
 *F4 — localhost cop↔thief MCP comms (redacted): the SAME `trace` (session_id) on BOTH servers'
-`request_move` calls per sub-game. F3 GUI screenshots are in `results/screenshots/grid_*.png`.*
+`request_move` calls per sub-game.*
+
+![F3 GUI 2×2](results/screenshots/grid_2x2.png) ![F3 GUI 3×3](results/screenshots/grid_3x3.png) ![F3 GUI 4×4](results/screenshots/grid_4x4.png) ![F3 GUI 5×5](results/screenshots/grid_5x5.png)
+*F3 — Pygame god-view spectator at 2×2 / 3×3 / 4×4 / 5×5 (the mandatory §7.3c GUI screenshots at different grid sizes).*
 
 F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); **F3** GUI
 screenshots (`results/screenshots/grid_*.png`) and **F4** MCP-comms proof are deterministically
