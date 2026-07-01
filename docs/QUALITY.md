@@ -5,7 +5,7 @@ characteristics, with a concrete A6 artifact for each (no prose-only claims).
 
 ## Functional Suitability
 The system trains CTDE QMIX/VDN/IQL pursuit policies and plays a 6-sub-game match over a
-dual-MCP contract, emailing the §3.5 report. Evidence: 533 tests (happy + error paths)
+dual-MCP contract, emailing the §3.5 report. Evidence: 535 tests (happy + error paths)
 at ≥85% coverage; the §3.5 report passes `report.schema.json` + the derived-totals
 invariants (`src/reporting/schema.py::validate`); F5 reports the IQL/VDN/QMIX comparison —
 VDN most consistent, QMIX least stable at the 50-round budget (reported faithfully, not idealized).

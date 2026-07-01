@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.1.0).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (P-bonus, the L11 §5 self-challenge; see §7.2 + ANALYSIS §10) — tested
-> (533 tests, ~99.5% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (535 tests, ~99.5% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
