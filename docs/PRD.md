@@ -1,6 +1,6 @@
 # PRD — Assignment 6: MARL Cops & Robbers (Cloud-MCP, Vibe Coding)
 
-> **Group:** `adrl-001` · **Version:** `1.0.0` · **Recipient of record:** `rmisegal+marl@gmail.com`
+> **Group:** `adrl-001` · **Version:** `1.1.0` · **Recipient of record:** `rmisegal+marl@gmail.com`
 > **Source of truth:** `planning/BRIEF.md` (distilled from `ex06.pdf`, 23 pp, Dr. Yoram Segal, 2026) + `L10-MARL.pdf`.
 > **Grading rubric:** V3 software-excellence guidelines (`software_submission_guidelines V3.00`).
 > **Status:** Foundational requirements document. Human-decided columns (CLAUDE.md §1.4) are LOCKED by the architect; AI executes against this spec.

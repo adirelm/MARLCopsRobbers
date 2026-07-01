@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from src.marl.learner.learners import CopLearner, IqlLearner, ThiefLearner
 from src.marl.nets.agent_net import RecurrentQNet
+from src.marl.nets.dims import state_dim as _state_dim
 from src.marl.replay.episode_buffer import CentralizedReplayBuffer
 
 
@@ -26,7 +27,7 @@ def make_role_buffer(cfg: dict, n_agents: int, seed: int) -> CentralizedReplayBu
         obs_channels=int(env["obs_channels"]),
         w_v=w_v,
         obs_scalars=int(env["obs_scalars"]),
-        state_dim=3 * w_v**2 + 2,
+        state_dim=_state_dim(cfg),  # single source (dims.py) — must match the mixer's state input
         n_actions=int(env["actions"]["a_cop"]),
         seed=int(seed),
     )

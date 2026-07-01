@@ -1,6 +1,6 @@
 # TODO — Assignment 6: MARL Cops & Robbers (Cloud-MCP, Vibe Coding)
 
-> **Group:** `adrl-001` · **Version:** `1.0.0` · **Roles:** A, B (no optional C) · **V3 software-excellence rubric.**
+> **Group:** `adrl-001` · **Version:** `1.1.0` · **Roles:** A, B (no optional C) · **V3 software-excellence rubric.**
 > **Ground truth:** `planning/BRIEF.md` (ex06.pdf §0-§10) + `L10-MARL.pdf`. Bibliography `[1]`-`[11]` per BRIEF §10.
 > **Companion docs:** `docs/PRD.md` (requirements), `docs/PLAN.md` (architecture/ADRs), `docs/THEORY.md`, `docs/ANALYSIS.md`, `docs/UX.md`, `README.md` (the §7 academic paper).
 >
@@ -465,6 +465,13 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 ---
 
 # V3 hard-gate checklist (map to this project)
+
+> **Implementation note (v1.1.0):** the `check_*.py` / `test_*` names below reflect the ORIGINAL plan; the
+> gate tooling was **consolidated** during build. Shipped: file-size → `scripts/check_file_sizes.py`; version
+> → `tests/unit/test_config_loader.py`; secrets → inline `git grep` in `.github/workflows/ci.yml`;
+> required-docs → `test_required_docs_present.py`; boundaries → `test_import_boundary.py`/`test_gui_purity.py`/
+> `test_train_exec_split.py`/`test_step_no_leak.py`; gatekeeper → `test_egress_via_gatekeeper.py`. There is
+> **no** `check_no_hardcode.py`/`check_pii.py`/`test_final_gates` — no-hardcode + PII are convention + review.
 
 | # | V3 hard gate | How A6 satisfies it | Enforced by |
 |---|---|---|---|

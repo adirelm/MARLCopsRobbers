@@ -1,6 +1,6 @@
-# PLAN — Assignment 6: MARL Cops & Robbers (adrl-001) — v1.0.0
+# PLAN — Assignment 6: MARL Cops & Robbers (adrl-001) — v1.1.0
 
-> **Group code:** `adrl-001` · **Version:** `1.0.0` · **Solo submission** (work-streams WS1 / WS2, §10 R16)
+> **Group code:** `adrl-001` · **Version:** `1.1.0` · **Solo submission** (work-streams WS1 / WS2, §10 R16)
 > **Source of truth:** `planning/BRIEF.md` (distilled `ex06.pdf`, Dr. Yoram Segal, 2026) +
 > `L10-MARL.pdf`. Governed by the V3 software-excellence guidelines and `CLAUDE.md` §1.4.
 >
@@ -623,6 +623,14 @@ email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladd
 ---
 
 ## 9. V3 hard-gate → A6 mapping
+
+> **Implementation note (v1.1.0):** the `scripts/check_*.py` / `tests/architecture/test_*` names in this
+> table reflect the ORIGINAL plan; the gate tooling was **consolidated** during build. Shipped file-based
+> enforcement: file-size → `scripts/check_file_sizes.py`; version → `tests/unit/test_config_loader.py`;
+> secrets → inline `git grep` in `.github/workflows/ci.yml`; required-docs → `test_required_docs_present.py`;
+> boundaries → `test_import_boundary.py`/`test_gui_purity.py`/`test_train_exec_split.py`/`test_step_no_leak.py`;
+> gatekeeper → `test_egress_via_gatekeeper.py`. There is **no** `check_no_hardcode.py`/`check_pii.py`/
+> `test_final_gates` — no-hardcode + PII are enforced by convention + `.gitignore` + review, not a script.
 
 | Gate | How A6 satisfies it | Enforcement |
 |---|---|---|
