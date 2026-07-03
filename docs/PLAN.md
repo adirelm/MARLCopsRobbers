@@ -150,6 +150,12 @@ RESULTS (src/results/)                                     app transform grid_vi
 
 ## 3. Repository directory tree
 
+> **This is the P0 DESIGN tree** (module budgets + intent, pre-code). Modules were consolidated /
+> renamed during the build (e.g. learners into `src/marl/learner/`, GUI into `draw_plan/render`,
+> reporting into `send.py`, most `check_*.py` gate scripts into tests/CI — and `src/marl/baselines/`
+> was ADDED for the L11 §5 bonus). **The as-built layout is the repo itself** (`git ls-files`); rows
+> here are historical design, not current-state claims.
+
 Flat `src/<layer>/` layout (matches A1–A5 grader muscle memory; ADR-0001). **Every `.py` ≤150 LOC**
 (LOC = code lines excl. blanks/comments, measured *after* `ruff format`). One-line purpose per module.
 
@@ -504,7 +510,7 @@ This index IS the canonical ADR record — each entry below is **title — decis
 > **Draft-ID note:** planning-phase docs (mainly PRD Evidence lines) cite *dimension-draft* ADR IDs
 > (`ADR-D1…D10-*`, `ADR-GUI-*`). Those drafts were **consolidated into ADR-0001..0014 below** —
 > read any `ADR-D*/GUI-*` reference as "the consolidated ADR covering that dimension": D1/D3 → 0006,
-> D5 → 0011, D6 → 0012, D8 → 0013, D10 → 0012 (cloud scope), GUI → 0014. No separate D-files exist. All ADRs that alter a
+> D4 → 0010 (OLoRA/BC), D5 → 0011, D6 → 0012, D8 → 0013, D10 → 0012 (cloud scope), GUI → 0014. No separate D-files exist. All ADRs that alter a
 human-decided column (`CLAUDE.md` §1.4: rules, architecture, test acceptance) require explicit
 human sign-off before the corresponding code lands.
 

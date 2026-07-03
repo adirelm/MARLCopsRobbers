@@ -72,7 +72,7 @@ After the 6th cloud sub-game, the cop emails the §3.5 report exactly once:
 uv run python scripts/run_match.py --send    # needs GMAIL_SENDER / GMAIL_APP_PASSWORD
 ```
 
-## §7.3d proof captures (run `scripts/redact_logs.py` BEFORE every screenshot)
+## §7.3d proof captures (redaction is built into the capture path — `src/results/comms.py` masks bearer/token material before any render)
 
 1. **cloud comms** — a 3-turn cross-server run; the SAME `trace_id` in BOTH logs → `cloud_comms.png`.
 2. **401 without token** — call a tool with no / a bad bearer → `cloud_auth_401.png`.

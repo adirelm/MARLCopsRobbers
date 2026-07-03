@@ -29,7 +29,7 @@ uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
 Single-SDK entry + thin surfaces (all verified working after the Installation line above):
 
 ```bash
-uv run python -m src.cli train --algo qmix      # local CTDE training (curriculum 2×2→5×5)
+uv run python -m src.cli train --algo qmix      # local CTDE training (--stage N picks a curriculum rung; default 0 = 2×2)
 uv run python -m src.cli play                    # run a 6-sub-game match over the two MCP servers
 uv run python -m src.gui                         # Pygame god-view spectator (needs --extra gui)
 uv run python -m src.results.make_figures        # regenerate F1/F2/F5/F6 from results/runs/

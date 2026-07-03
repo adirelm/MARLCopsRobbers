@@ -44,7 +44,8 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 # Phase 0 — Foundation & docs-first (BRIEF §6 pre-step; §1.4 contract)
 
-> **Implementation note (v1.1.0):** as with the gate table at the bottom, several Phase-0 DoD lines
+> **Implementation note (v1.1.0):** as with the gate table at the bottom, several task DoD lines
+> (Phase 0, and later gate-tooling tasks such as T11.4's test-matrix check)
 > name `check_*.py` scripts / `tests/architecture/test_*` files from the ORIGINAL plan that were
 > **consolidated** during build (version → `tests/unit/test_config_loader.py`; secrets → the CI grep;
 > single-entry/boundaries → `test_import_boundary.py` + friends; no dedicated no-hardcode/PII script
