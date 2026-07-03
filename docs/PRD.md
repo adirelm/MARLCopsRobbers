@@ -277,7 +277,7 @@ Each FR has an **ID · statement · acceptance criteria (AC) · evidence pointer
   - **AC:** after revoking a `jti` (or rotating the key) the old token returns 401 while a fresh token returns 200, both screenshotted; a retried move never double-applies.
   - **Evidence:** `tests/unit/test_jwt_auth.py` (revoked jti → rejected, fresh token → accepted); the Stage-2 screenshot (`cloud_revoke.png`) is account-gated, NOT captured (README §6). ADR-0012 (PLAN §6).
 - **FR-CLOUD-5 (cloud match emits JSON, does NOT send).** A full 6-sub-game match runs over the two cloud URLs and emits the §3.5 JSON body; it does NOT send the email (that is §6 step 9).
-  - **AC:** `uv run scripts/cloud_match.py` produces a valid JSON artifact and sends no mail.
+  - **AC:** a full 6-sub-game match over the two cloud URLs emits a schema-valid §3.5 JSON and sends no mail — **account-gated, NOT live-run** (README §6). The as-built local equivalents ARE shipped and verified: `scripts/run_match.py` (full local match + dry-run ack) and `scripts/serve_match_http.py` (over real HTTP), with the committed artifact `results/subgames/full_match_5x5.redacted.json`.
   - **Evidence:** ADR-0012 (PLAN §6; §6 ordering 8→9); the localhost equivalent IS shipped — `results/subgames/full_match_5x5.redacted.json` (6 valid sub-games, schema-valid, no mail); the cloud-run artifact is account-gated (README §6).
 
 ### 5.6 GUI (§5.4, §7.3c) — Pygame god-view spectator

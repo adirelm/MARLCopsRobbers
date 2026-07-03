@@ -44,8 +44,11 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 # Phase 0 — Foundation & docs-first (BRIEF §6 pre-step; §1.4 contract)
 
-> **Implementation note (v1.1.0):** as with the gate table at the bottom, several task DoD lines
-> (Phase 0, and later gate-tooling tasks such as T11.4's test-matrix check)
+> **Implementation note (v1.1.0), scope = this WHOLE list:** task text below names ORIGINAL-plan
+> module/script filenames (e.g. Phase-0 `check_*.py` gates, T8.4's `smoke_cloud/smoke_auth/redact_logs`
+> capture scripts, T11.4's test-matrix check, `src/sdk/_helpers.py`-style old module names) that were
+> **consolidated or renamed during build** — the as-built layout is the repo itself (PLAN §3's
+> preamble). In particular several DoD lines
 > name `check_*.py` scripts / `tests/architecture/test_*` files from the ORIGINAL plan that were
 > **consolidated** during build (version → `tests/unit/test_config_loader.py`; secrets → the CI grep;
 > single-entry/boundaries → `test_import_boundary.py` + friends; no dedicated no-hardcode/PII script

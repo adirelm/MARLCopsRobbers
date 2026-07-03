@@ -38,4 +38,7 @@ jobs:
         run: |
           ! grep -RInE '(api[_-]?key|secret|password|token)[[:space:]]*=[[:space:]]*["'"'"'][^"'"'"']{6,}' src/
           ! grep -RIn 'rmisegal+marl' src/
+          # host-path PII gate (token-free): an absolute /Users/ path in ANY tracked text
+          # leaks the local username + the Drive-mount email (goal-r6 notebook finding)
+          ! git grep -In "/Users/" -- . ':(exclude).github/workflows/ci.yml'
           test -f .env-example && test -f uv.lock
