@@ -11,6 +11,7 @@ import pygame
 import pytest
 
 from src.gui import palette, render
+from src.gui.draw_plan import hud_height
 from src.gui.spectator import SpectatorFrame
 from src.gui.transform import GridView
 
@@ -68,11 +69,12 @@ def test_execute_plan_handles_all_op_kinds():
 
 
 def test_render_frame_draws_cop_and_thief_on_their_cells():
-    """The cop + thief tokens render in their (HUD-free) cell centres."""
+    """The cop + thief tokens render in their cell centres (board reserved BELOW the HUD)."""
     surface = pygame.Surface((400, 400))
     font = pygame.font.SysFont(None, 18)
-    render.render_frame(surface, font, _frame())
-    view = GridView(400, 400, 5, 5)
+    frame = _frame()
+    render.render_frame(surface, font, frame)
+    view = GridView(400, 400, 5, 5, top_reserved=hud_height(frame))  # the SAME view render_frame uses
     assert surface.get_at(_center(view, 4, 4))[:3] == palette.COP
     assert surface.get_at(_center(view, 2, 2))[:3] == palette.THIEF
 

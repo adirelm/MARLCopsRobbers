@@ -15,14 +15,20 @@ from src.gui.palette import CELL_PX_CAP
 class GridView:
     """Maps board cells to centered square pixel rects within a window."""
 
-    def __init__(self, window_w: int, window_h: int, cols: int, rows: int) -> None:
-        """Compute the square cell size + the letterbox origin for this window/board."""
+    def __init__(self, window_w: int, window_h: int, cols: int, rows: int, top_reserved: int = 0) -> None:
+        """Compute the square cell size + the letterbox origin for this window/board.
+
+        ``top_reserved`` excludes a top strip (the HUD) from the letterbox area, so the
+        board never renders under the HUD text (it centers in the remaining space).
+        """
         self._cols = int(cols)
         self._rows = int(rows)
-        usable = min(window_w / max(1, self._cols), window_h / max(1, self._rows))
+        top = max(0, int(top_reserved))
+        board_h = max(1, window_h - top)
+        usable = min(window_w / max(1, self._cols), board_h / max(1, self._rows))
         self._cell = max(1, int(min(CELL_PX_CAP, usable)))
         self._x0 = (window_w - self._cell * self._cols) // 2
-        self._y0 = (window_h - self._cell * self._rows) // 2
+        self._y0 = top + (board_h - self._cell * self._rows) // 2
 
     @property
     def cell_px(self) -> int:

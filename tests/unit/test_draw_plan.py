@@ -8,7 +8,7 @@ rendering DECISIONS are correct without needing pygame.
 from __future__ import annotations
 
 from src.gui import palette
-from src.gui.draw_plan import build_board_plan, build_hud_plan
+from src.gui.draw_plan import build_board_plan, build_hud_plan, hud_height
 from src.gui.spectator import SpectatorFrame
 from src.gui.transform import GridView
 
@@ -79,6 +79,19 @@ def test_hud_plan_has_move_scores_and_winner():
     assert any("Last" in t for t in texts)
     assert any("WINNER: COP" in t for t in texts)
     assert all(op["kind"] == "text" for op in build_hud_plan(_frame()))
+
+
+def test_board_reserves_the_hud_strip_at_the_shipped_window_size():
+    """At the shipped 720x560 window NO board op renders under the HUD (round-4 regression guard).
+
+    The HUD is 7-8 text lines; the board must letterbox strictly BELOW hud_height(frame),
+    so text is never painted over cells or agent tokens (grid_4x4/5x5 screenshot defect).
+    """
+    frame = _frame(winner="cop")  # the tallest HUD (all optional lines present)
+    strip = hud_height(frame)
+    view = GridView(720, 560, 5, 5, top_reserved=strip)
+    board_ops = [op for op in build_board_plan(frame, view, show_radius=True) if "rect" in op]
+    assert min(op["rect"][1] for op in board_ops) >= strip
 
 
 def test_hud_help_line_is_derived_from_the_real_bindings():

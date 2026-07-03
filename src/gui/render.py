@@ -16,7 +16,7 @@ except ImportError:  # pragma: no cover - pygame optional
     pygame = None
 
 from src.gui import palette
-from src.gui.draw_plan import build_board_plan, build_hud_plan
+from src.gui.draw_plan import build_board_plan, build_hud_plan, hud_height
 from src.gui.input_map import command_for
 from src.gui.transform import GridView
 
@@ -42,9 +42,9 @@ def execute_plan(surface, font, plan) -> None:
 
 
 def render_frame(surface, font, frame, show_radius=False) -> None:
-    """Render one SpectatorFrame (board + HUD) to ``surface``."""
+    """Render one SpectatorFrame to ``surface`` — the board letterboxed BELOW the HUD strip."""
     rows, cols = frame.grid
-    view = GridView(surface.get_width(), surface.get_height(), cols, rows)
+    view = GridView(surface.get_width(), surface.get_height(), cols, rows, top_reserved=hud_height(frame))
     execute_plan(surface, font, build_board_plan(frame, view, show_radius))
     execute_plan(surface, font, build_hud_plan(frame))
 

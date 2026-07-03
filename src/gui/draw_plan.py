@@ -52,6 +52,9 @@ def build_board_plan(frame: SpectatorFrame, view: GridView, show_radius: bool = 
         for c in range(cols)
         if (r + c) % 2
     ]
+    x0, y0 = view.cell_rect(0, 0)[:2]
+    board = (x0, y0, view.cell_px * cols, view.cell_px * rows)
+    ops.append({"kind": "rect", "rect": board, "color": palette.CHECKER})  # board outline (2x2 legibility)
     ops += [
         {"kind": "fill", "rect": view.cell_rect(bc, br), "color": palette.BARRIER}
         for br, bc in frame.barriers
@@ -71,6 +74,15 @@ def build_board_plan(frame: SpectatorFrame, view: GridView, show_radius: bool = 
         cr, cc = frame.cop_positions[0]
         ops.append({"kind": "rect", "rect": view.cell_rect(cc, cr), "color": palette.CAPTURE_FLASH})
     return ops
+
+
+def hud_height(frame: SpectatorFrame) -> int:
+    """Pixel height of the HUD strip for ``frame`` — the board's ``top_reserved`` value.
+
+    Derived from the actual HUD plan so board reservation can never drift from what
+    :func:`build_hud_plan` draws (the round-4 audit found text painted over tokens).
+    """
+    return 8 + len(build_hud_plan(frame)) * (palette.FONT_PX + 4) + 2
 
 
 def build_hud_plan(frame: SpectatorFrame) -> list[dict]:
