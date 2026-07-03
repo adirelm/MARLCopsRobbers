@@ -560,7 +560,7 @@ and the URLs (env-switched) change, so auth is never rewritten.
 │   Pygame GUI ◀── SpectatorFrame (in-process via SDK.spectator_session())             │
 │   cop.send_final_report ──▶ gatekeeper ──▶ smtplib:587 ──▶ rmisegal+marl@gmail.com    │
 └──────────────────────────────────────────────────────────────────────────────────────┘
-artifacts: results/screenshots/{local_comms.png, cloud_auth_401.png}, full_match.json
+artifacts (as built): results/figures/mcp_comms_local.png + mcp_comms_http.png; results/subgames/full_match_5x5.redacted.json (cloud_auth_401.png is Stage-2, account-gated — NOT captured)
 ```
 
 ### 7.2 Stage 2 — cloud (incremental upside; localhost logs remain canonical F4)

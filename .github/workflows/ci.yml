@@ -35,10 +35,13 @@ jobs:
         run: uv run pytest tests/ --cov=src --cov-report=term-missing
 
       - name: Secrets + recipient guard (must find nothing)
+        # ONE AND-chain: under GitHub's `bash -e`, standalone `!`-inverted lines are
+        # errexit-EXEMPT (a found violation would NOT fail the step — goal-r7 finding);
+        # chaining makes any hit short-circuit the step to a non-zero exit.
+        # The /Users/ gate is the token-free host-path PII guard (goal-r6): an absolute
+        # /Users/ path in ANY tracked text leaks the username + the Drive-mount email.
         run: |
-          ! grep -RInE '(api[_-]?key|secret|password|token)[[:space:]]*=[[:space:]]*["'"'"'][^"'"'"']{6,}' src/
-          ! grep -RIn 'rmisegal+marl' src/
-          # host-path PII gate (token-free): an absolute /Users/ path in ANY tracked text
-          # leaks the local username + the Drive-mount email (goal-r6 notebook finding)
-          ! git grep -In "/Users/" -- . ':(exclude).github/workflows/ci.yml'
-          test -f .env-example && test -f uv.lock
+          ! grep -RInE '(api[_-]?key|secret|password|token)[[:space:]]*=[[:space:]]*["'"'"'][^"'"'"']{6,}' src/ \
+          && ! grep -RIn 'rmisegal+marl' src/ \
+          && ! git grep -In "/Users/" -- . ':(exclude).github/workflows/ci.yml' \
+          && test -f .env-example && test -f uv.lock

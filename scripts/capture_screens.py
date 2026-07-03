@@ -1,9 +1,10 @@
 """Headless screenshot matrix (T7.6; REQUIRES pygame-ce) — the §7.3c F3 + §10.2 state evidence.
 
-Renders the running board at every size (``gui.screenshot_sizes`` = 2x2/3x3/4x4/5x5) with cop +
-thief + >=1 barrier visible (the mandatory §7.3c grid-size matrix), PLUS the two distinct GUI
-STATES §10.2 (Nielsen) needs beyond "running" — the **view-radius overlay** (the ``v`` toggle) and
-the **terminal winner-banner** — and saves the PNGs under ``gui.screenshot_dir``. Headless via
+Renders the running board (cop + thief + HUD) at every size (``gui.screenshot_sizes`` =
+2x2/3x3/4x4/5x5 — the mandatory §7.3c grid-size matrix), PLUS the distinct GUI STATES §10.2
+(Nielsen) needs beyond "running" — the **view-radius overlay** (the ``v`` toggle), the
+**terminal winner-banner**, and the **barrier demo** (hand-set state; the heuristics never
+place barriers) — and saves the PNGs under ``gui.screenshot_dir``. Headless via
 pygame-ce (``SDL_VIDEODRIVER=dummy``). Run: ``uv run --extra gui python scripts/capture_screens.py``.
 """
 
