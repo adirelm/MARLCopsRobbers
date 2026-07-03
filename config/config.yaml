@@ -19,7 +19,7 @@
 # ============================================================================
 
 # --- Project identity (BRIEF "Standing submission rules"; V3 version gate) ---
-version: "1.1.0"                  # started at "1.00" (V3 gate); 1.1.0 adds the Minimax-Q P-bonus
+version: "1.1.0"                  # started at "1.00" (V3 gate); 1.1.0 adds the Minimax-Q L11 §5 bonus
                                   # (3-segment A5-accepted mapping; ADR-0011)
 project:
   group_code: "adrl-001"          # 8-char group code (NOT read by code — the §3.5 report's group id is players.local.yaml group_name)
@@ -235,7 +235,7 @@ training:
   eps_anneal_env_steps: 20000     # linear anneal horizon in env steps
 
 # ============================================================================
-# MINIMAX-Q BASELINE (P-bonus, L11 §5) — a tabular ZERO-SUM equilibrium learner
+# MINIMAX-Q BASELINE (L11 §5 bonus) — a tabular ZERO-SUM equilibrium learner
 # for the 1-cop-vs-thief pursuit; an empirical contrast to the deep self-play
 # arms (§7.2). Standalone (NOT used by the graded match / CTDE training).
 # ============================================================================

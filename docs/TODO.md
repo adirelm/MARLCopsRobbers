@@ -44,6 +44,13 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 # Phase 0 — Foundation & docs-first (BRIEF §6 pre-step; §1.4 contract)
 
+> **Implementation note (v1.1.0):** as with the gate table at the bottom, several Phase-0 DoD lines
+> name `check_*.py` scripts / `tests/architecture/test_*` files from the ORIGINAL plan that were
+> **consolidated** during build (version → `tests/unit/test_config_loader.py`; secrets → the CI grep;
+> single-entry/boundaries → `test_import_boundary.py` + friends; no dedicated no-hardcode/PII script
+> exists — convention + `.gitignore` + review). A `[x]` on those tasks means the CONSOLIDATED
+> equivalent is green, not that the originally-named file exists.
+
 > **Exit gate (P0):** docs reviewed + human sign-off; `uv sync` green; CI skeleton runs; repo shared read-only with `rmisegal@gmail.com`.
 
 - [x] **T0.1 — Scaffold repo tree** · _A_
@@ -79,8 +86,13 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** every layer (GUI/MCP/report/scripts) routes through `src.sdk`; `sdk.py` ≤150 LOC (facade) with helpers split out; `test_sdk_single_entry.py` + `test_mcp_servers_have_no_logic.py` GREEN by construction.
 
 - [x] **T0.8 — Repo sharing & branch** · _B_
-  Create branch `assignment-6`; add `rmisegal@gmail.com` (Dr. Yoram Segal, GitHub `rmisegal`) as read collaborator; add `.github/pull_request_template.md` (Scope/Req/Human/AI/Tests/V3-checklist); record identical `GITHUB_REPO_URL` for both members' Moodle. Keep a `/tmp` clone to recover `.git` (MEMORY: Google-Drive sync silently deletes `.git`; push often).
-  **DoD:** branch exists; collaborator added; PR template present; both members have the identical repo URL.
+  Repo sharing + branch hygiene. AS BUILT: development runs on `main` (feature branches merged, e.g.
+  `bonus/minimax-q-baseline`) rather than a long-lived `assignment-6` branch; the repo is PUBLIC; adding
+  `rmisegal@gmail.com` (Dr. Yoram Segal, GitHub `rmisegal`) as read collaborator is a **pre-submission
+  user action, still pending**. Keep a `/tmp` clone to recover `.git` (MEMORY: Google-Drive sync
+  silently deletes `.git`; push often).
+  **DoD (as built):** repo public + pushed; solo submission (one Moodle URL); collaborator add = the
+  explicit pre-submission checklist item.
 
 ---
 
@@ -373,7 +385,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** `uv run python -m src.results.make_figures` regenerates committed figures; `experiment_manifest.json` pins seeds/config-hash/commit (figure-drift R8 eliminated).
 
 - [x] **T10.2 — Generate F1-F6** · _A_
-  **Plotted from `results/runs/*.jsonl`** via `make_figures`: **F1** both-agent learning curves (reward vs episode, mean±SE) → `results/figures/learning_curves.png`; **F2** per-stage loss curves → `loss_curves.png`; **F5** IQL vs VDN vs QMIX win-rate/convergence → `baseline_comparison.png`; **F6** scale effect (capture-rate vs grid size) → `scaling.png`. **Deterministically CAPTURED, not plotted** (#26): **F3** GUI screenshots 2×2/3×3/4×4/5×5 (from T7.6) + **F4** MCP-comms proof (localhost CANONICAL CLI log, cloud if P8) → `mcp_comms_local.png`. Plus the OLoRA ablation chart (OLoRA vs full-finetune vs frozen-base) + trainable-param table — **DESCOPED** (PRD FR-OLoRA-8; the ~8× param reduction is asserted by `tests/unit/test_olora_linear.py`, README §6).
+  **Plotted from `results/runs/*.jsonl`** via `make_figures`: **F1** both-agent learning curves (reward vs episode, mean±SE) → `results/figures/learning_curves.png`; **F2** per-network loss curves (cop net vs thief DDQN, as remade in goal-r1) → `loss_curves.png`; **F5** IQL vs VDN vs QMIX final capture bar → `baseline_comparison.png`; **F6** scale effect (capture-rate vs grid size) → `scaling.png`. **Deterministically CAPTURED, not plotted** (#26): **F3** GUI screenshots 2×2/3×3/4×4/5×5 (from T7.6) + **F4** MCP-comms proof (localhost CANONICAL CLI log, cloud if P8) → `mcp_comms_local.png`. Plus the OLoRA ablation chart (OLoRA vs full-finetune vs frozen-base) + trainable-param table — **DESCOPED** (PRD FR-OLoRA-8; the ~8× param reduction is asserted by `tests/unit/test_olora_linear.py`, README §6).
   **DoD:** all six figures non-placeholder; F1/F2/F5/F6 regenerate from `results/runs/` (F3/F4 are captured artifacts checked for existence/dims, not regenerated from runs); IQL-vs-VDN divergence/convergence contrast visible in F5; capture-rate reported vs the Manhattan floor + the IQL baseline on held-out seeds (honest §7.2 finding: VDN clears IQL at 4×4, the graded-primary QMIX lags it at this budget; 5×5 not swept).
 
 - [x] **T10.3 — README §7.1 formalisms** · _A_
@@ -454,8 +466,8 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 2. **Coverage** — the touched module is ≥85% covered (`uv run pytest --cov=src --cov-report=term-missing`).
 3. **File size** — every `.py` it adds/edits is ≤150 LOC (LOC metric, excl blanks/comments), verified AFTER `ruff format`.
 4. **Lint** — `uv run ruff check` reports 0 violations on the touched files.
-5. **No hardcoding** — every algorithm-relevant value lives in `config/config.yaml` (UI-styling literals stay local in `palette.py` per CLAUDE.md §4); `check_no_hardcode.py` passes.
-6. **No secrets / PII** — nothing in tracked files (`check_secrets.py` + `check_pii.py` pass); real values only in git-ignored `.env` / repo-root `players.local.yaml`.
+5. **No hardcoding** — every algorithm-relevant value lives in `config/config.yaml` (UI-styling literals stay local in `palette.py` per CLAUDE.md §4); enforced by convention + review (see the Phase-0 note — no dedicated script shipped).
+6. **No secrets / PII** — nothing in tracked files (the CI secrets grep passes); real values only in git-ignored `.env` / repo-root `players.local.yaml`.
 7. **Single SDK entry** — UIs/servers/scripts import only `src.sdk` (`test_sdk_single_entry.py`); env/marl/mcp are library code.
 8. **CTDE invariant** — execution path (policy / MCP `request_move`) receives ONLY local obs + legal actions; global state `s` is unreachable at execution (import-boundary + leak tests).
 9. **Evidence captured** — any §7.3 deliverable (figure / screenshot / log) is produced, committed to the named path, and reproducible from `results/runs/` or a script.
@@ -482,7 +494,7 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 | 5 | **0 secrets + `.env-example`** | tokens/JWT keys/App-Password/PII in `.env` + repo-root `players.local.yaml`; `.env-example` names-only committed; `.gitignore` covers `.env *.pem *.key credentials*.json players.local.yaml secrets/` | `check_secrets.py`; `test_no_secrets_committed.py` |
 | 6 | **uv-only (NO requirements.txt)** | CI uses `uv`; no pip/conda; `uv.lock` committed; deploy deps come from `pyproject.toml` / `uv export` — **NO `deploy/requirements.txt`** (V3 forbids requirements.txt) | CI `uv sync --frozen`; `check_no_requirements_txt.py` |
 | 7 | **Single SDK entry for UIs** (scripts exempt) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers | `test_sdk_single_entry.py`; `test_mcp_servers_have_no_logic.py` |
-| 8 | **Version starts `1.00`** | started `1.0.0`, now `1.1.0` (the P-bonus minor release): `src/__init__.py::__version__` == `config.version` == `pyproject` (ADR-0011) | `tests/unit/test_config_loader.py` (see the implementation note above) |
+| 8 | **Version starts `1.00`** | started `1.0.0`, now `1.1.0` (the L11 §5 Minimax-Q bonus minor release — distinct from the DEFERRED §9 inter-group "P-bonus" phase): `src/__init__.py::__version__` == `config.version` == `pyproject` (ADR-0011) | `tests/unit/test_config_loader.py` (see the implementation note above) |
 | 9 | **§5 External-API governance** (N/A→**REQUIRED** for A6) | all peer-MCP + Gmail egress via `src/api/gatekeeper.py` + `config/rate_limits.json` | `test_egress_via_gatekeeper.py`; ADR-0006 |
 | 10 | **§10 UX / Nielsen** (N/A→**REQUIRED** — GUI mandatory) | `docs/UX.md` maps all 10 heuristics + screenshot per state | `test_required_docs_present.py` |
 | 11 | **PRD/PLAN/TODO + ADRs** | `docs/PRD.md`, `docs/PLAN.md`, this `docs/TODO.md`, `docs/prd/*`, ADRs 0001-0014 + dimension ADRs; human §1.4 sign-off before code | `test_required_docs_present.py` |

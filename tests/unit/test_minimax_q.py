@@ -1,4 +1,4 @@
-"""RED->GREEN tests for the tabular Minimax-Q learner (P-bonus, L11 §2.2 / eq 2.1)."""
+"""RED->GREEN tests for the tabular Minimax-Q learner (L11 §2.2 bonus / eq 2.1)."""
 
 from __future__ import annotations
 

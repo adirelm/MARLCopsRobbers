@@ -1,4 +1,4 @@
-"""RED→GREEN tests for the zero-sum maximin LP (P-bonus, L11 §2.2.1 / §5).
+"""RED→GREEN tests for the zero-sum maximin LP (L11 §2.2.1/§5 bonus).
 
 The L11 worked example proves the naive ``max(min(...))`` under-values the game
 (it gives the pure-strategy value -1) while the true value needs the mixed-strategy

@@ -1,4 +1,4 @@
-"""Tabular Minimax-Q for a 2-player zero-sum game (P-bonus, L11 §2.2, eq 2.1).
+"""Tabular Minimax-Q for a 2-player zero-sum game (L11 §2.2 bonus, eq 2.1).
 
 ``MinimaxQ`` keeps one Q-table ``Q(s, a_row, a_col)`` — the ROW (cop, maximizer) value;
 the COLUMN player (thief) minimizes it. Each update bootstraps the next state's value

@@ -1,4 +1,4 @@
-"""Generate the F7 Minimax-Q convergence figure (P-bonus, L11 §5; slow, manual).
+"""Generate the F7 Minimax-Q convergence figure (L11 §5 bonus; slow, manual).
 
 Runs the tabular Minimax-Q baseline through the SDK and renders the convergence curves to
 ``results/figures/minimax_q.png``. ``uv run python scripts/plot_minimax_q.py``. Slow (per-step

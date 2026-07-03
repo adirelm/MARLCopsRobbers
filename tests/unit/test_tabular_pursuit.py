@@ -1,4 +1,4 @@
-"""RED->GREEN tests for the 3x3 zero-sum tabular pursuit adapter (P-bonus, L11 §5)."""
+"""RED->GREEN tests for the 3x3 zero-sum tabular pursuit adapter (L11 §5 bonus)."""
 
 from __future__ import annotations
 

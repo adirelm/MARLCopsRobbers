@@ -1,4 +1,4 @@
-"""Zero-sum tabular pursuit adapter over the real env (P-bonus, L11 §5).
+"""Zero-sum tabular pursuit adapter over the real env (L11 §5 bonus).
 
 A thin, FULLY-OBSERVED wrapper around :class:`~src.marl.env.cops_robbers_env.CopsRobbersEnv`
 at ``grid x grid`` with 1 cop, exposing the minimal interface a tabular Minimax-Q needs:

@@ -1,4 +1,4 @@
-"""Maximin LP for a zero-sum matrix game (P-bonus, L11 §2.2 / §5).
+"""Maximin LP for a zero-sum matrix game (L11 §2.2/§5 bonus).
 
 The L11 worked example shows the naive ``max(min(·))`` UNDER-values a game (it returns
 the pure-strategy value), whereas the true value needs the **mixed-strategy** linear

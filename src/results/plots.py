@@ -146,7 +146,7 @@ def plot_sensitivity(stats: dict, xlabel: str, title: str, out_path: str | Path)
 
 
 def plot_minimax_q(history: list[dict], out_path: str | Path, escape_floor: float | None = None) -> Path:
-    """F7 (P-bonus, L11 §5): tabular Minimax-Q convergence on the 3x3 zero-sum pursuit.
+    """F7 (L11 §5 bonus): tabular Minimax-Q convergence on the 3x3 zero-sum pursuit.
 
     Plots the rolling cop capture rate and the certified game value at a fixed reference start
     state vs episode. ``escape_floor`` (= -gamma**(H-1), the discounted value of a guaranteed

@@ -14,7 +14,7 @@
 ## 1. The cooperative Dec-POMDP `M` (eq 1, cite [1])
 
 The cooperative pursuer team is modeled as a **Dec-POMDP** with the canonical tuple
-(ex06 **eq 1**; primary source Bernstein et al. 2002 `[1]`; Oliehoek & Amato `[4]`):
+(ex06 **eq 1**; primary source Bernstein et al. 2002 `[1]`; Amato 2024 `[4]`):
 
 > **(eq 1)**  `M = ⟨ N, S, {A_i}, T, R, {Ω_i}, O, γ ⟩`
 
@@ -85,7 +85,7 @@ opposed cop/thief boundary (eq 7), so we factor only within the cop team `N` and
 in `T`. Honest trade-off: self-play can cycle on non-transitive payoffs and certifies no Nash point;
 the frozen-opponent window + heuristic-seeded opponent pool (FR-ALG-7) mitigate cycling.
 
-**We close the L11 §5 self-challenge with a P-bonus equilibrium baseline (F7).** `src/marl/baselines/`
+**We close the L11 §5 self-challenge with a bonus equilibrium baseline (F7).** `src/marl/baselines/`
 implements tabular **Minimax-Q** (Littman 1994): one Q-table `Q(s, a_cop, a_thief)` whose per-state
 value is the **maximin LP** `max_π min_j (πᵀQ)_j` (solved by `scipy.optimize.linprog`, validated on the
 L11 §2.2.1 worked example p=0.4, V=1.0), with decaying α + GLIE exploration for Robbins-Monro

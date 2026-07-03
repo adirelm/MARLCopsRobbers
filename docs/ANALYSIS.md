@@ -101,7 +101,7 @@ from the IQL/VDN/QMIX ablation (which swaps the *algorithm*). `scripts/sensitivi
 
 **Finding (honest, possibly counterintuitive).** Capture is genuinely *sensitive* to the
 view radius — but **more observability did NOT clearly help** at the 50-round budget: the
-means are close (0.71 vs 0.67) yet radius 2's variance is **~4× larger** (±0.32 vs ±0.07).
+means are close (0.71 vs 0.67) yet radius 2's SE is **~4× larger** (±0.32 vs ±0.07).
 The wider window is mostly out-of-bounds padding on a 4×4 board and enlarges the encoder's
 effective input, so it is harder to learn *stably* within budget (the high SE = some seeds
 converge, some stall) — the same monotonic-mixer instability story as F5, now driven by
@@ -113,7 +113,7 @@ that "see more" is **not free** — it trades a marginal mean for markedly worse
 > is too slow to sweep); the one-key-only guarantee is asserted by
 > `tests/unit/test_sensitivity.py::test_make_variant_changes_only_the_one_key`.
 
-## §10 Minimax-Q equilibrium baseline — the L11 §5 self-challenge (P-bonus)
+## §10 Minimax-Q equilibrium baseline — the L11 §5 self-challenge (the SHIPPED bonus; ex06-§9's inter-group bonus is separate + deferred)
 
 The deep arms (IQL/VDN/QMIX cops + a self-play Double-DQN thief) play *well* but certify no
 equilibrium (THEORY §3). To close that gap — and the **L11 §5 self-challenge** — `src/marl/baselines/`
@@ -132,7 +132,7 @@ real transition/capture rules — only the deep-net observation/shaping path is 
 | game value at the reference start state | **−0.2915** | **−γ^(H−1) = −0.95²⁴ = −0.2920** (matches to 5e-4) |
 | cop capture rate (rolling, ε-annealed) | **0.036** | ≈ 0 — the equilibrium thief escapes |
 
-The certified game value descends monotonically to **−γ^(H−1)**, the discounted payoff of a *guaranteed
+The certified game value descends (with small transient upticks) onto **−γ^(H−1)**, the discounted payoff of a *guaranteed
 escape at the horizon*: a sure escape pays the cop −1 on the H-th transition, discounted by γ^(H−1) back
 to the step-0 reference state. This is the genuine minimax equilibrium — on an **open** 3×3 grid with
 **equal-speed simultaneous** moves a single pursuer provably cannot corner the evader, so the thief

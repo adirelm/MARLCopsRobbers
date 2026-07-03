@@ -51,7 +51,7 @@
 |---|---|---|
 | _Generate the figure pipeline + the 45-run matrix figures, the V3-§9 sensitivity sweep, ISO-25010/cost docs, the SDK-only notebook; author README §7; run the V3 gate audit_ (summary) | `17af07c` … `0f66a16` | Architect signed off the honest §7.2 result (QMIX least stable — reported, not idealized) and the figure-manifest drift gate (R8). |
 
-## Phase P-bonus — Minimax-Q equilibrium baseline (v1.1.0)
+## Phase L11-bonus — Minimax-Q equilibrium baseline (v1.1.0; distinct from the deferred §9 inter-group P-bonus)
 | Prompt | Commit | Human-judgment annotation |
 |---|---|---|
 | "been reset, continue" → execute the deferred **L11 §5 self-challenge** per `planning/P-BONUS_NASHQ_IMPL_SPEC.md` (verbatim) | `f2118e4` … `177c7d9` | Architect deferred the bonus to a limits-reset session, then authorized the autonomous TDD build. The convergence fix (decaying α + GLIE) and the −γ^(H−1) escape-floor framing were implementer calls, reported back honestly (ANALYSIS §10). |

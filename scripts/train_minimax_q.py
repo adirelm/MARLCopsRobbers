@@ -1,4 +1,4 @@
-"""Thin Minimax-Q baseline entry — routes through the SDK (P-bonus, L11 §5; slow, manual).
+"""Thin Minimax-Q baseline entry — routes through the SDK (L11 §5 bonus; slow, manual).
 
 The tabular ZERO-SUM equilibrium learner for the 1-cop-vs-thief pursuit, an empirical
 contrast to the deep self-play arms (README §7.2). ``uv run python scripts/train_minimax_q.py``.

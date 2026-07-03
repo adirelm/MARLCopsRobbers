@@ -77,7 +77,7 @@ class MarlSDK:
         return SelfPlayTrainer(cfg, seed, h, w, num_cops).train_stage()
 
     def run_minimax_q_baseline(self, seed: int) -> list[dict]:
-        """Train the tabular Minimax-Q zero-sum baseline (P-bonus, L11 §5); return the history.
+        """Train the tabular Minimax-Q zero-sum baseline (L11 §5 bonus); return the history.
 
         A standalone equilibrium-learning contrast to the deep self-play arms (README §7.2):
         a tabular 1-cop-vs-thief Minimax-Q on a small grid, each state solved by a maximin LP.

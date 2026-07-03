@@ -8,8 +8,8 @@ decomposition** (QMIX primary, VDN ablation, IQL baseline), each agent runs behi
 end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.1.0).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
-> equilibrium baseline (P-bonus, the L11 §5 self-challenge; see §7.2 + ANALYSIS §10) — tested
-> (535 tests, ~99.5% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
+> (536 tests, ~99.4% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -64,7 +64,7 @@ MCP (Anthropic 2024) — full bibliography in `docs/PRD.md` §13.
 
 ## Submission report (brief §7) — the README IS the §7 paper
 
-Where each report part lives: **game & rules** → Configuration (above) + the §7.1 eq-1 table;
+Where each report part lives: **game & rules** → Configuration (above) + THEORY §1's eq-1 table;
 **skills / architecture** → Usage + §7.1 "assumptions-in-code"; **before / after** → F3 spectator
 states + the F1 learning curves; **metrics / ablation / sensitivity** → §7.3 (F5 ablation, F6 scale,
 the V3-§9 sensitivity sweep); **§6 bugs/limitations** and the **§7 academic analysis** (Dec-POMDP
@@ -125,13 +125,16 @@ hypernetwork (`src/marl/mixers/`), while MCP execution reads ONLY the local `o_i
 rejects any `global_state` at the protocol edge) — CTDE made literal. With N=1 cop the QMIX
 decomposition is **trivial/lossy** (a single-agent value); the genuine multi-agent credit
 assignment is exercised on the **4×4 two-cop** stage. Equation map: ex06 `eq2 ≡ L10 eq4`; see
-[`docs/THEORY.md`](docs/THEORY.md) for eqs 3,5,6,7,8,10,11.
+[`docs/THEORY.md`](docs/THEORY.md) for eqs 3, 5–8 (eqs 10–11, the OLoRA QR pair, are stated in
+`docs/PRD.md` FR-OLoRA-2). Note eq 3 swaps the `Ω`/`O` naming relative to eq 1 — THEORY §3 carries the
+convention footnote.
 
 ### 7.2 Analysis — non-stationarity, IQL-vs-CTDE, IGM/monotonicity
 
 **(1) Non-stationarity and the CTDE fix.** An independent learner bootstraps off a *moving*
 target because its effective transition marginalizes over the peers' changing policies:
-`P_i(s'|s,a_i) = Σ_{a_-i} π_-i(a_-i|s) · T(s'|s,a_i,a_-i)`. IQL therefore regresses each agent
+`P_i(s'|s,a_i) = Σ_{a_-i} π_-i(a_-i|o_-i(s)) · T(s'|s,a_i,a_-i)` (peers act on their own local
+observations `o_-i(s)` — the same conditioning THEORY §2 uses). IQL therefore regresses each agent
 toward `y_i = r_i + γ(1−d) max_{a'_i} Q_i(o'_i,a'_i)` against this drifting `P_i`, whereas CTDE
 regresses the *team* toward the centralized `y_tot = r_team + γ(1−d) max_{ā'} Q_tot(s',ā')` —
 the joint max over the centrally-mixed value removes the marginalization. CTDE thus improves
@@ -157,13 +160,13 @@ the other also commits. **QPLEX** `[10]` (duplex dueling) and **Weighted-QMIX** 
 projection) relax this; we reproduce the L10 Table 3 ordering qualitatively.
 
 **(4) Pursuit-evasion & curriculum.** The 2×2→5×5 ladder follows curriculum pursuit-evasion `[5]`;
-policy-gradient CTDE alternatives (MAPPO `[8]`, MADDPG/COMA) trade our value-decomposition for a
+policy-gradient CTDE alternatives (COMA `[8]`, MAPPO/MADDPG) trade our value-decomposition for a
 centralized critic. The **competitive** cop↔thief regime has its own equilibrium learners —
 **Minimax-Q** (Littman 1994, zero-sum) and **Nash-Q** (Hu & Wellman 2003, general-sum), per L11; we
 use **alternating best-response self-play** instead because those guarantee convergence only for
 *tabular* `Q` (infeasible on our recurrent state), value decomposition is cooperative-only, and our
-discrete actions give no MADDPG (continuous-action) benefit. **We close that gap with a P-bonus
-equilibrium baseline (F7):** a tabular **Minimax-Q** learner (per-state maximin LP, decaying α + GLIE)
+discrete actions give no MADDPG (continuous-action) benefit. **We close that gap with the L11 §5
+bonus equilibrium baseline (F7):** a tabular **Minimax-Q** learner (per-state maximin LP, decaying α + GLIE)
 on the 1-cop-vs-1-thief 3×3 zero-sum pursuit converges to a **thief-favored equilibrium** (negative
 game value, bounded below by the −γ^(H−1) escape floor) — empirically confirming a *lone* minimax cop
 cannot corner an equal-speed evader, which is exactly why capture needs the cooperative cop team. It
@@ -204,11 +207,11 @@ would interleave two different losses; split per network, the cop's QMIX loss vi
 
 ![Sensitivity](results/figures/sensitivity_view_radius.png)
 *V3-§9 sensitivity — final capture vs the 4×4 execution view radius (1 vs 2) with everything else
-pinned: more observability did **not** clearly help at this budget (means close, ~4× the variance) —
+pinned: more observability did **not** clearly help at this budget (means close, ~4× the SE) —
 see [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §9.*
 
 ![F7 Minimax-Q](results/figures/minimax_q.png)
-*F7 (P-bonus, L11 §5) — tabular Minimax-Q on the 3×3 zero-sum pursuit: the certified game value
+*F7 (L11 §5 bonus) — tabular Minimax-Q on the 3×3 zero-sum pursuit: the certified game value
 converges DOWN onto the closed-form −γ^(H−1) = −0.292 escape floor while capture falls to ~0.04 — a
 lone minimax cop cannot corner an equal-speed evader, which is exactly why capture needs the
 cooperative team ([`docs/ANALYSIS.md`](docs/ANALYSIS.md) §10).*
@@ -239,13 +242,15 @@ notebook — LaTeX equations, all figures, citations, committed **executed** —
 
 | Fig | Content | Generator | Path |
 |---|---|---|---|
-| **F1** | Per-algorithm learning curves (capture rate vs self-play round, cross-seed mean±SE) | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
-| **F2** | Per-stage TD-loss curves | `python -m src.results.make_figures` | `results/figures/loss_curves.png` |
-| **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png` |
-| **F4** | MCP-comms proof — localhost canonical (cloud = Stage-2, not in repo) (CAPTURED) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |
-| **F5** | IQL vs VDN vs QMIX win-rate/convergence (incl. 4×4 2-cop panel) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
+| **F1** | BOTH agents' learning at 4×4 (§7.3a): cop capture-rate panel + thief escape-rate panel, cross-seed mean±SE | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
+| **F2** | Per-NETWORK TD-loss at 4×4 (§7.3b): cop net (QMIX/VDN/IQL) panel + thief Double-DQN panel | `python -m src.results.make_figures` | `results/figures/loss_curves.png` |
+| **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 + the terminal / barrier / view-radius states (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png`, `state_{terminal,barriers,view_radius}.png` |
+| **F4** | MCP-comms proof — localhost in-memory contract (CAPTURED, CI-deterministic) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |
+| **F4b** | MCP-comms proof over REAL localhost HTTP — ports 8001/8002, bearer auth, shared `session_id` (§5.3 Stage-1) | `scripts/serve_match_http.py` | `results/figures/mcp_comms_http.png` |
+| **F5** | IQL vs VDN vs QMIX final capture rate at 4×4, the 2-cop stage (bar + SE whiskers) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
 | **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |
-| **F7** | Minimax-Q equilibrium baseline (P-bonus, L11 §5): game-value + capture-rate convergence on the 3×3 zero-sum pursuit | `scripts/plot_minimax_q.py` (slow; per-step maximin LP) | `results/figures/minimax_q.png` |
+| **Sens.** | V3-§9 sensitivity — final capture vs the 4×4 view radius, all else pinned | `scripts/sensitivity_sweep.py` | `results/figures/sensitivity_view_radius.png` |
+| **F7** | Minimax-Q equilibrium baseline (L11 §5 bonus): game-value + capture-rate convergence on the 3×3 zero-sum pursuit | `scripts/plot_minimax_q.py` (slow; per-step maximin LP) | `results/figures/minimax_q.png` |
 
 F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); F3/F4 are
 deterministically captured by their seeded scripts; **F7** (the bonus equilibrium baseline) is

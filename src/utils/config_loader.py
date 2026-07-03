@@ -20,7 +20,7 @@ EXPECTED_VERSION = "1.1.0"
 VERSION_KEY = "version"
 
 # The 20 frozen top-level sections (P1 spec line 19 + the P4d `compute` governance
-# block + the P-bonus `minimax_q` baseline block; the P3 `p3_smoke` block was removed
+# block + the L11-bonus `minimax_q` baseline block; the P3 `p3_smoke` block was removed
 # with the throwaway smoke in P4d). Order is documentation-only.
 REQUIRED_SECTIONS: tuple[str, ...] = (
     VERSION_KEY,

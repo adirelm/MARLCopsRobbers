@@ -65,7 +65,7 @@ deferred until a partner exists).
 
 ## 3. The Dec-POMDP Formalism (eq 1, cite [1])
 
-The cooperative pursuer team is modeled as a **Dec-POMDP** with the canonical tuple (ex06 eq 1, primary source Bernstein et al. 2002 [1]; Oliehoek & Amato):
+The cooperative pursuer team is modeled as a **Dec-POMDP** with the canonical tuple (ex06 eq 1, primary source Bernstein et al. 2002 [1]; Amato 2024 [4]):
 
 > **(eq 1)**  `M = ⟨ N, S, A, T, R, Ω, O, γ ⟩`
 

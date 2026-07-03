@@ -1,4 +1,4 @@
-"""Tests for the Minimax-Q runner + the SDK entry (P-bonus, L11 §5).
+"""Tests for the Minimax-Q runner + the SDK entry (L11 §5 bonus).
 
 Small episode counts keep the per-step LP solves fast while still exercising the full
 stack (LP -> learner -> tabular env -> runner -> SDK).

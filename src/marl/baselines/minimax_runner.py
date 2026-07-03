@@ -1,4 +1,4 @@
-"""Minimax-Q self-play training loop on the tabular pursuit (P-bonus, L11 §5).
+"""Minimax-Q self-play training loop on the tabular pursuit (L11 §5 bonus).
 
 Drives :class:`~src.marl.baselines.tabular_pursuit.TabularPursuit` for ``minimax_q.episodes``
 episodes: each tick the cop samples its **maximin** mixed strategy and the thief its **minimax**
