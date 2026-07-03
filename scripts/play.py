@@ -1,9 +1,9 @@
 """Spectator launcher — opens the god-view window (T7.6; REQUIRES pygame).
 
 Routes through the SDK (``spectator_session``) + the source-agnostic StateClient;
-the window loop lives in ``src.gui.render`` (guarded). pygame can't build on
-py3.14/this host, so run on a pygame-capable machine:
-``uv run python scripts/play.py --seed 7``.
+the window loop lives in ``src.gui.render`` (guarded). pygame-ce ships py3.14
+wheels, so this runs here directly (install the gui extra):
+``uv run --extra gui python scripts/play.py --seed 7``.
 """
 
 from __future__ import annotations

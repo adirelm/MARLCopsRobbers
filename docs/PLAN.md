@@ -160,7 +160,7 @@ Assignment6-MARLCopsRobbers/
 ├── LICENSE                         # MIT
 ├── pyproject.toml                  # name=marl-cops-robbers, version="1.0.0", uv groups dev/mcp/mail
 ├── uv.lock                         # committed (uv-only hard gate)
-├── .python-version                 # 3.11
+├── .python-version                 # (PLANNED; as built: pyproject `requires-python >=3.11`, no file)
 ├── .env-example                    # tokens + Gmail (PII in repo-root players.local.yaml, ADR-0013) — committed
 ├── .gitignore                      # .env .env.* *.pem *.key credentials*.json secrets/ adrl-001-ex*.pdf instructions/ artifacts/
 │                                    #   + allow-list exception: !deploy/model/*.pt (reserved for the Stage-2 actor checkpoint, committed at deploy time)
@@ -649,7 +649,7 @@ email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladd
 | Single SDK entry (UIs) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers (exempt) | `test_sdk_single_entry`, `test_mcp_servers_have_no_logic` |
 | Version starts at 1.00 | started `1.0.0`, now `1.1.0` (the L11 §5 Minimax-Q bonus minor release — distinct from the deferred §9 P-bonus phase) in `src/__init__.py` + `config.version` + `pyproject` | `tests/unit/test_config_loader.py` (see the implementation note above) |
 | PRD/PLAN/TODO + ADRs | this PLAN + PRD + TODO + ADRs 0001–0014 with §1.4 sign-off | `test_required_docs_present` + ADR-count check |
-| No PII in tracked content | real names/ids only in git-ignored `secrets/players.local.yaml`, injected at send time; cover sheet git-ignored, **skip-when-absent** (never asserted present — MEMORY: this broke A5 CI) | `scripts/check_pii.py`; `test_no_pii_in_tracked_content`; `test_cover_sheet_gitignored` (skip-when-absent) |
+| No PII in tracked content | real names/ids only in the git-ignored repo-root `players.local.yaml`, injected at send time; cover sheet git-ignored, **skip-when-absent** (never asserted present — MEMORY: this broke A5 CI) | `scripts/check_pii.py`; `test_no_pii_in_tracked_content`; `test_cover_sheet_gitignored` (skip-when-absent) |
 | §5 External-API governance (flips REQUIRED) | `ApiGatekeeper` + `rate_limits.json`; all egress routed through it | ADR-0009; `test_egress_via_gatekeeper` |
 | §10 Nielsen heuristics (flips REQUIRED) | `docs/UX.md` maps all 10 heuristics to the mandatory GUI + screenshot per state | ADR-0014; `test_required_docs_present` |
 
@@ -668,7 +668,7 @@ CI never asserts the git-ignored cover sheet *exists* (skip-when-absent); push o
 | R2 | Cloud-MCP deploy fails / Prefect quota late | M×H | §5.3 localhost-first is sufficient for grading comms; localhost logs = CANONICAL F4; warm-up ping + Render fallback pre-tested | submit local proof + cloud smoke proof; cloud is upside not gate |
 | R3 | Gmail single mandatory send fails (App-Password/OAuth) | M×H | `smtp_smoke.py` pre-flight days early; `EmailSender` Protocol → OAuth drop-in; idempotent sentinel | never block match completion on send; manual resend at most one extra email |
 | R4 | QMIX/POSG formalism mismatch | H×M | document Dec-POMDP proxy (shared R) vs full POSG (role-specific R) in §7.1; claim CTDE improves stability not optimality | present CTDE as assignment-aligned approximation + POSG limitation |
-| R5 | PII leak into tracked repo | M×H | cover sheet git-ignored Moodle-only; CI deny-list grep; placeholders; identity from `secrets/` | NEVER assert git-ignored cover sheet exists in a test (skip-when-absent — broke A5 CI) |
+| R5 | PII leak into tracked repo | M×H | cover sheet git-ignored Moodle-only; CI deny-list grep; placeholders; identity from the git-ignored `players.local.yaml` | NEVER assert git-ignored cover sheet exists in a test (skip-when-absent — broke A5 CI) |
 | R6 | Google Drive deletes `.git` mid-session | M×H | push often; keep `/tmp` clone to restore `.git` | re-clone, copy `.git` back |
 | R7 | File >150 LOC as env/mixer/MCP grow | H×M | split early (9-file env, 4-file mixers, server/tools split); file-size gate AFTER ruff format | extract submodules |
 | R8 | Figures drift from code / stale README numbers | M×M | single `make_figures` entry reading `results/runs/*.jsonl`; manifest with commit hash | CI regenerates figures |

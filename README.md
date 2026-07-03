@@ -130,7 +130,7 @@ assignment is exercised on the **4×4 two-cop** stage. Equation map: ex06 `eq2 �
 `docs/PRD.md` FR-OLoRA-2). Note eq 3 swaps the `Ω`/`O` naming relative to eq 1 — THEORY §3 carries the
 convention footnote.
 
-### 7.2 Analysis — non-stationarity, IQL-vs-CTDE, IGM/monotonicity
+### 7.2 Analysis — non-stationarity, IQL-vs-CTDE, IGM/monotonicity, curriculum, ethics
 
 **(1) Non-stationarity and the CTDE fix.** An independent learner bootstraps off a *moving*
 target because its effective transition marginalizes over the peers' changing policies:
@@ -248,7 +248,7 @@ overlay state (`state_view_radius.png`) is referenced from [`docs/UX.md`](docs/U
 End-to-end evidence: [`results/subgames/full_match_5x5.redacted.json`](results/subgames/full_match_5x5.redacted.json)
 is a full 6-sub-game §3.5 report (role-only, PII-redacted) produced by `sdk.run_local_match` with FRESH
 nets — schema/pipeline proof (trained performance lives in the 45-run matrix behind F1/F5/F6). The SDK-only analysis
-notebook — LaTeX equations, all figures, citations, committed **executed** — is
+notebook — LaTeX equations, the six plotted figures, citations, committed **executed** — is
 [`notebooks/analysis.ipynb`](notebooks/analysis.ipynb). The figure manifest:
 
 | Fig | Content | Generator | Path |
