@@ -58,15 +58,18 @@ every `.py` ≤150 LOC, ruff clean, ≥85% coverage on every push (CI).
 
 MIT (see `LICENSE`). Built for Dr. Yoram Segal's Vibe Coding & RL workshop. Key references:
 Dec-POMDP (Bernstein 2002), VDN (Sunehag 2018), QMIX (Rashid 2018), OLoRA (Büyükakyüz 2024),
-MCP (Anthropic 2024) — full bibliography in `docs/PRD.md` §10.
+MCP (Anthropic 2024) — full bibliography in `docs/PRD.md` §13.
 
 ---
 
-## 1.–7. Submission report (brief §7) — the README IS the §7 paper
+## Submission report (brief §7) — the README IS the §7 paper
 
-§1 Game · §2 Skills/architecture · §3 before · §4 after · §5 metrics/ablation/**sensitivity** ·
-§6 bug/limitations · §7 academic analysis (Dec-POMDP formalism, non-stationarity, IQL-vs-CTDE,
-IGM/monotonicity → QPLEX/Weighted-QMIX). Figures F1–F7 + GUI + MCP-comms screenshots appear inline in §7.3.
+Where each report part lives: **game & rules** → Configuration (above) + the §7.1 eq-1 table;
+**skills / architecture** → Usage + §7.1 "assumptions-in-code"; **before / after** → F3 spectator
+states + the F1 learning curves; **metrics / ablation / sensitivity** → §7.3 (F5 ablation, F6 scale,
+the V3-§9 sensitivity sweep); **§6 bugs/limitations** and the **§7 academic analysis** (Dec-POMDP
+formalism, non-stationarity, IQL-vs-CTDE, IGM/monotonicity → QPLEX/Weighted-QMIX) follow below.
+Figures F1–F7 + GUI + MCP-comms screenshots appear inline in §7.3.
 
 ---
 
@@ -89,7 +92,7 @@ Reported plainly — the brief grades honest analysis over a polished narrative:
   full-fine-tune **ablation chart/table was descoped** (a PRD-designated stretch item) — the ~8×
   trainable-param reduction it would visualize is still asserted by `tests/unit/test_olora_linear.py`.
 - **Cloud deploy + the Gmail send are built + tested, not live-run** — they are account/cred-gated
-  (a deliberate scope line, ADR-D10-E; the localhost match F4 is canonical).
+  (a deliberate scope line — PLAN §6 ADR-0012 + risk R2; the localhost match F4 is canonical).
 
 **Self-grade.** No numeric self-grade is claimed in this public repo: the rubric self-score lives on the
 Moodle cover sheet (`adrl-001-ex06.pdf` — git-ignored, carries PII). The bullets above are the honest
@@ -181,8 +184,11 @@ Per-round records append to `results/runs/history.jsonl`; `results/figures/exper
 pins arms / seeds / stages + a config hash (= 45 runs, zero README↔code drift, R8).
 
 ![F1 learning curves](results/figures/learning_curves.png)
-*F1 — capture rate vs self-play round (cross-seed mean±SE) at the 4×4 two-cop focus stage; QMIX's
-oscillation is the monotonic-mixer training instability (R1). Train reads global `s`, exec local `o_i`.*
+*F1 — §7.3a BOTH agents' learning at the 4×4 two-cop focus stage (cross-seed mean±SE; capture rate is
+the reward proxy — the terminal signal dominates and shaping is train-only). The cop panel STARTS high
+(curriculum-transferred, BC-warm-started cops) and capture then falls as the self-play thief improves —
+the right panel shows the thief's escape rate climbing in mirror: §7.2's non-stationarity made visible.
+QMIX's wider band is the monotonic-mixer training instability (R1). Train reads global `s`, exec local `o_i`.*
 
 ![F5 baseline comparison](results/figures/baseline_comparison.png)
 *F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers): VDN most consistent (0.84), IQL a
@@ -192,18 +198,44 @@ strong baseline (0.82); the more expressive QMIX is the least stable at this 50-
 *F6 — capture rate vs grid size: capture falls as the board grows + view radius tightens (partial observability bites).*
 
 ![F2 loss curves](results/figures/loss_curves.png)
-*F2 — TD-loss per round (mean±SE) at 4×4. §9 sensitivity (`sensitivity_view_radius.png`) sweeps the 4×4 view radius.*
+*F2 — §7.3b the two NETWORKS' TD-losses at 4×4 (mean±SE): left the cop net (QMIX/VDN/IQL), right the
+thief Double-DQN. Self-play alternates which net trains each round, so pooling them into one curve
+would interleave two different losses; split per network, the cop's QMIX loss visibly decays.*
+
+![Sensitivity](results/figures/sensitivity_view_radius.png)
+*V3-§9 sensitivity — final capture vs the 4×4 execution view radius (1 vs 2) with everything else
+pinned: more observability did **not** clearly help at this budget (means close, ~4× the variance) —
+see [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §9.*
+
+![F7 Minimax-Q](results/figures/minimax_q.png)
+*F7 (P-bonus, L11 §5) — tabular Minimax-Q on the 3×3 zero-sum pursuit: the certified game value
+converges DOWN onto the closed-form −γ^(H−1) = −0.292 escape floor while capture falls to ~0.04 — a
+lone minimax cop cannot corner an equal-speed evader, which is exactly why capture needs the
+cooperative team ([`docs/ANALYSIS.md`](docs/ANALYSIS.md) §10).*
 
 ![F4 MCP comms](results/figures/mcp_comms_local.png)
 *F4 — localhost cop↔thief MCP comms (redacted): the SAME `trace` (session_id) on BOTH servers'
 `request_move` calls per sub-game.*
 
+![F4b real-HTTP comms](results/figures/mcp_comms_http.png)
+*F4b — the SAME tool contract over REAL localhost HTTP (§5.3 Stage-1): two separate server processes
+on ports 8001/8002 with bearer auth, one shared `session_id` across both servers' calls
+(`scripts/serve_match_http.py`).*
+
 ![F3 GUI 2×2](results/screenshots/grid_2x2.png) ![F3 GUI 3×3](results/screenshots/grid_3x3.png) ![F3 GUI 4×4](results/screenshots/grid_4x4.png) ![F3 GUI 5×5](results/screenshots/grid_5x5.png)
 *F3 — Pygame god-view spectator at 2×2 / 3×3 / 4×4 / 5×5 (the mandatory §7.3c GUI screenshots at different grid sizes).*
 
-F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); **F3** GUI
-screenshots (`results/screenshots/grid_*.png`) and **F4** MCP-comms proof are deterministically
-captured. The figure manifest:
+![GUI terminal state](results/screenshots/state_terminal.png) ![GUI barriers](results/screenshots/state_barriers.png)
+*GUI states beyond "running": the terminal winner-banner (left — move 25/25 timeout, thief wins 10/5)
+and barrier rendering (right — a hand-set demo state; §5.4's barrier display. The heuristic agents only
+navigate around barriers, so barriers are shown via the real draw path on a set board). The view-radius
+overlay state (`state_view_radius.png`) is referenced from [`docs/UX.md`](docs/UX.md).*
+
+End-to-end evidence: [`results/subgames/full_match_5x5.redacted.json`](results/subgames/full_match_5x5.redacted.json)
+is a full 6-sub-game §3.5 report (role-only, PII-redacted) produced by `sdk.run_local_match` with FRESH
+nets — schema/pipeline proof (trained performance lives in F1/F5's 45-run matrix). The SDK-only analysis
+notebook — LaTeX equations, all figures, citations, committed **executed** — is
+[`notebooks/analysis.ipynb`](notebooks/analysis.ipynb). The figure manifest:
 
 | Fig | Content | Generator | Path |
 |---|---|---|---|
@@ -237,7 +269,7 @@ The full P×I register with mitigation + fallback per owner-phase is in
 | ID | Risk | P×I | Mitigation → Fallback |
 |---|---|---|---|
 | R1 | MARL non-convergence on tiny grids (the studied effect) | H×H | 2×2-first curriculum, 5 seeds, shaping, VDN arm → heuristic-thief warm start; report instability honestly |
-| R2 | Cloud deploy / Prefect quota fails | M×H | localhost F4 is canonical (cloud is upside, ADR-D10-E) → submit local proof + smoke |
+| R2 | Cloud deploy / Prefect quota fails | M×H | localhost F4 is canonical (cloud is upside, ADR-0012) → submit local proof + smoke |
 | R3 | Gmail single mandatory send fails | M×H | `smtp_smoke.py` pre-flight + idempotent sentinel + OAuth drop-in → never block on send |
 | R5 | PII leak into the tracked repo | M×H | git-ignored cover sheet + CI deny-list grep + placeholders → never assert the PII artifact in a test |
 | R6 | Google Drive deletes `.git` mid-session | M×H | push often + a `/tmp` clone → restore `.git` |

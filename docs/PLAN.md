@@ -30,7 +30,7 @@ acceptable*). The following are all in scope for the A6 build:
 | Two FastMCP servers | Cop + Thief, separate OS processes, HTTP comms; **localhost (Stage 1) AND cloud deploy (Stage 2)** | §5.3, §6.8, §8 |
 | Pygame GUI | Real-time god-view spectator at 2×2/3×3/4×4/5×5 | §5.4, §7.3c |
 | Gmail report | One auto email by the Cop at whole-game end (smtplib + App-Password, OAuth fallback) | §3.5, §5.5, §6.9 |
-| §9 bonus capability | Bonus-capable report schema **built** + inter-group MCP interface spec **written** | §9 |
+| §9 bonus capability | Bonus report schema + inter-group contract **specified** (keys enumerated in PRD FR-ANL-9 AC); **build deferred to the final project** (needs a partner group) | §9 |
 
 **Coordination dependency (not buildable solo):** the actual §9 cross-group match needs a
 partner `biu-rlNN` group. We ship the *schema* and the *interface spec*; the live bonus match
@@ -301,7 +301,7 @@ Assignment6-MARLCopsRobbers/
 │   ├── prd/{PRD-ENV,PRD-CTDE,PRD-MCP,PRD-REPORT}.md
 │   ├── adr/0001..0014.md
 │   ├── schema/report.schema.json   # draft-2020-12 §3.5 report contract (grading evidence)
-│   ├── interfaces/intergroup_mcp.md# §9 inter-group MCP interface spec (coordination dependency)
+│   ├── interfaces/intergroup_mcp.md# §9 inter-group spec (PLANNED — final project; not yet in repo)
 │   └── shared/PROMPTS.md           # literal prompts used (§1.4 evidence)
 ├── results/
 │   ├── README.md                   # what lives here; heavy artifacts git-ignored
@@ -499,7 +499,12 @@ never shares a cooperative mixer with the Cop (POSG, eq 3; ADR-0006).
 ## 6. Architecture Decision Records (index)
 
 This index IS the canonical ADR record — each entry below is **title — decision — rationale**
-(ADR-0001..0014 + the supporting-policy ADRs noted after the table). All ADRs that alter a
+(ADR-0001..0014 + the supporting-policy ADRs noted after the table).
+
+> **Draft-ID note:** planning-phase docs (mainly PRD Evidence lines) cite *dimension-draft* ADR IDs
+> (`ADR-D1…D10-*`, `ADR-GUI-*`). Those drafts were **consolidated into ADR-0001..0014 below** —
+> read any `ADR-D*/GUI-*` reference as "the consolidated ADR covering that dimension": D1/D3 → 0006,
+> D5 → 0011, D6 → 0012, D8 → 0013, D10 → 0012 (cloud scope), GUI → 0014. No separate D-files exist. All ADRs that alter a
 human-decided column (`CLAUDE.md` §1.4: rules, architecture, test acceptance) require explicit
 human sign-off before the corresponding code lands.
 
@@ -614,7 +619,7 @@ GUI → cloud → Gmail. Each phase has an **exit gate** that must pass before t
 | **P9** | Gmail report | `reporting/*` (schema/collector/players/builder/mailer/redact/idempotency); `docs/schema/report.schema.json`; `sdk.send_final_report` (idempotent, sha256 sentinel, PII from secrets); wire cop's record→send after 6th valid sub-game; `smtp_smoke.py` | one email received at `rmisegal+marl@gmail.com`; JSON validates vs §3.5; idempotency + no-PII-in-tracked tests pass |
 | **P10** | Results | `results/aggregate.py`+`plots.py`+`make_figures.py`; run sweep (IQL/VDN/QMIX × 5 seeds × ladder); generate F1–F6; **§9 single-parameter sensitivity sweep** (e.g. `view_radius` / `olora.rank` / `selfplay.window_k` / `reward.distance_weight` → capture-rate effect + figure — DISTINCT from the algorithm ablation); **`notebooks/analysis.ipynb`** (SDK-only: LaTeX Dec-POMDP/QMIX equations, F1–F6, citations); `experiment_manifest.json`; write README §7 academic body (7.1 formalisms + eq map; 7.2 four sub-parts incl. IQL-vs-CTDE F5, IGM limits + QPLEX[10]/WQMIX[9], curriculum[5]/MAPPO; 7.3 captioned figures); risk register in PLAN + README §8 | all 6 figures present + non-placeholder; sensitivity figure present; notebook runs via SDK; numbers reproducible from `runs/`; README §7 complete |
 | **P11** | Gate | `software-excellence-v3` audit; confirm all hard gates; **`docs/COST_ANALYSIS.md`** (§11: AI-dev token-cost breakdown — input/output tokens, $/1M per model, total — plus the local-only RL training-compute envelope: episodes × stages × wall-clock + optimization notes); **`docs/QUALITY.md`** (§13: ISO/IEC 25010 mapping of ALL EIGHT characteristics — Functional Suitability, Performance Efficiency, Compatibility, Usability, Reliability, Security, Maintainability, Portability); self-grade; produce git-ignored cover sheet `adrl-001-ex06.pdf` (Moodle only, never asserted in a test); freeze 24h pre-deadline | all V3 hard gates ✅; COST_ANALYSIS + QUALITY present; audit doc + self-grade written; code frozen |
-| **P-bonus** | §9 post-A6 | `docs/interfaces/intergroup_mcp.md` interface spec (built now); bonus-capable report schema branch (`report_type:bonus_game`, `groups`, `students_group_1/2`, per-sub-game `cop_group`/`thief_group`, `totals_by_group`, `bonus_claim`, `mutual_agreement`) — **off A6 critical path; live match needs a partner `biu-rlNN` group** | spec + schema present; if a partner is found: both groups email + `mutual_agreement:true` |
+| **P-bonus** | §9 post-A6 | Inter-group interface spec + bonus report-schema branch (`report_type:bonus_game`, `groups`, `students_group_1/2`, per-sub-game `cop_group`/`thief_group`, `totals_by_group`, `bonus_claim`, `mutual_agreement`) — keys **specified** here + PRD FR-ANL-9 AC; **implementation deferred to the final project**; **off A6 critical path; live match needs a partner `biu-rlNN` group** | keys enumerated (this row + FR-ANL-9); build + match deferred; if a partner is found: build, then both groups email + `mutual_agreement:true` |
 
 **Load-bearing ordering:** P10 needs P4 (training) + P6 (orchestration); F4 needs P5; F3 needs P7;
 email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladder P4 sweep; cloud
@@ -642,7 +647,7 @@ email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladd
 | 0 secrets + `.env-example` | tokens/keys/App-Password/PII in `.env` + `secrets/`; `.env-example` names-only; `.gitignore` covers `.env *.pem *.key credentials*.json secrets/` | `scripts/check_secrets.py`; redaction middleware + `redact_logs.py` before screenshots |
 | uv-only | CI uses `uv`; no pip/conda; `uv.lock` committed | the CI "Sync deps" step (`uv sync --frozen`) |
 | Single SDK entry (UIs) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers (exempt) | `test_sdk_single_entry`, `test_mcp_servers_have_no_logic` |
-| Version starts at 1.00 | `1.0.0` in `src/__init__.py` + `config.version` | `scripts/check_version.py`; `test_version_consistency` |
+| Version starts at 1.00 | started `1.0.0`, now `1.1.0` (the P-bonus minor release) in `src/__init__.py` + `config.version` + `pyproject` | `tests/unit/test_config_loader.py` (see the implementation note above) |
 | PRD/PLAN/TODO + ADRs | this PLAN + PRD + TODO + ADRs 0001–0014 with §1.4 sign-off | `test_required_docs_present` + ADR-count check |
 | No PII in tracked content | real names/ids only in git-ignored `secrets/players.local.yaml`, injected at send time; cover sheet git-ignored, **skip-when-absent** (never asserted present — MEMORY: this broke A5 CI) | `scripts/check_pii.py`; `test_no_pii_in_tracked_content`; `test_cover_sheet_gitignored` (skip-when-absent) |
 | §5 External-API governance (flips REQUIRED) | `ApiGatekeeper` + `rate_limits.json`; all egress routed through it | ADR-0009; `test_egress_via_gatekeeper` |

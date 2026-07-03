@@ -86,7 +86,7 @@ enough to demand a near-Bayes model, loose enough to remain attainable. A single
 > `build_bc_dataset(cfg, grid, n, seed, role)` by grouping records on the exact
 > `(image, scalars)` observation and averaging the per-group majority fraction.
 
-## §9 Sensitivity analysis — `env.view_radius_by_grid[4]` ∈ {1, 2}
+## §9 Sensitivity analysis (V3-§9 — ex06's §9 is the inter-group bonus) — `env.view_radius_by_grid[4]` ∈ {1, 2}
 
 A controlled SINGLE-parameter sweep: vary ONLY the 4×4 execution view radius (1 → 2)
 with everything else pinned (algorithm = QMIX, nets / replay / γ / target cadence / the

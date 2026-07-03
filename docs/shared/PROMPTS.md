@@ -5,8 +5,9 @@
 > sign-off), the AI is the **implementer** (codes against an approved spec).
 > This log is maintained **per V3 §8** as the §1.4 evidence trail. It is
 > enumerated in `test_required_docs_present`, so the file must exist on every
-> commit. Each row records the verbatim prompt, the landing commit(s) it
-> produced, and the human-judgment call that gated it. The full trail is
+> commit. Each row records the prompt — **verbatim where captured, otherwise a
+> faithful summary marked "(summary)"** — the landing commit(s) it produced, and
+> the human-judgment call that gated it. The full literal trail is
 > `git log --oneline`; the SHAs below resolve in a fresh clone.
 
 ## How to read this log
@@ -25,10 +26,30 @@
 |---|---|---|
 | _Implement the theory-first env: Dec-POMDP primitives + reward/scorer + config loader (TDD)_ (summary) | `4398e15` | Architect fixed the Dec-POMDP/POSG tuple, the §3.4 scoreboard (20/10/5/5), and the Ng-1999 shaping potential. |
 
+## Phase 2–3 — pursuit rules + minimal-grid pipeline
+| Prompt | Commit | Human-judgment annotation |
+|---|---|---|
+| _Implement the full basic pursuit (transition/observation/env/curriculum) then the full pipeline on a minimal grid (replay, data sources, heuristics, 2×2 smoke) — TDD_ (summary) | `8ecb5a0`, `ced40cc` | Architect fixed the §3 rules ADRs (simultaneous resolution, swap=capture, barrier-as-move) before the transition code landed. |
+
 ## Phase 4 — CTDE learners (QMIX primary · VDN · IQL baseline)
 | Prompt | Commit | Human-judgment annotation |
 |---|---|---|
-| _Build the CTDE learners + thin SDK-routed train/sweep scripts (TDD)_ (summary) | `06a4bd2` … `f3acd92` | Architect chose QMIX primary + VDN ablation + IQL §7.2 baseline, the Mixer ABC seam, and the seeds [7, 17, 37, 71, 107]. |
+| _Build nets/mixers, the CTDE learners, OLoRA+BC, self-play trainer + thin SDK-routed train/sweep scripts (TDD)_ (summary) | `b7d700d` … `06a4bd2` | Architect chose QMIX primary + VDN ablation + IQL §7.2 baseline, the Mixer ABC seam, paper-exact OLoRA (QR on pretrained W0), and the seeds [7, 17, 37, 71, 107]. |
+
+## Phase 5–6 — MCP layer + full local match
+| Prompt | Commit | Human-judgment annotation |
+|---|---|---|
+| _Wire the MCP protocol (schemas/auth/controller), dual FastMCP servers + typed clients + referee, the §5 gatekeeper, then the canonical tool set + §3.5 report assembly + full local match_ (summary) | `890cee6` … `813903e` | Architect fixed the canonical 5-tool contract (no propose/commit fork), the referee-mediated topology (ADR-0011), and the §5 egress-governance requirement (ADR-0009). |
+
+## Phase 7–9 — GUI, cloud Stage-2, Gmail report
+| Prompt | Commit | Human-judgment annotation |
+|---|---|---|
+| _Build the Pygame god-view spectator (purity-gated) + screenshots; the RS256-JWT cloud entrypoints/runbook; the idempotent §3.5 Gmail sender_ (summary) | `0e345d8` … `1c7e414` | Architect chose Pygame (ADR-0014), Prefect-Horizon-primary/Render-fallback (ADR-0012), App-Password-over-OAuth (ADR-0013), and the HARD no-send-without-explicit-go email gate. |
+
+## Phase 10–11 — results, README §7, gates
+| Prompt | Commit | Human-judgment annotation |
+|---|---|---|
+| _Generate the figure pipeline + the 45-run matrix figures, the V3-§9 sensitivity sweep, ISO-25010/cost docs, the SDK-only notebook; author README §7; run the V3 gate audit_ (summary) | `17af07c` … `0f66a16` | Architect signed off the honest §7.2 result (QMIX least stable — reported, not idealized) and the figure-manifest drift gate (R8). |
 
 ## Phase P-bonus — Minimax-Q equilibrium baseline (v1.1.0)
 | Prompt | Commit | Human-judgment annotation |

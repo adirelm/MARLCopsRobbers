@@ -1,0 +1,82 @@
+{
+  "group_name": "adrl-001",
+  "students": [
+    {
+      "role": "A"
+    }
+  ],
+  "github_repo": "<redacted — real URL only in the git-ignored *.real.json + the email>",
+  "timezone": "Asia/Jerusalem",
+  "sub_games": [
+    {
+      "id": 1,
+      "start": "2026-07-03T18:51:30.993+03:00",
+      "end": "2026-07-03T18:51:31.079+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      }
+    },
+    {
+      "id": 2,
+      "start": "2026-07-03T18:51:31.079+03:00",
+      "end": "2026-07-03T18:51:31.166+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      }
+    },
+    {
+      "id": 3,
+      "start": "2026-07-03T18:51:31.166+03:00",
+      "end": "2026-07-03T18:51:31.312+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      }
+    },
+    {
+      "id": 4,
+      "start": "2026-07-03T18:51:31.312+03:00",
+      "end": "2026-07-03T18:51:31.527+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      }
+    },
+    {
+      "id": 5,
+      "start": "2026-07-03T18:51:31.527+03:00",
+      "end": "2026-07-03T18:51:31.656+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      }
+    },
+    {
+      "id": 6,
+      "start": "2026-07-03T18:51:31.656+03:00",
+      "end": "2026-07-03T18:51:31.764+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      }
+    }
+  ],
+  "totals": {
+    "cop": 30,
+    "thief": 60
+  }
+}

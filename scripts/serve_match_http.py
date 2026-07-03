@@ -17,10 +17,11 @@ import secrets
 import socket
 import subprocess
 import time
+from pathlib import Path
 
 from src.mcp.clients import AgentClient, make_client
 from src.mcp.referee import MatchRunner, Referee
-from src.results.comms import _Capture
+from src.results.comms import _Capture, render
 from src.utils.config_loader import load_config
 
 _ROLES = ("cop", "thief")
@@ -85,10 +86,17 @@ def main() -> dict:
             for ln in handler.lines
             if "request_move" in ln and "trace=" in ln
         }
+        header = (
+            f"REAL HTTP  cop={host}:{m['cop_port']}{path}  thief={host}:{m['thief_port']}{path}  bearer auth"
+        )
+        proof = render(  # F4b: the over-the-wire comms proof (redacted), like the in-memory F4
+            [header, *handler.lines],
+            Path(cfg["paths"]["figures_dir"]) / "mcp_comms_http.png",
+        )
         print(
             f"[stage1-http] {match['num_games']} valid sub-game(s) over REAL HTTP — "
             f"cop {host}:{m['cop_port']} <-> thief {host}:{m['thief_port']}; "
-            f"shared request_move trace(s): {sorted(traces)}"
+            f"shared request_move trace(s): {sorted(traces)}; proof -> {proof}"
         )
         return {"match": match, "traces": sorted(traces)}
     finally:

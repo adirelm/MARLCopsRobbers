@@ -60,6 +60,16 @@ def test_view_radius_overlay_is_opt_in():
     assert palette.VIEW_RADIUS in _colors(build_board_plan(_frame(), view, show_radius=True))
 
 
+def test_view_radius_overlay_marks_the_manhattan_disk():
+    """The overlay covers EVERY in-grid cell within Manhattan radius of the cop — not one cell.
+
+    Cop at (1,1) on 5x5 with radius 2: |r-1|+|c-1| <= 2 has exactly 11 in-grid cells.
+    """
+    plan = build_board_plan(_frame(), GridView(640, 480, 5, 5), show_radius=True)
+    marked = [op for op in plan if op.get("color") == palette.VIEW_RADIUS]
+    assert len(marked) == 11
+
+
 def test_hud_plan_has_move_scores_and_winner():
     """The HUD renders the move, scores, last action, and a winner banner at terminal."""
     texts = [op["text"] for op in build_hud_plan(_frame(winner="cop"))]

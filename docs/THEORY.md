@@ -1,6 +1,6 @@
 # THEORY — Dec-POMDP / POSG formalism (Assignment 6, T1.1)
 
-> **Group:** `adrl-001` · **Version:** `1.0.0` · **Source of truth:** `planning/BRIEF.md`
+> **Group:** `adrl-001` · **Version:** `1.1.0` · **Source of truth:** `planning/BRIEF.md`
 > (ex06.pdf §2.1, eq 1 / eq 3) + `L10-MARL.pdf`. Bibliography `[1]`–`[11]` per BRIEF §10.
 > This is the **theory-first** (BRIEF §6.1) companion to README §7.1. Every value
 > below is read from `config/config.yaml` — no number is hardcoded in prose or code.
@@ -24,7 +24,7 @@ The cooperative pursuer team is modeled as a **Dec-POMDP** with the canonical tu
 | **S** | global state (**train-only**) | `GlobalState(cop_pos, thief_pos, barriers, barriers_used, step, h, w, terminal)` — reachable ONLY via `env.state()`, never via `step()` (CTDE split). `h, w` are carried on the state (architect decision #1) so the live grid is self-describing. |
 | **{A_i}** | per-agent action sets | The Dec-POMDP joint action is `A = ×_{i∈N} A_cop`. **`\|A_cop\| = 5`** `{UP, DOWN, LEFT, RIGHT, PLACE_BARRIER}` (`env.actions.a_cop`); **`\|A_thief\| = 4`** `{UP, DOWN, LEFT, RIGHT}` (`env.actions.a_thief`, `PLACE_BARRIER` masked). `STAY`/`NOOP` exists in the enum but is **config-gated OFF** (`env.actions.enable_stay: false`) — the BRIEF rule is "both agents move one cell each turn", so there is no STAY/NOOP action head. `PLACE_BARRIER` is cop-only and masked when `barriers_used == game.max_barriers`. The thief's `{A_thief}` belongs to the full POSG `T` (§3), not to `M`'s joint action. |
 | **T** | transition `T(s'\|s, ā)` | **Deterministic, RNG-free** core (reproducible CI): **simultaneous** joint-move resolution (`env.move_resolution`); barriers and board edges impassable to both; barrier placement consumes the move. No stochastic-transition option is implemented. The Thief is folded into `T` from any single cop learner's view ⇒ **non-stationarity**. |
-| **R** | reward | RL signal = config-driven shaped reward, **shared over the cop team** in `dec_pomdp` mode (`env.reward_mode`), per-agent in `posg`. Potential-based shaping with team potential `Φ = −min_{i∈N} manhattan(cop_i, thief) / d_max` (the *closest* cop sets the potential). The §3.4 scoreboard (20/10/5/5) is a **separate** `Scorer`, never the training signal. See §4. |
+| **R** | reward | RL signal = config-driven shaped reward, **shared over the cop team** in `dec_pomdp` mode (`env.reward_mode`), per-agent in `posg`. Potential-based shaping with team potential `Φ = −min_{i∈N} manhattan(cop_i, thief) / d_max` (the *closest* cop sets the potential). The §3.4 scoreboard (20/10/5/5) is a **separate** `Scorer`, never the training signal (shaping details: `src/marl/env/reward.py` + ADR-0005). |
 | **{Ω_i}** | observation spaces | Per-agent egocentric Manhattan-radius window, padded to a fixed `2·env.view_radius_max + 1` footprint so one encoder spans 2×2→5×5. Exposed as the local `Observation(image, scalars)` TypedDict — it carries NO global field (architect decision #3). |
 | **O** | observation function `O(ō\|s', ā)` | Deterministic crop of `S` to radius-`r` cells around agent `i` (`env.view_radius_by_grid`); `O = 1` for the true window. Partial observability comes from the **bounded view radius**, not observation noise — no `env.obs_noise` option is implemented. |
 | **γ** | discount | `algo.gamma` (default `0.99`, suited to the ≤25-step horizon, `game.max_moves`). |
@@ -56,6 +56,10 @@ README §7.1 names this proxy explicitly as a modeling limitation — see §3.
 The *faithful* full game is a general-sum **Partially-Observable Stochastic Game (POSG)**:
 
 > **(eq 3)**  `G = ⟨ I, S, {A_i}, {O_i}, P, Ω, {R_i}, γ ⟩`,  with `R_cop ≠ R_thief`
+>
+> (Notation per the POSG literature: in eq 3 `{O_i}` are the observation **sets** and `Ω` the joint
+> observation **function** — the reverse of eq 1's Dec-POMDP naming, where `{Ω_i}` are the sets and
+> `O` the function. Kept as each source writes it; the R13 numbering note above applies.)
 
 Here `I = {cop, thief}` (a **2-role** game; distinct from the Dec-POMDP `N` = cop team only),
 the rewards are role-specific (the 20/10/5/5 scores are opposed), and the worst-case planning

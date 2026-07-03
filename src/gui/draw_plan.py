@@ -35,9 +35,14 @@ def build_board_plan(frame: SpectatorFrame, view: GridView, show_radius: bool = 
         {"kind": "fill", "rect": view.cell_rect(bc, br), "color": palette.BARRIER}
         for br, bc in frame.barriers
     ]
-    if show_radius:
+    if show_radius:  # the cop's Manhattan view disk (radius = frame.view_radius), clipped to the grid
         cr, cc = frame.cop_positions[0]
-        ops.append({"kind": "rect", "rect": view.cell_rect(cc, cr), "color": palette.VIEW_RADIUS})
+        ops += [
+            {"kind": "rect", "rect": view.cell_rect(c, r), "color": palette.VIEW_RADIUS}
+            for r in range(rows)
+            for c in range(cols)
+            if abs(r - cr) + abs(c - cc) <= frame.view_radius
+        ]
     tr, tc = frame.thief_position
     ops.append(_token(view.cell_rect(tc, tr), palette.THIEF))
     ops += [_token(view.cell_rect(cc, cr), palette.COP) for cr, cc in frame.cop_positions]

@@ -16,7 +16,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from src.results.aggregate import load_runs
-from src.results.plots import plot_comparison, plot_curve_figure, plot_scaling
+from src.results.plots import plot_comparison, plot_scaling, plot_two_agent_panels
 from src.utils.config_loader import load_config
 
 
@@ -53,24 +53,36 @@ def main(cfg: dict | None = None) -> list[str]:
     if not records:
         raise SystemExit("no runs in results/runs/history.jsonl — run scripts/run_results.py first")
     stage = _focus_stage(records)  # the largest stage with the most algorithm coverage
+    grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
     saved = [
         str(
-            plot_curve_figure(
+            plot_two_agent_panels(  # §7.3a: BOTH agents' learning (cop capture / thief escape)
                 records,
                 "capture_rate",
                 stage,
-                "Learning curves — capture rate (mean±SE)",
-                "capture rate",
+                [
+                    ("cop", "Cop learning — capture rate (cop-training rounds)", "capture rate", None),
+                    (
+                        "thief",
+                        "Thief learning — escape rate (thief-training rounds)",
+                        "escape rate (1 - capture)",
+                        lambda m: 1.0 - m,
+                    ),
+                ],
+                f"Both agents' learning at {grid}x{grid} (mean±SE over seeds)",
                 fig_dir / "learning_curves.png",
             )
         ),
         str(
-            plot_curve_figure(
+            plot_two_agent_panels(  # §7.3b: the two NETS' losses (pooling would interleave them)
                 records,
                 "loss",
                 stage,
-                "Training loss (mean±SE)",
-                "loss",
+                [
+                    ("cop", "Cop net TD-loss (QMIX/VDN/IQL)", "TD loss", None),
+                    ("thief", "Thief Double-DQN TD-loss", "TD loss", None),
+                ],
+                f"Per-network training loss at {grid}x{grid} (mean±SE over seeds)",
                 fig_dir / "loss_curves.png",
             )
         ),

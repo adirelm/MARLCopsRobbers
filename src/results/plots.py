@@ -59,10 +59,39 @@ def plot_curve_figure(  # noqa: PLR0913 — records + metric + stage + 2 labels 
     return _save(fig, out_path)
 
 
+def plot_two_agent_panels(  # noqa: PLR0913 — records + metric + stage + 2 panel specs + path
+    records: list[dict], metric: str, stage: int, panels: list[tuple], suptitle: str, out_path: str | Path
+) -> Path:
+    """F1/F2 (§7.3a-b): one panel per AGENT — role-filtered per-algorithm mean±SE curves.
+
+    ``panels`` = two ``(role, title, ylabel, transform)`` tuples; ``transform`` (e.g.
+    ``1 - x`` for the thief's escape rate) is applied to the mean before the SE band.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.2))
+    for ax, (role, title, ylabel, transform) in zip(axes, panels, strict=True):
+        for algorithm in _algorithms(records):
+            rounds, mean, se = curve(records, metric, algorithm, stage, role=role)
+            if not rounds:
+                continue
+            if transform:
+                mean = [transform(m) for m in mean]
+            lower = [m - s for m, s in zip(mean, se, strict=True)]
+            upper = [m + s for m, s in zip(mean, se, strict=True)]
+            (line,) = ax.plot(rounds, mean, label=algorithm.upper())
+            ax.fill_between(rounds, lower, upper, alpha=_BAND_ALPHA, color=line.get_color())
+        ax.set_xlabel("self-play round")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.legend()
+    fig.suptitle(suptitle)
+    return _save(fig, out_path)
+
+
 def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str | Path) -> Path:
     """F5: final-rounds capture rate per algorithm (bar + SE whisker)."""
     stats = final_by_algorithm(records, metric, stage)
     algos = list(stats)
+    grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
     fig, ax = plt.subplots(figsize=_FIGSIZE)
     ax.bar(
         [a.upper() for a in algos],
@@ -71,7 +100,7 @@ def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str 
         capsize=6,
     )
     ax.set_ylabel("final capture rate")
-    ax.set_title(f"IQL vs VDN vs QMIX — final capture rate (stage {stage})")
+    ax.set_title(f"IQL vs VDN vs QMIX — final capture rate ({grid}x{grid} board)")
     return _save(fig, out_path)
 
 
@@ -92,6 +121,7 @@ def plot_scaling(records: list[dict], metric: str, out_path: str | Path) -> Path
     ax.set_xlabel("grid size (cells per side)")
     ax.set_ylabel("final capture rate")
     ax.set_title("Scale effect — capture rate vs grid size")
+    ax.set_xticks(grids)  # integer parameter — no fractional ticks
     ax.legend()
     return _save(fig, out_path)
 
@@ -110,6 +140,8 @@ def plot_sensitivity(stats: dict, xlabel: str, title: str, out_path: str | Path)
     ax.set_xlabel(xlabel)
     ax.set_ylabel("final capture rate")
     ax.set_title(title)
+    if all(float(v).is_integer() for v in values):
+        ax.set_xticks(values)  # integer parameter — no fractional ticks
     return _save(fig, out_path)
 
 

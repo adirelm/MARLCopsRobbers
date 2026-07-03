@@ -31,12 +31,17 @@ def _mean_se(values: list[float]) -> tuple[float, float]:
 
 
 def curve(
-    records: list[dict], metric: str, algorithm: str, stage: int
+    records: list[dict], metric: str, algorithm: str, stage: int, role: str | None = None
 ) -> tuple[list[int], list[float], list[float]]:
-    """Per-round cross-seed mean±SE of ``metric`` for one ``(algorithm, stage)``."""
+    """Per-round cross-seed mean±SE of ``metric`` for one ``(algorithm, stage)``.
+
+    ``role`` filters to one agent's training rounds (self-play alternates cop/thief per
+    round); ``None`` pools both — pooling ``loss`` would interleave two different nets'
+    losses, so the per-agent figures (F1/F2) pass an explicit role.
+    """
     by_round: dict[int, list[float]] = defaultdict(list)
     for rec in records:
-        if rec["algorithm"] == algorithm and rec["stage"] == stage:
+        if rec["algorithm"] == algorithm and rec["stage"] == stage and role in (None, rec["role"]):
             by_round[rec["round"]].append(rec[metric])
     rounds = sorted(by_round)
     stats = [_mean_se(by_round[rd]) for rd in rounds]

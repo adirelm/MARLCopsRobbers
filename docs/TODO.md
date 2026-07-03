@@ -1,6 +1,6 @@
 # TODO — Assignment 6: MARL Cops & Robbers (Cloud-MCP, Vibe Coding)
 
-> **Group:** `adrl-001` · **Version:** `1.1.0` · **Roles:** A, B (no optional C) · **V3 software-excellence rubric.**
+> **Group:** `adrl-001` · **Version:** `1.1.0` · **SOLO submission (role A)** — the A/B work-stream labels below are planning lanes, not people · **V3 software-excellence rubric.**
 > **Ground truth:** `planning/BRIEF.md` (ex06.pdf §0-§10) + `L10-MARL.pdf`. Bibliography `[1]`-`[11]` per BRIEF §10.
 > **Companion docs:** `docs/PRD.md` (requirements), `docs/PLAN.md` (architecture/ADRs), `docs/THEORY.md`, `docs/ANALYSIS.md`, `docs/UX.md`, `README.md` (the §7 academic paper).
 >
@@ -430,7 +430,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 # P-bonus — §9 inter-group +10 (post-A6, off critical path, coordination-dependent)
 
-> **Status `[B]`:** the cross-group match needs a partner `biu-rlNN` group → **coordination dependency, not buildable solo.** The schema + interface spec ARE built now; the match is deferred. Counts toward the FINAL PROJECT, not A6.
+> **Status `[B]`:** the cross-group match needs a partner `biu-rlNN` group → **coordination dependency, not buildable solo.** The schema keys + interface contract are SPECIFIED (PRD FR-ANL-9 AC + PLAN P-bonus row); the build AND the match are deferred to the FINAL PROJECT, not A6.
 
 - [B] **TB.1 — Bonus-capable report schema** · _B_
   Extend the report serializer (off by default, A6 critical path untouched): `report_type:"bonus_game"`, `groups{group_1,group_2}`, `github_repo_group_1/2`, `students_group_1/2`, per-sub-game `cop_group`/`thief_group`, `totals_by_group`, `bonus_claim`, `mutual_agreement:bool`. Subject (exact): `[MARL Bonus Game] <GroupA> vs <GroupB> – Final Report`.
@@ -482,7 +482,7 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 | 5 | **0 secrets + `.env-example`** | tokens/JWT keys/App-Password/PII in `.env` + repo-root `players.local.yaml`; `.env-example` names-only committed; `.gitignore` covers `.env *.pem *.key credentials*.json players.local.yaml secrets/` | `check_secrets.py`; `test_no_secrets_committed.py` |
 | 6 | **uv-only (NO requirements.txt)** | CI uses `uv`; no pip/conda; `uv.lock` committed; deploy deps come from `pyproject.toml` / `uv export` — **NO `deploy/requirements.txt`** (V3 forbids requirements.txt) | CI `uv sync --frozen`; `check_no_requirements_txt.py` |
 | 7 | **Single SDK entry for UIs** (scripts exempt) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers | `test_sdk_single_entry.py`; `test_mcp_servers_have_no_logic.py` |
-| 8 | **Version = `1.0.0`** | `src/__init__.py::__version__` == `config.version` == `"1.0.0"` (3-segment mapping of V3 "1.00", ADR-0011) | `check_version.py`; `test_version_consistency.py` |
+| 8 | **Version starts `1.00`** | started `1.0.0`, now `1.1.0` (the P-bonus minor release): `src/__init__.py::__version__` == `config.version` == `pyproject` (ADR-0011) | `tests/unit/test_config_loader.py` (see the implementation note above) |
 | 9 | **§5 External-API governance** (N/A→**REQUIRED** for A6) | all peer-MCP + Gmail egress via `src/api/gatekeeper.py` + `config/rate_limits.json` | `test_egress_via_gatekeeper.py`; ADR-0006 |
 | 10 | **§10 UX / Nielsen** (N/A→**REQUIRED** — GUI mandatory) | `docs/UX.md` maps all 10 heuristics + screenshot per state | `test_required_docs_present.py` |
 | 11 | **PRD/PLAN/TODO + ADRs** | `docs/PRD.md`, `docs/PLAN.md`, this `docs/TODO.md`, `docs/prd/*`, ADRs 0001-0014 + dimension ADRs; human §1.4 sign-off before code | `test_required_docs_present.py` |
