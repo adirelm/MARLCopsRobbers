@@ -10,8 +10,29 @@ the ops, so WHICH cells/tokens/colours/text are drawn is testable headless.
 from __future__ import annotations
 
 from src.gui import palette
+from src.gui.input_map import bindings
 from src.gui.spectator import SpectatorFrame
 from src.gui.transform import GridView
+
+# Short HUD labels for the help line (§10.2 Nielsen 6: recognition over recall).
+_CMD_SHORT = {
+    "toggle_pause": "pause",
+    "speed_up": "speed+",
+    "slow_down": "speed-",
+    "next_sub_game": "next",
+    "reset": "reset",
+    "toggle_view_radius": "radius",
+    "quit": "quit",
+}
+
+
+def _help_line() -> str:
+    """The persistent HUD help/legend line — DERIVED from the real key bindings (never drifts)."""
+    keys_by_cmd: dict[str, list[str]] = {}
+    for key, cmd in bindings().items():
+        keys_by_cmd.setdefault(cmd, []).append(key)
+    parts = ["/".join(sorted(keys)) + " " + _CMD_SHORT[cmd] for cmd, keys in sorted(keys_by_cmd.items())]
+    return "Keys  " + "  ".join(parts)
 
 
 def _token(rect: tuple, color: tuple) -> dict:
@@ -53,16 +74,19 @@ def build_board_plan(frame: SpectatorFrame, view: GridView, show_radius: bool = 
 
 
 def build_hud_plan(frame: SpectatorFrame) -> list[dict]:
-    """Return the HUD text ops (sub-game / move / scores / last action / winner)."""
+    """Return the HUD text ops (sub-game / move / scores / totals / last / winner / help)."""
     lines = [
         f"Sub-game {frame.sub_game}/{frame.num_games}",
         f"Move {frame.move}/{frame.max_moves}",
         f"Scores  cop {frame.scores['cop']}  thief {frame.scores['thief']}",
+        f"Totals  cop {frame.totals['cop']}  thief {frame.totals['thief']}",
     ]
     if frame.last_action:
         lines.append("Last  " + "  ".join(f"{k}:{v}" for k, v in frame.last_action.items()))
     if frame.winner:
         lines.append(f"WINNER: {frame.winner.upper()}")
+    lines.append(_help_line())  # persistent key-bindings help (§10.2 Nielsen 6 + 10)
+    lines.append("Legend  cop=blue  thief=red  barrier=grey")  # token legend (own line — fits 720px)
     return [
         {"kind": "text", "pos": (8, 8 + i * (palette.FONT_PX + 4)), "text": t, "color": palette.TEXT}
         for i, t in enumerate(lines)

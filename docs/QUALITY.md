@@ -42,6 +42,11 @@ files. Evidence: `src/mcp/jwt_auth.py` (codex-validated); `src/mcp/schemas.py`; 
 Every `.py` ≤150 LOC; all business logic behind the single `MarlSDK` seam; OOP with no
 duplication; ruff(+D) clean; ADRs record every decision. Evidence:
 `scripts/check_file_sizes.py`; the ADR index in `docs/PLAN.md` §6; the per-section commit trail.
+**Extension points (V3 §12):** the `Mixer` ABC (QMIX/VDN swap; a new mixer is one subclass),
+the learner branch seam (IQL vs CTDE, ADR-0008), the `EmailSender` Protocol (App-Password ↔ OAuth
+drop-in), the `StateClient` trio (in-proc / replay / HTTP spectator feeds), and the
+`build_verifier` auth seam (static bearer ↔ RS256 JWT) — each is one interface, already exercised
+by two implementations or a test double.
 
 ## Portability
 `uv` + `pyproject.toml` (no `pip`/`requirements.txt`); pure-Python + torch; headless via

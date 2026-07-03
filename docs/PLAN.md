@@ -161,7 +161,7 @@ Assignment6-MARLCopsRobbers/
 ├── pyproject.toml                  # name=marl-cops-robbers, version="1.0.0", uv groups dev/mcp/mail
 ├── uv.lock                         # committed (uv-only hard gate)
 ├── .python-version                 # 3.11
-├── .env-example                    # tokens + Gmail + (PII handled via secrets/, see ADR-0013) — committed
+├── .env-example                    # tokens + Gmail (PII in repo-root players.local.yaml, ADR-0013) — committed
 ├── .gitignore                      # .env .env.* *.pem *.key credentials*.json secrets/ adrl-001-ex*.pdf instructions/ artifacts/
 │                                    #   + allow-list exception: !deploy/model/*.pt (reserved for the Stage-2 actor checkpoint, committed at deploy time)
 ├── .github/
@@ -253,7 +253,7 @@ Assignment6-MARLCopsRobbers/
 │   ├── reporting/
 │   │   ├── schema.py               # @dataclass Student/SubGame/MatchReport + to_dict/validate  ~130
 │   │   ├── collector.py            # MatchRecorder: zoneinfo timestamps, per-sub-game capture    ~110
-│   │   ├── players.py              # load_players() from git-ignored secrets/players.local.yaml  ~70
+│   │   ├── players.py              # load_players() from git-ignored repo-root players.local.yaml  ~70
 │   │   ├── builder.py              # build_report() + winner→scores map + format_subject()       ~110
 │   │   ├── mailer.py               # EmailSender Protocol + GmailMailer(smtplib) + Fake          ~120
 │   │   ├── redact.py               # write role-only redacted JSON to results/reports/           ~60
@@ -310,7 +310,7 @@ Assignment6-MARLCopsRobbers/
 │   ├── screenshots/                # GUI @2/3/4/5 + MCP CLI-log proof (§7.3 c,d)
 │   ├── reports/*.redacted.json     # role-only report evidence (real *.real.json git-ignored)
 │   └── experiment_manifest.json    # seeds, config hashes, git commit, run IDs
-├── secrets/                        # GIT-IGNORED: players.local.yaml (real names/ids)
+├── players.local.yaml              # GIT-IGNORED (real names/ids — repo root AS BUILT, not a secrets/ dir)
 ├── instructions/                   # GIT-IGNORED: brief PDFs, lecturer feedback, audit, cover sheet
 └── notebooks/analysis.ipynb        # consumes MarlSDK ONLY; LaTeX equations
 ```
@@ -522,7 +522,7 @@ human sign-off before the corresponding code lands.
 | **0010** | OLoRA scope & init | Pre-trained model = locally BC-cloned per-role encoder; OLoRA = paper-exact QR on the **pretrained** weight `W0` (eq 10-11, function-preserving rebase), wraps **encoder Linears only**, `rank=4` (assert ≤min(m,n)//2), `scale=8`; default OFF for from-scratch 5×5, ON for curriculum transfer | Only honest reading of §5.2 "pre-trained models + OLoRA (QR on pretrained weight matrices)" satisfying "training MUST be local"; reject QR-of-random-matrix (that is orthonormal-LoRA, not OLoRA) — the rejection is §7.2 grade evidence. |
 | **0011** | Referee-mediated dual-MCP topology, process isolation, per-session GRU state | 3 OS processes: 2 peer FastMCP servers + 1 neutral referee = THE ENVIRONMENT (CTDE global-state holder), NOT a third player; real cop↔thief HTTP `reveal_location` each tick (evidence-only); each agent server keeps **server-side per-sub-game GRU hidden state** `z_t` (keyed by session id, reset on `new_sub_game`) — agent servers are NOT `FASTMCP_STATELESS_HTTP` | Both planning legs converged; removes cop-as-self-referee conflict the §9 `mutual_agreement` exposes; makes train-global/exec-local literal in code. Processes (not threads) avoid FastMCP-async/Pygame/torch deadlock. The recurrent policy (eq 8) MUST carry `z_t` across the ~25 `request_move` ticks, so stateless HTTP is rejected for the agent servers (session-state holds it server-side; same contract localhost==cloud). Server-side `z_t` therefore requires a **single worker** (`cloud.workers: 1`); the free single-instance tier already provides this, and **client-carried hidden state** is the documented fallback if the host ever scales beyond one worker. |
 | **0012** | Cloud platform & auth | Primary host = **Prefect Horizon / FastMCP Cloud** (push-to-deploy, `*.fastmcp.app/mcp`); Render free-tier fallback (pre-tested); auth = app-level **revocable Bearer JWT** (RS256) inside FastMCP, NOT Horizon OAuth; revoke via jti deny-list (primary) + key rotation (hard lever) | §8.3 names this infra; identical auth gate runs on localhost AND cloud (never rewritten); §5.3 demands a revocable token + screenshottable 401. Inference-only deploy (actor nets; mixer/replay/`s` stay local). |
-| **0013** | Gmail mechanism & PII boundary | smtplib + STARTTLS + Gmail **App-Password** (default) behind an `EmailSender` Protocol (OAuth `GmailApiSender` drop-in fallback); real names/ids ONLY in git-ignored `secrets/players.local.yaml`, injected at send time; only role-only redacted JSON committed | Autonomous no-human-in-the-loop Cop (§3.5) can't do OAuth's interactive consent; App-Password is one revocable `.env` secret vs a tracked `token.json` hazard; §5.5 explicitly blesses it. PII deny-list is a hard gate. |
+| **0013** | Gmail mechanism & PII boundary | smtplib + STARTTLS + Gmail **App-Password** (default) behind an `EmailSender` Protocol (OAuth `GmailApiSender` drop-in fallback); real names/ids ONLY in the git-ignored repo-root `players.local.yaml`, injected at send time; only role-only redacted JSON committed | Autonomous no-human-in-the-loop Cop (§3.5) can't do OAuth's interactive consent; App-Password is one revocable `.env` secret vs a tracked `token.json` hazard; §5.5 explicitly blesses it. PII deny-list is a hard gate. |
 | **0014** | GUI = Pygame god-view spectator | Pygame (over Tkinter/Streamlit); strict read-only god-view fed by referee ground truth via frozen `SpectatorFrame`; dual read path (in-proc Stage-1 default, HTTP `/spectator` SSE Stage-2, separate spectator token); render literals local in `palette.py` | True real-time loop + clean headless `SDL_VIDEODRIVER=dummy` capture for §7.3c; reuses A5's proven ≤150-LOC module split; spectator never affects partial observability (hard test). |
 
 Supporting policy ADRs documented in the same index: version `1.0.0` (3-segment mapping of V3
@@ -644,7 +644,7 @@ email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladd
 | Ruff 0 violations | `ruff check` + `ruff format --check`; PLR2004 ignored in tests only | the CI "Ruff lint" + "Ruff format check" steps |
 | Docstring gate (every module/class/public fn) | Ruff `D` rules in the lint select (`D` per-file-ignored for `tests/`); every package `__init__.py` carries a one-line module docstring | `ruff check` (Ruff `D`); the CI "Ruff lint" step |
 | 0 hardcoded values | grid/moves/games/barriers/scoring/ports/hyperparams/recipient/templates in `config.yaml`; render literals local | `scripts/check_no_hardcode.py`; `test_config_single_source` |
-| 0 secrets + `.env-example` | tokens/keys/App-Password/PII in `.env` + `secrets/`; `.env-example` names-only; `.gitignore` covers `.env *.pem *.key credentials*.json secrets/` | `scripts/check_secrets.py`; redaction middleware + `redact_logs.py` before screenshots |
+| 0 secrets + `.env-example` | tokens/keys/App-Password in `.env`; PII in repo-root `players.local.yaml`; `.env-example` names-only; `.gitignore` covers `.env *.pem *.key credentials*.json players.local.yaml` | the CI secrets grep (see the note above); redaction in `src/results/comms.py` before captures |
 | uv-only | CI uses `uv`; no pip/conda; `uv.lock` committed | the CI "Sync deps" step (`uv sync --frozen`) |
 | Single SDK entry (UIs) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers (exempt) | `test_sdk_single_entry`, `test_mcp_servers_have_no_logic` |
 | Version starts at 1.00 | started `1.0.0`, now `1.1.0` (the L11 §5 Minimax-Q bonus minor release — distinct from the deferred §9 P-bonus phase) in `src/__init__.py` + `config.version` + `pyproject` | `tests/unit/test_config_loader.py` (see the implementation note above) |

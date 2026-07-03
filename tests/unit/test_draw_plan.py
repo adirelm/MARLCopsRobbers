@@ -71,13 +71,24 @@ def test_view_radius_overlay_marks_the_manhattan_disk():
 
 
 def test_hud_plan_has_move_scores_and_winner():
-    """The HUD renders the move, scores, last action, and a winner banner at terminal."""
+    """The HUD renders move, scores, TOTALS, last action, a winner banner, and the help line."""
     texts = [op["text"] for op in build_hud_plan(_frame(winner="cop"))]
     assert any("Move 4/25" in t for t in texts)
     assert any("Scores" in t for t in texts)
+    assert any("Totals" in t for t in texts)
     assert any("Last" in t for t in texts)
     assert any("WINNER: COP" in t for t in texts)
     assert all(op["kind"] == "text" for op in build_hud_plan(_frame()))
+
+
+def test_hud_help_line_is_derived_from_the_real_bindings():
+    """The persistent help + legend lines list every bound command (derived, so they can't drift)."""
+    texts = [op["text"] for op in build_hud_plan(_frame())]
+    help_line, legend = texts[-2], texts[-1]
+    assert help_line.startswith("Keys")
+    for fragment in ("space pause", "v radius", "escape quit"):
+        assert fragment in help_line
+    assert legend.startswith("Legend") and "cop=blue" in legend
 
 
 def test_hud_plan_omits_last_and_winner_on_opening_frame():

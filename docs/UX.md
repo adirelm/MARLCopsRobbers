@@ -64,6 +64,6 @@ timeout self-explanatory (→ `state_terminal.png`). Replay + reset let the user
 
 ## 10. Help and documentation
 This `docs/UX.md` is the GUI's reference; `scripts/play.py --help` documents the
-launch flags (`--config --seed --live/--replay --referee-url --token`); the
+launch flags (`--seed --grid`; config comes from `config/config.yaml` via the SDK); the
 in-window legend line documents the controls. The README §7.3c embeds the
 screenshot matrix.

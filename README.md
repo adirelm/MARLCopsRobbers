@@ -16,8 +16,9 @@ end-of-game **Gmail** report.
 ## Installation
 
 ```bash
-uv sync --dev          # uv-only (no pip/conda). add --group mcp --group mail for the servers + report.
-uv run pytest tests/ --cov=src   # quality gates (≥85% coverage)
+uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
+                                              #   add --group mail only for the live report send
+uv run pytest tests/ --cov=src   # quality gates (536 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -25,7 +26,7 @@ uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
 
 ## Usage
 
-Single-SDK entry + thin surfaces (all working):
+Single-SDK entry + thin surfaces (all verified working after the Installation line above):
 
 ```bash
 uv run python -m src.cli train --algo qmix      # local CTDE training (curriculum 2×2→5×5)
@@ -144,7 +145,7 @@ the joint max over the centrally-mixed value removes the marginalization. CTDE t
 γ / target cadence **and the configured 256-episode replay warmup**; only the mixer (or the IQL
 branch) differs (5 seeds, mean±SE). The expressive QMIX mixer is the **least stable at this budget**.
 At 3×3 all three converge close (IQL = VDN = **0.95**, QMIX **0.92**); but at the harder **4×4
-two-cop** stage QMIX's monotonic hypernetwork **destabilizes** — its F1 curve oscillates and lands at
+two-cop** stage QMIX's monotonic hypernetwork **destabilizes** — its F1 curve oscillates and settles at
 **0.63 ± 0.05**, *below* the simpler **VDN (0.84, the most consistent)** and **IQL (0.82, a strong
 baseline)**. This is the studied non-convergence phenomenon (risk R1) and a well-known MARL result:
 QMIX is strictly **more expressive** than VDN/IQL but **harder to train**, so at a bounded 50-round
@@ -176,6 +177,15 @@ for curriculum transfer (orthonormal low-rank deltas on a frozen encoder), **not
 non-stationarity (citing `[4]`,`[8]`). Rejected readings: random-matrix-QR init, an LLM bolt-on,
 and `r ≥ dim` (defeats the low-rank point) — all out of scope.
 
+**(5) Ethics of autonomous agents (ex06 §1.1 learning outcome 4).** Pursuit RL is dual-use: the same
+CTDE machinery that plays this grid game underlies real surveillance/tracking applications, and the
+brief's explicit design — agents acting in the cloud with *no human in the loop* — raises the
+accountability question of who answers for an autonomous agent's action. That is why this repo's
+controls are governance as much as engineering: revocable bearer/JWT auth bounds WHO can drive an
+agent, the single egress gatekeeper bounds + logs WHAT it can reach, and the PII deny-list/redaction
+bounds what it can disclose. Limitation analysis (§6) and these controls together address outcome 4's
+"limits and real-world implications" pairing.
+
 ### 7.3 Results — the controlled experiment + figures
 
 **Single controlled experiment** (D10 §C): identical nets / replay / ε-decay / γ / target cadence —
@@ -194,7 +204,8 @@ the right panel shows the thief's escape rate climbing in mirror: §7.2's non-st
 QMIX's wider band is the monotonic-mixer training instability (R1). Train reads global `s`, exec local `o_i`.*
 
 ![F5 baseline comparison](results/figures/baseline_comparison.png)
-*F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers): VDN most consistent (0.84), IQL a
+*F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers; "final" = mean over each seed's
+LAST 5 rounds, `aggregate.final_by_algorithm`, which is why it differs from the F1 endpoint): VDN most consistent (0.84), IQL a
 strong baseline (0.82); the more expressive QMIX is the least stable at this 50-round budget (0.63±0.05).*
 
 ![F6 scaling](results/figures/scaling.png)
@@ -236,7 +247,7 @@ overlay state (`state_view_radius.png`) is referenced from [`docs/UX.md`](docs/U
 
 End-to-end evidence: [`results/subgames/full_match_5x5.redacted.json`](results/subgames/full_match_5x5.redacted.json)
 is a full 6-sub-game §3.5 report (role-only, PII-redacted) produced by `sdk.run_local_match` with FRESH
-nets — schema/pipeline proof (trained performance lives in F1/F5's 45-run matrix). The SDK-only analysis
+nets — schema/pipeline proof (trained performance lives in the 45-run matrix behind F1/F5/F6). The SDK-only analysis
 notebook — LaTeX equations, all figures, citations, committed **executed** — is
 [`notebooks/analysis.ipynb`](notebooks/analysis.ipynb). The figure manifest:
 
