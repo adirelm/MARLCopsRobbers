@@ -1,6 +1,6 @@
-# PLAN — Assignment 6: MARL Cops & Robbers (adrl-001) — v1.1.0
+# PLAN — Assignment 6: MARL Cops & Robbers (adrl-001) — v1.1.1
 
-> **Group code:** `adrl-001` · **Version:** `1.1.0` · **Solo submission** (work-streams WS1 / WS2, §10 R16)
+> **Group code:** `adrl-001` · **Version:** `1.1.1` · **Solo submission** (work-streams WS1 / WS2, §10 R16)
 > **Source of truth:** `planning/BRIEF.md` (distilled `ex06.pdf`, Dr. Yoram Segal, 2026) +
 > `L10-MARL.pdf`. Governed by the V3 software-excellence guidelines and `CLAUDE.md` §1.4.
 >
@@ -653,7 +653,7 @@ email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladd
 | 0 secrets + `.env-example` | tokens/keys/App-Password in `.env`; PII in repo-root `players.local.yaml`; `.env-example` names-only; `.gitignore` covers `.env *.pem *.key credentials*.json players.local.yaml` | the CI secrets grep (see the note above); redaction in `src/results/comms.py` before captures |
 | uv-only | CI uses `uv`; no pip/conda; `uv.lock` committed | the CI "Sync deps" step (`uv sync --frozen`) |
 | Single SDK entry (UIs) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers (exempt) | `test_sdk_single_entry`, `test_mcp_servers_have_no_logic` |
-| Version starts at 1.00 | started `1.0.0`, now `1.1.0` (the L11 §5 Minimax-Q bonus minor release — distinct from the deferred §9 P-bonus phase) in `src/__init__.py` + `config.version` + `pyproject` | `tests/unit/test_config_loader.py` (see the implementation note above) |
+| Version starts at 1.00 | started `1.0.0` → `1.1.0` (L11 §5 Minimax-Q bonus) → now `1.1.1` (post-audit hardening; distinct from the deferred §9 P-bonus phase) in `src/__init__.py` + `config.version` + `pyproject` | `tests/unit/test_config_loader.py` (see the implementation note above) |
 | PRD/PLAN/TODO + ADRs | this PLAN + PRD + TODO + ADRs 0001–0014 with §1.4 sign-off | `test_required_docs_present` + ADR-count check |
 | No PII in tracked content | real names/ids only in the git-ignored repo-root `players.local.yaml`, injected at send time; cover sheet git-ignored, **skip-when-absent** (never asserted present — MEMORY: this broke A5 CI) | `scripts/check_pii.py`; `test_no_pii_in_tracked_content`; `test_cover_sheet_gitignored` (skip-when-absent) |
 | §5 External-API governance (flips REQUIRED) | `ApiGatekeeper` + `rate_limits.json`; all egress routed through it | ADR-0009; `test_egress_via_gatekeeper` |

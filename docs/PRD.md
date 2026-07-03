@@ -1,6 +1,6 @@
 # PRD — Assignment 6: MARL Cops & Robbers (Cloud-MCP, Vibe Coding)
 
-> **Group:** `adrl-001` · **Version:** `1.1.0` · **Recipient of record:** `rmisegal+marl@gmail.com`
+> **Group:** `adrl-001` · **Version:** `1.1.1` · **Recipient of record:** `rmisegal+marl@gmail.com`
 > **Source of truth:** `planning/BRIEF.md` (distilled from `ex06.pdf`, 23 pp, Dr. Yoram Segal, 2026) + `L10-MARL.pdf`.
 > **Grading rubric:** V3 software-excellence guidelines (`software_submission_guidelines V3.00`).
 > **Status:** Foundational requirements document. Human-decided columns (CLAUDE.md §1.4) are LOCKED by the architect; AI executes against this spec.
@@ -121,7 +121,7 @@ The *faithful* game is a general-sum **POSG** (eq 3) `G = ⟨I, S, {A_i}, {O_i},
 | **K4 Match completeness** | Exactly **6 valid** sub-games per match; technical losses replayed (§3.7) | integration test with fault injection | `tests/integration/test_match.py` |
 | **K5 Reproducibility** | The four **plotted** figures **F1/F2/F5/F6** regenerate from `uv run python -m src.results.make_figures` reading `results/runs/*.jsonl`, with zero README/code drift; **F3 (GUI) + F4 (MCP-comms) are deterministically CAPTURED** (headless screenshot / redacted comms log), **not plotted from JSONL** — they reproduce via their seeded capture scripts | `results/runs/*.jsonl` + `experiment_manifest.json` (runs, arms, stages, seeds, config hash) for F1/F2/F5/F6; seeded capture scripts for F3/F4 | F1–F6 + manifest |
 | **K6 Cloud comms** | One shared `trace_id` appears in BOTH servers' logs for cop↔thief calls; 401 without token; revoke demo | cloud smoke run + redacted captures | Stage-2 captures (`cloud_auth_401.png` etc.) are **account-gated, NOT captured** (README §6); the localhost equivalents ARE shipped: F4 + F4b (`mcp_comms_http.png`, real HTTP + bearer) and live 401/revoke tests |
-| **K7 V3 hard gates** | All green (≤150 LOC/file, ≥85% cov, ruff 0, no-hardcode, no-secrets, uv-only, single-SDK-entry, version 1.1.0) | CI pipeline + `software-excellence-v3` audit | `instructions/assignment-6/submission_guidelines_audit.md` |
+| **K7 V3 hard gates** | All green (≤150 LOC/file, ≥85% cov, ruff 0, no-hardcode, no-secrets, uv-only, single-SDK-entry, version 1.1.1) | CI pipeline + `software-excellence-v3` audit | `instructions/assignment-6/submission_guidelines_audit.md` |
 | **K8 Seeds** | ≥3 seeds `[7,17,37]` floor; 5 `[7,17,37,71,107]` for error-bar strength | run manifest | F1/F5/F6 with mean±SE |
 
 ---
@@ -405,7 +405,7 @@ These FRs cover the V3 sections that flip from N/A→REQUIRED for A6 (external A
 | **NFR-5** | **No secrets + `.env-example` only** | tokens/OAuth/App-Password/PII in `.env`; `.env-example` committed (names only); `.gitignore` covers `.env`, `*.pem`, `*.key`, `credentials*.json`, `secrets/` | the CI "Secrets + recipient guard" step (`.github/workflows/ci.yml`) |
 | **NFR-6** | **uv-only** | CI uses `uv`; no pip/conda; `uv.lock` committed; `uv sync --frozen` | the CI "Sync deps" step |
 | **NFR-7** | **Single SDK entry for UIs** | `src/sdk/sdk.py::MarlSDK` is the only business-logic entry; GUI/MCP/report/scripts import only `src.sdk` (scripts exempt from the single-entry rule, NOT from size/lint) | `tests/architecture/test_import_boundary.py`, `tests/architecture/test_train_exec_split.py` |
-| **NFR-8** | **Version starts at stated version** | `__version__ = "1.1.0"` in `src/__init__.py` == `config.version` (started at V3 "1.00"; 1.1.0 = the P-bonus minor release) | `tests/unit/test_config_loader.py`; ADR-0011 |
+| **NFR-8** | **Version starts at stated version** | `__version__ = "1.1.1"` in `src/__init__.py` == `config.version` (started V3 "1.00"; 1.1.0 = Minimax-Q bonus, 1.1.1 = post-audit hardening) | `tests/unit/test_config_loader.py`; ADR-0011 |
 | **NFR-9** | **§5 External-API governance (flips N/A→REQUIRED)** | A6 makes real runtime HTTP (peer MCP) + Gmail + Prefect-deploy calls → `src/api/gatekeeper.py::ApiGatekeeper` (`execute` + `get_queue_status`; per-channel token-bucket from versioned `config/rate_limits.json`; FIFO overflow queue `max_queue:256`, no crash; all calls logged) — see FR-API-1 | `tests/architecture/test_egress_via_gatekeeper.py`; ADR-0006 |
 | **NFR-10** | **§10 Nielsen heuristics (flips N/A→REQUIRED)** | GUI is now mandatory → `docs/UX.md` maps all 10 heuristics with a screenshot per state | `tests/architecture/test_required_docs_present.py`; ADR-0010 |
 | **NFR-11** | **Docs-first SDLC (PRD/PLAN/TODO + per-area PRDs + ADRs)** | this PRD + `docs/PLAN.md` (C4/UML/deployment + ADRs **0001–0014**) + `docs/TODO.md` + the four per-area `docs/prd/PRD-{ENV,CTDE,MCP,REPORT}.md` exist with human §1.4 sign-off before feature code | `test_required_docs_present.py` enumerates `docs/prd/PRD-ENV.md`, `PRD-CTDE.md`, `PRD-MCP.md`, `PRD-REPORT.md` (+ COST_ANALYSIS/QUALITY/UX/PROMPTS) + ADR-count check (0001–0014) |

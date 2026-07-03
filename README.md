@@ -7,7 +7,7 @@ decomposition** (QMIX primary, VDN ablation, IQL baseline), each agent runs behi
 **FastMCP server** (localhost → cloud), visualized live in a **Pygame** GUI, with an
 end-of-game **Gmail** report.
 
-> **Status: COMPLETE (v1.1.0).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
+> **Status: COMPLETE (v1.1.1 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
 > (538 tests, ~99.4% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:

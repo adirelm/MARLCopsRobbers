@@ -1,6 +1,6 @@
 # THEORY — Dec-POMDP / POSG formalism (Assignment 6, T1.1)
 
-> **Group:** `adrl-001` · **Version:** `1.1.0` · **Source of truth:** `planning/BRIEF.md`
+> **Group:** `adrl-001` · **Version:** `1.1.1` · **Source of truth:** `planning/BRIEF.md`
 > (ex06.pdf §2.1, eq 1 / eq 3) + `L10-MARL.pdf`. Bibliography `[1]`–`[11]` per BRIEF §10.
 > This is the **theory-first** (BRIEF §6.1) companion to README §7.1. Every value
 > below is read from `config/config.yaml` — no number is hardcoded in prose or code.
