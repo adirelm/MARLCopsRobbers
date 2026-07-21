@@ -311,3 +311,13 @@ wire protocol ([`docs/interfaces/intergroup_mcp.md`](docs/interfaces/intergroup_
 Per §9.3, this section will record — once the match is played and both groups agree —
 the opponent group's name, the final `totals_by_group`, our `bonus_claim`, and
 screenshots of the bonus match.
+
+**Match lineup (selected by a 10-seed 5×5 self-play tournament,
+[`results/bonus/selection_report.json`](results/bonus/selection_report.json)):** cop =
+the seed-7 QMIX net ([`deploy/model/bonus_cop.pt`](deploy/model/bonus_cop.pt), 59/60
+captures vs a partial-obs fleeing evader, healthy barrier use); thief = the local-obs
+greedy-flee policy (0/180 captures conceded to any barrier-less chaser in our evals),
+with the seed-23 net ([`deploy/model/bonus_thief.pt`](deploy/model/bonus_thief.pt)) as
+the contingency against a barrier-placing opponent cop. Selection matters: ~1 in 6
+training seeds converges to a degenerate barrier-spammer (0% capture) — cross-eval
+selection is what turns the trained cop into the match asset.
