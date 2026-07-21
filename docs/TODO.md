@@ -446,7 +446,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 # P-bonus — §9 inter-group +10 (post-A6, off critical path, coordination-dependent)
 
-> **Status `[B]`:** the cross-group match needs a partner `biu-rlNN` group → **coordination dependency, not buildable solo.** The schema keys + interface contract are SPECIFIED (PRD FR-ANL-9 AC + PLAN P-bonus row); the build AND the match are deferred to the FINAL PROJECT, not A6.
+> **Status `[B]`:** the serializer/schema/spec are now **BUILT** (`src/reporting/bonus.py` + `bonus_send.py` + `docs/schema/bonus.schema.json` + `docs/interfaces/intergroup_mcp.md`, tested); a partner group is **CONFIRMED**. Remaining = the coordination part: freeze the rules agreement, play the 6 sub-games, byte-compare drafts, both groups email. Counts toward the FINAL PROJECT, not A6.
 
 - [B] **TB.1 — Bonus-capable report schema** · _B_
   Extend the report serializer (off by default, A6 critical path untouched): `report_type:"bonus_game"`, `groups{group_1,group_2}`, `github_repo_group_1/2`, `students_group_1/2`, per-sub-game `cop_group`/`thief_group`, `totals_by_group`, `bonus_claim`, `mutual_agreement:bool`. Subject (exact): `[MARL Bonus Game] <GroupA> vs <GroupB> – Final Report`.

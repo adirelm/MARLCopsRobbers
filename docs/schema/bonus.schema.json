@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MARL Cops & Robbers — ex06 §9 inter-group BONUS report body",
+  "description": "Structural gate for the §9.4 bonus JSON (the §3.5 sub-game fields are KEPT + cop_group/thief_group added). Uses only the jsonschema_min keyword subset; the group-keyed objects (totals_by_group / bonus_claim) and all derived-value invariants are enforced semantically by src/reporting/bonus.py::validate_bonus.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_type", "groups", "github_repo_group_1", "github_repo_group_2", "timezone",
+    "students_group_1", "students_group_2", "sub_games", "totals_by_group",
+    "bonus_claim", "mutual_agreement"
+  ],
+  "properties": {
+    "report_type": { "type": "string", "enum": ["bonus_game"] },
+    "groups": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_1", "group_2"],
+      "properties": { "group_1": { "type": "string" }, "group_2": { "type": "string" } }
+    },
+    "github_repo_group_1": { "type": "string" },
+    "github_repo_group_2": { "type": "string" },
+    "timezone": { "type": "string" },
+    "students_group_1": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "full_name", "id"],
+        "properties": {
+          "role": { "type": "string" },
+          "full_name": { "type": "string" },
+          "id": { "type": "string" }
+        }
+      }
+    },
+    "students_group_2": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "full_name", "id"],
+        "properties": {
+          "role": { "type": "string" },
+          "full_name": { "type": "string" },
+          "id": { "type": "string" }
+        }
+      }
+    },
+    "sub_games": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "start", "end", "moves", "winner", "scores", "cop_group", "thief_group"],
+        "properties": {
+          "id": { "type": "integer" },
+          "start": { "type": "string" },
+          "end": { "type": "string" },
+          "moves": { "type": "integer" },
+          "winner": { "type": "string", "enum": ["cop", "thief"] },
+          "scores": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cop", "thief"],
+            "properties": { "cop": { "type": "integer" }, "thief": { "type": "integer" } }
+          },
+          "cop_group": { "type": "string" },
+          "thief_group": { "type": "string" }
+        }
+      }
+    },
+    "totals_by_group": { "type": "object" },
+    "bonus_claim": { "type": "object" },
+    "mutual_agreement": { "type": "boolean" }
+  }
+}

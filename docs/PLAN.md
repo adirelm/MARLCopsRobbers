@@ -30,7 +30,7 @@ acceptable*). The following are all in scope for the A6 build:
 | Two FastMCP servers | Cop + Thief, separate OS processes, HTTP comms; **localhost (Stage 1) AND cloud deploy (Stage 2)** | §5.3, §6.8, §8 |
 | Pygame GUI | Real-time god-view spectator at 2×2/3×3/4×4/5×5 | §5.4, §7.3c |
 | Gmail report | One auto email by the Cop at whole-game end (smtplib + App-Password, OAuth fallback) | §3.5, §5.5, §6.9 |
-| §9 bonus capability | Bonus report schema + inter-group contract **specified** (keys enumerated in PRD FR-ANL-9 AC); **build deferred to the final project** (needs a partner group) | §9 |
+| §9 bonus capability | Bonus report serializer + schema + inter-group agreement/wire spec **BUILT** (`src/reporting/bonus*.py`, `docs/schema/bonus.schema.json`, `docs/interfaces/intergroup_mcp.md`); partner CONFIRMED, match pending the agreement freeze | §9 |
 
 **Coordination dependency (not buildable solo):** the actual §9 cross-group match needs a
 partner `biu-rlNN` group. We ship the *schema* and the *interface spec*; the live bonus match
@@ -307,7 +307,7 @@ Assignment6-MARLCopsRobbers/
 │   ├── prd/{PRD-ENV,PRD-CTDE,PRD-MCP,PRD-REPORT}.md
 │   ├── adr/0001..0014.md
 │   ├── schema/report.schema.json   # draft-2020-12 §3.5 report contract (grading evidence)
-│   ├── interfaces/intergroup_mcp.md# §9 inter-group spec (PLANNED — final project; not yet in repo)
+│   ├── interfaces/intergroup_mcp.md# §9 inter-group rules agreement + wire protocol (BUILT)
 │   └── shared/PROMPTS.md           # literal prompts used (§1.4 evidence)
 ├── results/
 │   ├── README.md                   # what lives here; heavy artifacts git-ignored
@@ -625,7 +625,7 @@ GUI → cloud → Gmail. Each phase has an **exit gate** that must pass before t
 | **P9** | Gmail report | `reporting/*` (schema/collector/players/builder/mailer/redact/idempotency); `docs/schema/report.schema.json`; `sdk.send_final_report` (idempotent, sha256 sentinel, PII from secrets); wire cop's record→send after 6th valid sub-game; `smtp_smoke.py` | one email received at `rmisegal+marl@gmail.com`; JSON validates vs §3.5; idempotency + no-PII-in-tracked tests pass |
 | **P10** | Results | `results/aggregate.py`+`plots.py`+`make_figures.py`; run sweep (IQL/VDN/QMIX × 5 seeds × ladder); generate F1–F6; **§9 single-parameter sensitivity sweep** (e.g. `view_radius` / `olora.rank` / `selfplay.window_k` / `reward.distance_weight` → capture-rate effect + figure — DISTINCT from the algorithm ablation); **`notebooks/analysis.ipynb`** (SDK-only: LaTeX Dec-POMDP/QMIX equations; displays F1/F2/F5/F6 + the sensitivity figure + F7; citations); `experiment_manifest.json`; write README §7 academic body (7.1 formalisms + eq map; 7.2 four sub-parts incl. IQL-vs-CTDE F5, IGM limits + QPLEX[10]/WQMIX[9], curriculum[5]/MAPPO; 7.3 captioned figures); risk register in PLAN + README §8 | all 6 figures present + non-placeholder; sensitivity figure present; notebook runs via SDK; numbers reproducible from `runs/`; README §7 complete |
 | **P11** | Gate | `software-excellence-v3` audit; confirm all hard gates; **`docs/COST_ANALYSIS.md`** (§11: AI-dev token-cost breakdown — input/output tokens, $/1M per model, total — plus the local-only RL training-compute envelope: episodes × stages × wall-clock + optimization notes); **`docs/QUALITY.md`** (§13: ISO/IEC 25010 mapping of ALL EIGHT characteristics — Functional Suitability, Performance Efficiency, Compatibility, Usability, Reliability, Security, Maintainability, Portability); self-grade; produce git-ignored cover sheet `adrl-001-ex06.pdf` (Moodle only, never asserted in a test); freeze 24h pre-deadline | all V3 hard gates ✅; COST_ANALYSIS + QUALITY present; audit doc + self-grade written; code frozen |
-| **P-bonus** | §9 post-A6 | Inter-group interface spec + bonus report-schema branch (`report_type:bonus_game`, `groups`, `students_group_1/2`, per-sub-game `cop_group`/`thief_group`, `totals_by_group`, `bonus_claim`, `mutual_agreement`) — keys **specified** here + PRD FR-ANL-9 AC; **implementation deferred to the final project**; **off A6 critical path; live match needs a partner `biu-rlNN` group** | keys enumerated (this row + FR-ANL-9); build + match deferred; if a partner is found: build, then both groups email + `mutual_agreement:true` |
+| **P-bonus** | §9 post-A6 | Inter-group interface spec + bonus report serializer — **BUILT** (`src/reporting/bonus.py` + `bonus_send.py`, `docs/schema/bonus.schema.json`, `docs/interfaces/intergroup_mcp.md`): `report_type:bonus_game`, `groups`, `students_group_1/2`, per-sub-game `cop_group`/`thief_group`, derived `totals_by_group` + `bonus_claim`, `mutual_agreement`; **off A6 critical path; partner group CONFIRMED, match pending the agreement freeze** | serializer + schema + spec present and tested; match: freeze the 11-row agreement, play 6 valid sub-games, byte-compare drafts, both groups email + `mutual_agreement:true` |
 
 **Load-bearing ordering:** P10 needs P4 (training) + P6 (orchestration); F4 needs P5; F3 needs P7;
 email JSON (P9) needs P6 tally; the §11.3 scale figure (F6) needs the full-ladder P4 sweep; cloud

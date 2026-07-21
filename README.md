@@ -295,3 +295,19 @@ The full P×I register with mitigation + fallback per owner-phase is in
 
 The full sixteen entries (incl. formalism-mismatch R4, IGM-critique depth R9, OLoRA ambiguity R12,
 late-penalty R15, solo-overload R16) are tabulated in `docs/PLAN.md §10`.
+
+---
+
+## 9. Inter-group bonus match (ex06 §9 — counts toward the FINAL PROJECT)
+
+**Status: PREPARED — a partner group is confirmed; the match has not been played yet.**
+Our §9 stack is built and tested: the `bonus_game` report serializer + §9.2 claim
+derivation ([`src/reporting/bonus.py`](src/reporting/bonus.py)), the PDF-exact subject +
+dual-block redaction + one-valid-email idempotent send
+([`src/reporting/bonus_send.py`](src/reporting/bonus_send.py)),
+[`docs/schema/bonus.schema.json`](docs/schema/bonus.schema.json), partner-identity intake
+(`players.partner.local.yaml`, git-ignored), and the pre-game rules agreement + neutral
+wire protocol ([`docs/interfaces/intergroup_mcp.md`](docs/interfaces/intergroup_mcp.md)).
+Per §9.3, this section will record — once the match is played and both groups agree —
+the opponent group's name, the final `totals_by_group`, our `bonus_claim`, and
+screenshots of the bonus match.

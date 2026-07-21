@@ -358,6 +358,8 @@ gmail:
   smtp_port: 587                  # STARTTLS
   # §3.5 subject: structured, NO names/ids/emails. {date} = build date Asia/Jerusalem.
   subject_template: "[MARL Cops&Robbers] {group_name} | Final {num_games} sub-games | Cop {cop_total} - Thief {thief_total} | {date}"
+  # §9.4 bonus subject — the PDF example shape verbatim (both group names, explicit bonus)
+  bonus_subject_template: "[MARL Bonus Game] {group_1} vs {group_2} – Final Report"
   output_dir: "results/reports"   # role-only REDACTED copy written here (README §7.3 evidence)
   sentinel: "results/.report_sent"  # idempotency sentinel (sha256-keyed; write AFTER send)
   # The report JSON-Schema (draft-2020-12, docs/schema/report.schema.json) is a repo constant
