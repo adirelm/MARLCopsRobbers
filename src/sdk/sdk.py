@@ -29,14 +29,10 @@ class MarlSDK:
     """The single sanctioned entry point for MARL Cops & Robbers business logic."""
 
     def __init__(self, cfg: dict) -> None:
-        """Bind the SDK to a loaded config and apply compute (thread) governance.
+        """Bind the loaded config + apply compute (thread) governance at the single entry.
 
-        Capping the torch thread pools at the single entry point means every
-        SDK-driven training path is bounded and can never grab all cores and
-        freeze the host (:func:`src.utils.compute.apply_compute_limits`).
-
-        Args:
-            cfg: The loaded project config (config/config.yaml via config_loader).
+        Capping the torch pools here means every SDK-driven training path is bounded
+        and can never grab all cores (:func:`src.utils.compute.apply_compute_limits`).
         """
         self._cfg = cfg
         apply_compute_limits(cfg)
@@ -131,13 +127,16 @@ class MarlSDK:
         agents = n_agents if n_agents is not None else (2 if role == "cop" else 1)
         return RecurrentQNet(self._cfg, role, agents)
 
-    def build_policy(self, role: str, net: object, n_agents: int = 1) -> RecurrentPolicy:
-        """Return an acting :class:`RecurrentPolicy` over ``net`` for ``n_agents``.
+    def build_policy(self, role: str, net: object, n_agents: int = 1) -> object:
+        """Return an acting policy over ``net`` — the single local-obs acting seam.
 
-        The single local-obs acting seam UIs / the MCP controller use (carries the
-        GRU hidden state, picks legal ε-greedy actions, never sees global state).
-        ``net`` is any trained role net (dense or OLoRA-wrapped/bundle-loaded).
+        ``net`` is any trained role net (dense or OLoRA-wrapped/bundle-loaded) — OR an
+        already-built policy (``act``+``reset``, e.g. the §9 match policies in
+        :mod:`src.services.bonus_policies`), which is reset and passed through as-is.
         """
+        if callable(getattr(net, "act", None)) and callable(getattr(net, "reset", None)):
+            net.reset()
+            return net
         return RecurrentPolicy(net, n_agents)
 
     def export_weights(self, net: object, role: str, path: str | Path) -> Path:
