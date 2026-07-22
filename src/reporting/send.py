@@ -6,6 +6,15 @@ then send EXACTLY once — the canonical report hash is recorded in ``gmail.sent
 AFTER a successful send, so a retry / double-trigger never emails the lecturer twice.
 Egress is routed through the §5 ApiGatekeeper (``gmail`` channel). The recipient is
 unconditionally ``gmail.to`` (never inlined, never an env override).
+
+Input: the loaded config (``_validate_config`` -> ValueError), the §3.5 report body, the
+INJECTED ``sender`` (real ``GmailMailer`` or a ``FakeEmailSender``), the build date and an
+optional ``gatekeeper`` — the caller-supplied trio is guarded by ``_validate_input``
+(TypeError).
+Output: a result dict (``sent`` / ``reason`` / ``subject`` / ``to`` / ``redacted_path``),
+the redacted JSON copy on disk, and the sentinel line once the mail is committed.
+Setup: ``gmail.*`` config + the mailer's env credentials; inject a fake sender + a
+tmp sentinel/output_dir for a dry run that touches no network.
 """
 
 from __future__ import annotations
@@ -19,6 +28,42 @@ from zoneinfo import ZoneInfo
 
 from src.api.gatekeeper import DEFERRED, ApiGatekeeper
 from src.reporting.schema import validate
+
+_REQUIRED_GMAIL_KEYS = ("to", "subject_template", "output_dir", "sentinel")
+
+
+def _validate_config(cfg: dict) -> dict:
+    """Return ``cfg`` after checking the ``gmail`` / ``game`` knobs the send path reads.
+
+    Raises:
+        ValueError: If a required ``gmail.*`` key is missing/empty, or
+            ``game.num_games`` is not a positive int.
+    """
+    gmail = cfg.get("gmail")
+    if not isinstance(gmail, dict):
+        raise ValueError("config is missing required section 'gmail'")
+    for key in _REQUIRED_GMAIL_KEYS:
+        if not gmail.get(key):
+            raise ValueError(f"config gmail.{key} must be set (non-empty)")
+    num_games = cfg.get("game", {}).get("num_games")
+    if not isinstance(num_games, int) or isinstance(num_games, bool) or num_games < 1:
+        raise ValueError(f"config game.num_games must be a positive int, got {num_games!r}")
+    return cfg
+
+
+def _validate_input(report: object, sender: object, date_str: object) -> None:
+    """Type-check the caller-supplied send arguments.
+
+    Raises:
+        TypeError: If ``report`` is not a dict, ``sender`` exposes no callable
+            ``send()``, or ``date_str`` is not a str.
+    """
+    if not isinstance(report, dict):
+        raise TypeError(f"report must be a dict, got {type(report).__name__}")
+    if not callable(getattr(sender, "send", None)):
+        raise TypeError("sender must expose a callable send(subject, body, recipient)")
+    if not isinstance(date_str, str):
+        raise TypeError(f"date_str must be a str, got {type(date_str).__name__}")
 
 
 def format_subject(cfg: dict, report: dict, date_str: str) -> str:
@@ -89,6 +134,8 @@ def send_report(cfg: dict, report: dict, sender: object, date_str: str, gatekeep
     deferred call later drains (the §5 gatekeeper queues, it does not cancel). That makes
     a deferred send impossible to turn into an untracked duplicate.
     """
+    _validate_input(report, sender, date_str)
+    _validate_config(cfg)
     validate(report, expected_games=int(cfg["game"]["num_games"]))  # §3.5: exactly N at SEND
     subject = format_subject(cfg, report, date_str)
     redacted_path = str(write_redacted(cfg, report))

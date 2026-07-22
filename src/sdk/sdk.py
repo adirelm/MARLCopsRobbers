@@ -6,6 +6,11 @@ logic duplicated here. It is the ONLY entry UIs / the MCP / scripts / the sweep
 import: build an env, ``train`` (qmix/vdn/iql) one curriculum stage via self-play,
 OLoRA-``finetune`` up the curriculum, ``build_policy`` for acting, and ``export``/
 ``load`` the agent weights. (The throwaway P3 tabular smoke was removed in P4.)
+
+Input: the loaded config (``_validate_config`` -> ValueError) + per-method args
+(``train`` is guarded by ``_validate_input`` -> TypeError); both live in _validation.py.
+Output: env / policy / net objects, per-round training histories, written artifacts.
+Setup: ``MarlSDK(load_config())`` — compute (thread) caps are applied at construction.
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ from pathlib import Path
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.nets.olora_linear import wrap_encoder
 from src.sdk._train_helpers import cfg_for_algo
+from src.sdk._validation import _validate_config, _validate_input
 from src.services.checkpoints import export_agent_weights, load_agent_weights
 from src.services.finetune import finetune_curriculum, stage_params
 from src.services.policy import RecurrentPolicy
@@ -41,7 +47,7 @@ class MarlSDK:
         Capping the torch pools here means every SDK-driven training path is bounded
         and can never grab all cores (:func:`src.utils.compute.apply_compute_limits`).
         """
-        self._cfg = cfg
+        self._cfg = _validate_config(cfg)
         apply_compute_limits(cfg)
 
     def build_env(
@@ -66,6 +72,7 @@ class MarlSDK:
             The per-round self-play history (``round`` / ``role`` / ``loss`` /
             ``capture_rate`` dicts).
         """
+        _validate_input(algorithm, seed, stage_idx)
         cfg = cfg_for_algo(self._cfg, algorithm)
         h, w, num_cops = stage_params(cfg, stage_idx)
         return SelfPlayTrainer(cfg, seed, h, w, num_cops).train_stage()

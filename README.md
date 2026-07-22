@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.1.1 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (652 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (683 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (652 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (683 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -44,7 +44,7 @@ Single-SDK entry + thin surfaces (all verified working after the Installation li
 uv run python -m src.cli train --algo qmix      # local CTDE training (--stage N picks a curriculum rung; default 0 = 2×2)
 uv run python -m src.cli play                    # run a 6-sub-game match over the two MCP servers
 uv run python -m src.gui                         # Pygame god-view spectator (needs --extra gui)
-uv run python -m src.results.make_figures        # regenerate F1/F2/F5/F6 from results/runs/
+uv run python -m src.results.make_figures        # regenerate F1/F2/F5/F6/F8/F9 from results/runs/
 ```
 
 ## Examples
@@ -125,7 +125,7 @@ Where each report part lives: **game & rules** → Configuration (above) + THEOR
 states + the F1 learning curves; **metrics / ablation / sensitivity** → §7.3 (F5 ablation, F6 scale,
 the V3-§9 sensitivity sweep); **§6 bugs/limitations** and the **§7 academic analysis** (Dec-POMDP
 formalism, non-stationarity, IQL-vs-CTDE, IGM/monotonicity → QPLEX/Weighted-QMIX) follow below.
-Figures F1–F7 + GUI + MCP-comms screenshots appear inline in §7.3.
+Figures F1–F9 + GUI + MCP-comms screenshots appear inline in §7.3.
 
 ---
 
@@ -274,6 +274,34 @@ headline 45-run matrix, so they are logged separately at the 4×4 focus stage).*
 LAST 5 rounds, `aggregate.final_by_algorithm`, which is why it differs from the F1 endpoint): VDN most consistent (0.84), IQL a
 strong baseline (0.82); the more expressive QMIX is the least stable at this 50-round budget (0.63±0.05).*
 
+![F8 per-seed final distribution](results/figures/final_distribution.png)
+*F8 — **the seed population behind F5's error bars**: a BOX of the per-seed final capture rate at
+4×4 (one number per seed = its own last-5-round mean; individual seeds overlaid, red diamond = mean).
+It SHOWS what F5's SE whisker hides, and the honest reading is unflattering to QMIX: its
+`0.63±0.05` is **not** a uniformly mediocre arm, it is **four seeds at 0.66–0.82 plus one collapsed
+seed 71 at 0.232** — a genuine 1.5×IQR outlier (matplotlib flags it as a flier below the 0.546
+fence). QMIX's MEDIAN is 0.694 and its outlier-excluded mean is 0.727, so a single failed run drags
+the headline mean down ~0.10; the remaining four seeds still sit below IQL's worst seed (0.788). Two
+things follow. (a) The §7.2 `VDN ≥ IQL > QMIX` finding survives — it is not an artifact of one bad
+seed. (b) The real QMIX defect is **bimodality, not a lower plateau**: most runs learn, one stalls
+outright — exactly the R1 monotonic-mixer instability, and a distribution a mean±SE cannot express.
+IQL (0.788–0.852) and VDN (0.794–0.876) are tight and unimodal by contrast; VDN's box sits entirely
+above IQL's median, which is why we call it the most consistent arm rather than merely the highest.
+Per-seed table: [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §11.*
+
+![F9 capture heatmap](results/figures/capture_heatmap.png)
+*F9 — mean final capture rate as a MATRIX, algorithm × curriculum stage (annotated cells + colorbar;
+cell = the mean over 5 seeds of each seed's last-5-round capture rate). It SHOWS the two factors F1
+and F6 can only foreground one at a time, and it MEANS that **the arms only separate once the task
+becomes genuinely multi-agent**: at stage 0 (2×2) all three are saturated (IQL/VDN 0.998, QMIX
+0.999) and at stage 1 (3×3) they are still nearly tied (0.947 / 0.947 / 0.920) — both are **1-cop**
+stages (`env.curriculum.num_cops_by_stage = [1, 1, 2, 1]`), where VDN's sum-decomposition over a
+single agent is mathematically IDENTICAL to IQL, and the two rows are indeed bit-for-bit equal.
+Only stage 2 (4×4, the 2-cop team) spreads them: 0.816 / 0.845 / 0.628. That is the empirical
+justification for choosing the 4×4 2-cop stage as the comparison focus (K1) instead of the
+degenerate 1-cop rungs — and the row-wise decay left→right is the same partial-observability +
+board-size cost F6 plots. Full matrix: [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §11.*
+
 ![F6 scaling](results/figures/scaling.png)
 *F6 — capture rate vs grid size: capture falls as the board grows + view radius tightens (partial observability bites).*
 
@@ -346,11 +374,14 @@ notebook — LaTeX equations, the six plotted figures, citations, committed **ex
 | **F4c** | **Stage-2 LIVE cloud** — full 6-sub-game match + mutual `reveal_location` verification over the public internet, RS256 JWT | referee vs the two live cloud URLs | `results/figures/mcp_comms_cloud.png` |
 | **Auth** | Live cloud auth matrix — 200 valid / 401 bad / 401 none / 401 wrong-audience / 401 revoked | live verification vs both endpoints | `results/figures/cloud_auth.png` |
 | **F5** | IQL vs VDN vs QMIX final capture rate at 4×4, the 2-cop stage (bar + SE whiskers) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
+| **F8** | V3-§9.3 BOX family — per-seed final capture rate at 4×4, one box per arm (median / IQR / fliers + the individual seed points F5's SE hides) | `python -m src.results.make_figures` | `results/figures/final_distribution.png` |
+| **F9** | V3-§9.3 HEATMAP family — mean final capture rate matrix, algorithm × curriculum stage (annotated cells + colorbar) | `python -m src.results.make_figures` | `results/figures/capture_heatmap.png` |
 | **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |
 | **Sens.** | V3-§9 sensitivity — final capture vs the 4×4 view radius, all else pinned | `scripts/sensitivity_sweep.py` | `results/figures/sensitivity_view_radius.png` |
 | **F7** | Minimax-Q equilibrium baseline (L11 §5 bonus): game-value + capture-rate convergence on the 3×3 zero-sum pursuit | `scripts/plot_minimax_q.py` (slow; per-step maximin LP) | `results/figures/minimax_q.png` |
 
-F1/F2/F5/F6 regenerate from one command (`uv run python -m src.results.make_figures`); F3/F4 are
+F1/F2/F5/F6 **and the §9.3 variety pair F8/F9** regenerate from one command
+(`uv run python -m src.results.make_figures`, builders in `src/results/plots_extra.py`); F3/F4 are
 deterministically captured by their seeded scripts; **F7** (the bonus equilibrium baseline) is
 regenerated on demand by `uv run python scripts/plot_minimax_q.py` (kept separate — its per-step LP
 solves are slow, like the IQL/sensitivity baselines — see ANALYSIS §10). **§5.3 Stage-1 over REAL

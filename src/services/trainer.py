@@ -8,6 +8,13 @@ the trainee only. The trainee is then snapshotted into its pool (best-response
 history). ε anneals linearly across consumed env steps. The cop buffer/net/learner
 use the fixed ``N=2`` width (1-cop stages pad with the ``active`` mask). Compute
 thread caps are applied on construction so a full run can never freeze the host.
+
+Input: the loaded config (``_validate_config`` -> ValueError) + the stage identity
+``(seed, h, w, num_cops)`` and the optional ``rounds`` (``_validate_input`` -> TypeError);
+the cop/thief nets are INJECTED (``cop_net`` / ``thief_net``) for curriculum transfer.
+Output: the per-round history records + the trained nets via ``cop_net()`` / ``thief_net()``.
+Setup: ``SelfPlayTrainer(cfg, seed, h, w, num_cops)`` then ``train_stage()`` — no I/O,
+no globals; every knob is config-derived, so the whole loop is deterministic per seed.
 """
 
 from __future__ import annotations
@@ -24,6 +31,7 @@ from src.services._trainer_helpers import (
     make_role_buffer,
     make_thief_learner,
 )
+from src.services._trainer_validation import _validate_config, _validate_input
 from src.services.episode_pad import pad_episode
 from src.services.policy import RecurrentPolicy
 from src.services.rollout import collect_episode
@@ -58,9 +66,10 @@ class SelfPlayTrainer:
                 net for curriculum transfer / finetune); ``None`` builds dense.
             thief_net: OPTIONAL pre-built thief net to inject; ``None`` builds dense.
         """
+        _validate_input(seed=seed, h=h, w=w, num_cops=num_cops)
+        self._cfg = _validate_config(cfg)
         apply_compute_limits(cfg)
         torch.manual_seed(int(seed))
-        self._cfg = cfg
         self._env = CopsRobbersEnv(cfg, h=h, w=w, num_cops=int(num_cops))
         self._num_cops = int(num_cops)
         self._rng = Random(int(seed))
@@ -127,7 +136,12 @@ class SelfPlayTrainer:
         }
 
     def train_stage(self, rounds: int | None = None) -> list[dict]:
-        """Run best-response rounds (default ``selfplay.rounds``); return per-round history."""
+        """Run best-response rounds (default ``selfplay.rounds``); return per-round history.
+
+        Raises:
+            TypeError: If ``rounds`` is neither ``None`` nor an ``int`` (§16 input guard).
+        """
+        _validate_input(rounds=rounds)
         total = int(self._cfg["selfplay"]["rounds"]) if rounds is None else int(rounds)
         return [self._round(i) for i in range(total)]
 

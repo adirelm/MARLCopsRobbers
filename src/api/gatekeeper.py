@@ -9,6 +9,13 @@ logged (``log_all_calls``); the clock is injectable for deterministic tests;
 report** send is routed through it (``reporting/send.py``); the ``peer_mcp`` /
 ``prefect_deploy`` channels + the ``bearer_get``/``bearer_post`` httpx wrappers are the
 governed path for HTTP egress (peer-MCP traffic itself uses the FastMCP client transport).
+
+Input: the versioned rate-limit JSON (``_validate_config`` -> ValueError) + an injectable
+clock; per call, ``(channel, thunk)`` (``_validate_input`` -> TypeError).
+Output: the thunk's result when admitted, the ``DEFERRED`` sentinel when queued, plus the
+per-channel queue depths from ``get_queue_status``.
+Setup: ``ApiGatekeeper()`` reads ``config/rate_limits.json``; pass ``path``/``clock`` to
+inject a test spec + a deterministic clock (no network, no global state).
 """
 
 from __future__ import annotations
@@ -28,6 +35,41 @@ _log = logging.getLogger("marl.api.gatekeeper")
 # drain). Egress through the gatekeeper is fire-and-forget; a caller needing the
 # response synchronously should check get_queue_status() first or run within burst.
 DEFERRED = object()
+
+
+def _validate_config(spec: dict) -> dict:
+    """Return the rate-limit ``spec`` after checking every knob the governor reads.
+
+    Raises:
+        ValueError: If ``limits`` / ``max_queue`` are absent, ``max_queue`` is < 1, or a
+            channel omits (or non-positively sets) ``per_minute`` / ``burst``.
+    """
+    for key in ("limits", "max_queue"):
+        if key not in spec:
+            raise ValueError(f"rate-limit config must define {key!r}")
+    if int(spec["max_queue"]) < 1:
+        raise ValueError(f"rate-limit config max_queue must be >= 1, got {spec['max_queue']!r}")
+    for channel, limit in spec["limits"].items():
+        for key in ("per_minute", "burst"):
+            if key not in limit:
+                raise ValueError(f"egress channel {channel!r} must define {key!r}")
+        if float(limit["per_minute"]) <= 0:
+            raise ValueError(f"egress channel {channel!r} per_minute must be > 0")
+        if int(limit["burst"]) < 1:
+            raise ValueError(f"egress channel {channel!r} burst must be >= 1")
+    return spec
+
+
+def _validate_input(channel: object, call: object) -> None:
+    """Type-check the public ``execute`` arguments.
+
+    Raises:
+        TypeError: If ``channel`` is not a str or ``call`` is not callable.
+    """
+    if not isinstance(channel, str):
+        raise TypeError(f"channel must be a str, got {type(channel).__name__}")
+    if not callable(call):
+        raise TypeError(f"call must be a zero-arg callable, got {type(call).__name__}")
 
 
 class _TokenBucket:
@@ -57,7 +99,7 @@ class ApiGatekeeper:
 
     def __init__(self, path: str | Path | None = None, clock: Callable[[], float] = time.monotonic) -> None:
         """Load the per-channel limits + ``max_queue`` from the versioned config."""
-        spec = json.loads(Path(path or _DEFAULT_PATH).read_text(encoding="utf-8"))
+        spec = _validate_config(json.loads(Path(path or _DEFAULT_PATH).read_text(encoding="utf-8")))
         self._buckets = {
             ch: _TokenBucket(c["per_minute"], c["burst"], clock) for ch, c in spec["limits"].items()
         }
@@ -78,9 +120,11 @@ class ApiGatekeeper:
             must check for ``is DEFERRED``).
 
         Raises:
+            TypeError: On a wrong-typed ``channel`` / ``call`` (§16 input guard).
             KeyError: On an unknown channel.
             RuntimeError: When the channel's FIFO queue is full (``max_queue``).
         """
+        _validate_input(channel, call)
         if channel not in self._buckets:
             raise KeyError(f"unknown egress channel {channel!r}")
         self._drain(channel)

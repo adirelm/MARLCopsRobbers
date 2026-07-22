@@ -160,3 +160,67 @@ deep arms rise above — not a competitor to them.
 > LP, like the IQL/sensitivity baselines) → `results/figures/minimax_q.png`. The LP is checked against the
 > L11 worked example by `tests/unit/test_minimax_lp.py::test_l11_worked_example_mixed_strategy`, and
 > convergence-to-game-value by `tests/unit/test_minimax_q.py::test_q_table_converges_to_game_value`.
+
+## §11 The seed population behind F5 — what the box plot (F8) and the heatmap (F9) add
+
+F5 reports one mean±SE per arm, which is the right *summary* and the wrong *diagnosis*: two arms
+with the same mean can be "uniformly mediocre" or "mostly fine with one catastrophic seed", and the
+fix for those is not the same. The V3-§9.3 chart-variety pair exists to answer that — F8
+(`results/figures/final_distribution.png`) keeps the seeds APART, F9
+(`results/figures/capture_heatmap.png`) keeps the *stages* apart. Both read the same
+`results/runs/history.jsonl` as F1/F2/F5/F6; "final" is each seed's mean over its **last 5 rounds**
+(`plots_extra.final_values_by_seed`, `_LAST_K = 5`) — the same window `aggregate.final_by_algorithm`
+pools, only un-pooled.
+
+### F8 — per-seed final capture rate at the 4×4 two-cop focus stage
+
+| Algorithm | seed 7 | seed 17 | seed 37 | seed 71 | seed 107 | median | mean | F5 mean ± SE |
+|---|---|---|---|---|---|---|---|---|
+| IQL  | 0.788 | 0.812 | 0.812 | 0.852 | 0.814 | 0.812 | 0.816 | 0.816 ± 0.011 |
+| VDN  | 0.870 | 0.860 | 0.794 | 0.876 | 0.824 | 0.860 | 0.845 | 0.845 ± 0.013 |
+| QMIX | 0.816 | 0.736 | 0.694 | **0.232** | 0.660 | 0.694 | 0.628 | 0.628 ± 0.047 |
+
+**Finding (honest, and unflattering to the arm we would rather defend).** QMIX's headline `0.63` is
+**not** a uniformly weak arm — it is **four seeds in 0.66–0.82 plus one collapsed seed 71 at 0.232**.
+On the box plot's own 1.5×IQR rule that point is a genuine flier (Q1 = 0.660, Q3 = 0.736, IQR =
+0.076, lower fence = **0.546**), which is why F8 draws it detached below the whisker. Excluding it,
+QMIX averages **0.727** — so a single failed run costs the reported mean ≈0.10. Three consequences,
+stated plainly:
+
+1. **The §7.2 ranking survives the outlier.** Even at 0.727, QMIX stays below IQL's *worst* seed
+   (0.788) and VDN's worst (0.794). `VDN ≥ IQL > QMIX` at this 50-round budget is a real effect,
+   not an artifact of one bad seed — we checked before claiming it.
+2. **But the defect is bimodality, not a lower plateau.** The right description of QMIX here is
+   "usually learns, occasionally stalls outright", which is exactly the R1 monotonic-mixer
+   instability and is invisible in a mean±SE. Reporting only F5 would have understated QMIX's
+   typical run *and* hidden its actual failure mode — both directions of error at once.
+3. **IQL and VDN are tight and unimodal** (ranges 0.788–0.852 and 0.794–0.876, SE ≈0.011/0.013).
+   VDN's box sits entirely above IQL's median, which is the evidence behind calling VDN "the most
+   consistent arm" rather than merely the highest-scoring one.
+
+With 5 seeds a single outlier is 20 % of the sample, so this is a directional diagnosis, not a
+tight variance estimate; the actionable read is "re-run QMIX with more seeds / a longer budget
+before trusting its mean", not "QMIX is bad".
+
+### F9 — mean final capture rate, algorithm × curriculum stage
+
+| Algorithm | stage 0 (2×2, 1 cop) | stage 1 (3×3, 1 cop) | stage 2 (4×4, **2 cops**) |
+|---|---|---|---|
+| IQL  | 0.998 | 0.947 | 0.816 |
+| VDN  | 0.998 | 0.947 | 0.845 |
+| QMIX | 0.999 | 0.920 | 0.628 |
+
+**Finding — the arms only separate where the task is genuinely multi-agent.** The IQL and VDN rows
+are **identical** at stages 0 and 1 (0.998 / 0.9468 to four decimals), and that is a correctness
+signal rather than a coincidence: `env.curriculum.num_cops_by_stage = [1, 1, 2, 1]`, so those rungs
+train a **single** cop, and VDN's sum-decomposition `Q_tot = Σ_i Q_i` over one agent reduces exactly
+to IQL. Only stage 2 — the 2-cop team — creates a credit-assignment problem for a mixer to solve or
+botch, and only there do the three arms spread (0.816 / 0.845 / 0.628). This is the empirical
+justification for PRD K1's choice of the 4×4 two-cop stage as the comparison focus instead of the
+degenerate 1-cop rungs (§7.2 L4). Read left→right, every row also decays with board size + tighter
+view radius — the same partial-observability cost F6 plots, here shown per-arm.
+
+> Reproduce: `uv run python -m src.results.make_figures` (builders:
+> `src/results/plots_extra.py::plot_final_distribution` / `plot_capture_heatmap`); the per-seed
+> numbers above are `final_values_by_seed(load_runs("results/runs/history.jsonl"), "capture_rate",
+> algorithm, stage=2)` and the matrix rows are their per-stage means.

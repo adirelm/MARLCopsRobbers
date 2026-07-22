@@ -7,6 +7,13 @@ handler documents Input/Output/Setup and calls ``_require`` (raises ``TypeError`
 a malformed payload, V3 §16). ``request_move`` carries LOCAL obs only (pydantic
 ``extra="forbid"`` rejects a ``global_state`` leak at the protocol edge), and a
 ``MoveResponse`` returns only the action — no value/logit/hidden ever escapes.
+
+Input: the loaded config (``_validate_config`` -> ValueError), the ``role`` string and
+the INJECTED ``controller`` / ``verifier`` / ``peer_query`` seams (``_validate_input`` ->
+TypeError); at runtime, the pydantic tool payloads.
+Output: a configured :class:`FastMCP` server exposing the canonical tool contract.
+Setup: ``build_server(cfg, role, controller, verifier)`` — no network at build time, so
+a test can inject a stub controller and drive the server in-memory.
 """
 
 from __future__ import annotations
@@ -32,6 +39,38 @@ def _require(condition: object, message: str) -> None:
     """§16 input guard: raise ``TypeError`` on a malformed/empty payload field."""
     if not condition:
         raise TypeError(message)
+
+
+def _validate_config(cfg: dict) -> dict:
+    """Return ``cfg`` after checking the ``mcp`` knobs the tool contract reads.
+
+    Raises:
+        ValueError: If ``mcp`` / ``mcp.observation`` is absent, ``mcp.protocol_version``
+            is empty, or ``mcp.observation.view_radius`` is not a non-negative int.
+    """
+    mcp_cfg = cfg.get("mcp")
+    if not isinstance(mcp_cfg, dict) or "observation" not in mcp_cfg:
+        raise ValueError("config is missing required section mcp.observation")
+    if not mcp_cfg.get("protocol_version"):
+        raise ValueError("config mcp.protocol_version must be a non-empty string")
+    radius = mcp_cfg["observation"].get("view_radius")
+    if not isinstance(radius, int) or isinstance(radius, bool) or radius < 0:
+        raise ValueError(f"config mcp.observation.view_radius must be an int >= 0, got {radius!r}")
+    return cfg
+
+
+def _validate_input(role: object, controller: object) -> None:
+    """Type-check the factory's caller-supplied arguments.
+
+    Raises:
+        TypeError: If ``role`` is not a str, or ``controller`` does not expose the
+            :class:`AgentController` seam (``new_session`` + ``act``).
+    """
+    if not isinstance(role, str):
+        raise TypeError(f"role must be a str, got {type(role).__name__}")
+    for method in ("new_session", "act"):
+        if not callable(getattr(controller, method, None)):
+            raise TypeError(f"controller must expose a callable {method}()")
 
 
 def _manhattan(a: tuple[int, int], b: tuple[int, int]) -> int:
@@ -60,7 +99,8 @@ def build_server(
     Returns:
         A configured :class:`FastMCP` server (call ``.run`` or test in-memory).
     """
-    proto = cfg["mcp"]["protocol_version"]
+    _validate_input(role, controller)
+    proto = _validate_config(cfg)["mcp"]["protocol_version"]
     view_radius = int(cfg["mcp"]["observation"]["view_radius"])
     positions: dict[str, tuple[int, int] | None] = {}
     mcp = FastMCP(name=f"marl-{role}", auth=verifier)
