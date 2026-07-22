@@ -10,14 +10,16 @@
 # (MCP_AUTH_MODE=jwt). Linux resolves CPU-only torch (pyproject [tool.uv.sources]) so
 # the build fits the free tier. The ONLY dashboard secret is MCP_PUBLIC_KEY (paste the
 # one-line \n-escaped PEM; the server normalizes) — NEVER inlined here (V3 §7.4).
-# uv is bootstrapped via its official installer (no pip; §8.4).
+# uv is bootstrapped via its official installer (no pip; §8.4). At RUNTIME the uv
+# binary from build time is not preserved, so start runs the venv's fastmcp directly
+# (deps were still resolved/installed exclusively by uv --frozen).
 services:
   - type: web
     name: adrl-001-cop
     runtime: python
     plan: free
     buildCommand: "curl -LsSf https://astral.sh/uv/install.sh | sh && $HOME/.local/bin/uv sync --frozen --no-dev"
-    startCommand: "$HOME/.local/bin/uv run fastmcp run src/mcp/cloud_cop.py:mcp --transport http --host 0.0.0.0 --port $PORT"
+    startCommand: ".venv/bin/fastmcp run src/mcp/cloud_cop.py:mcp --transport http --host 0.0.0.0 --port $PORT"
     envVars:
       - key: MCP_AUTH_MODE
         value: jwt
@@ -33,7 +35,7 @@ services:
     runtime: python
     plan: free
     buildCommand: "curl -LsSf https://astral.sh/uv/install.sh | sh && $HOME/.local/bin/uv sync --frozen --no-dev"
-    startCommand: "$HOME/.local/bin/uv run fastmcp run src/mcp/cloud_thief.py:mcp --transport http --host 0.0.0.0 --port $PORT"
+    startCommand: ".venv/bin/fastmcp run src/mcp/cloud_thief.py:mcp --transport http --host 0.0.0.0 --port $PORT"
     envVars:
       - key: MCP_AUTH_MODE
         value: jwt
