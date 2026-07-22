@@ -7,12 +7,15 @@ src/reporting/mailer.py) imports httpx — preventing an ungoverned egress path.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
 from src.api import http_client
 from src.api.gatekeeper import ApiGatekeeper
+from src.mcp.clients import AgentClient
 
 _SRC = Path(__file__).resolve().parents[2] / "src"
 _ALLOWED_PARTS = {"api"}  # + reporting/mailer.py when the Gmail sender lands (P9)
@@ -66,3 +69,43 @@ def test_gatekeeper_is_importable_as_single_entry():
 def test_http_client_exposes_bearer_wrappers(symbol):
     """The http_client exposes both bearer wrappers."""
     assert hasattr(http_client, symbol)
+
+
+def test_peer_mcp_calls_are_admitted_through_the_gatekeeper():
+    """Every peer-MCP tool call passes the `peer_mcp` channel BEFORE leaving (V3 §5).
+
+    Asserts ROUTING, not import location: a recording gatekeeper double must see one
+    `peer_mcp` admission per tool call. This is the gate that would have caught the
+    pre-2026-07 bypass, where peer traffic went straight out through the FastMCP client.
+    """
+
+    class _RecordingGate:
+        def __init__(self) -> None:
+            self.channels: list[str] = []
+
+        def execute(self, channel, call):
+            self.channels.append(channel)
+            return call()
+
+    class _StubResult:
+        data: ClassVar[dict] = {"status": "ok"}
+
+    class _StubClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return None
+
+        async def call_tool(self, tool, args):
+            return _StubResult()
+
+    gate = _RecordingGate()
+
+    async def _run():
+        async with AgentClient(_StubClient(), label="cop", gatekeeper=gate) as client:
+            await client.health()
+            await client.health()
+
+    asyncio.run(_run())
+    assert gate.channels == ["peer_mcp", "peer_mcp"]

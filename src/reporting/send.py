@@ -90,12 +90,31 @@ def send_report(cfg: dict, report: dict, sender: object, date_str: str, gatekeep
     a deferred send impossible to turn into an untracked duplicate.
     """
     validate(report, expected_games=int(cfg["game"]["num_games"]))  # §3.5: exactly N at SEND
-    digest = report_hash(report)
+    subject = format_subject(cfg, report, date_str)
     redacted_path = str(write_redacted(cfg, report))
+    return gated_idempotent_send(cfg, report, sender, subject, redacted_path, gatekeeper)
+
+
+def gated_idempotent_send(  # noqa: PLR0913 — cfg + body + sender + subject + path + gate are distinct
+    cfg: dict,
+    report: dict,
+    sender: object,
+    subject: str,
+    redacted_path: str,
+    gatekeeper: object = None,
+) -> dict:
+    """Send ``report`` EXACTLY once through the §5 gatekeeper; return the result dict.
+
+    The one place the never-double-email invariant lives — shared by the §3.5 report and
+    the §9 bonus report. The content-keyed sha256 digest is recorded in ``gmail.sentinel``
+    INSIDE the egress thunk, so it is written iff/when the mail actually goes out
+    (immediately, or when a deferred call later drains). Callers do their own schema
+    validation, subject formatting and redacted-copy write first.
+    """
+    digest = report_hash(report)
     sentinel = cfg["gmail"]["sentinel"]
     if already_sent(sentinel, digest):
         return {"sent": False, "reason": "already_sent", "redacted_path": redacted_path}
-    subject = format_subject(cfg, report, date_str)
     body = json.dumps(report, indent=2, ensure_ascii=False)
     recipient = cfg["gmail"]["to"]
 
@@ -109,8 +128,7 @@ def send_report(cfg: dict, report: dict, sender: object, date_str: str, gatekeep
         mark_sent(sentinel, digest)  # email + sentinel committed together
         return "sent"
 
-    gate = gatekeeper or ApiGatekeeper()
-    outcome = gate.execute("gmail", _send)
+    outcome = (gatekeeper or ApiGatekeeper()).execute("gmail", _send)
     if outcome is DEFERRED:
         return {"sent": False, "reason": "deferred", "redacted_path": redacted_path}
     if outcome == "already_sent":  # the inner recheck skipped — a prior drain already delivered it

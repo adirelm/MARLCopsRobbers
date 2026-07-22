@@ -14,9 +14,8 @@ import copy
 import json
 from pathlib import Path
 
-from src.api.gatekeeper import DEFERRED, ApiGatekeeper
 from src.reporting.bonus import validate_bonus
-from src.reporting.send import already_sent, mark_sent, report_hash
+from src.reporting.send import gated_idempotent_send
 
 _MASK = "<redacted — real URL only in the git-ignored copy + the email>"
 
@@ -63,26 +62,6 @@ def send_bonus_report(cfg: dict, report: dict, sender: object, gatekeeper: objec
         ValueError: If the bonus body fails :func:`validate_bonus` (nothing is sent).
     """
     validate_bonus(report)
-    digest = report_hash(report)
-    redacted_path = str(write_redacted_bonus(cfg, report))
-    sentinel = cfg["gmail"]["sentinel"]
-    if already_sent(sentinel, digest):
-        return {"sent": False, "reason": "already_sent", "redacted_path": redacted_path}
     subject = format_bonus_subject(cfg, report)
-    body = json.dumps(report, indent=2, ensure_ascii=False)
-    recipient = cfg["gmail"]["to"]
-
-    def _send() -> str:
-        if already_sent(sentinel, digest):  # a previously-queued send already drained
-            return "already_sent"
-        sender.send(subject, body, recipient)
-        mark_sent(sentinel, digest)  # email + sentinel committed together
-        return "sent"
-
-    gate = gatekeeper or ApiGatekeeper()
-    outcome = gate.execute("gmail", _send)
-    if outcome is DEFERRED:
-        return {"sent": False, "reason": "deferred", "redacted_path": redacted_path}
-    if outcome == "already_sent":
-        return {"sent": False, "reason": "already_sent", "redacted_path": redacted_path}
-    return {"sent": True, "subject": subject, "to": recipient, "redacted_path": redacted_path}
+    redacted_path = str(write_redacted_bonus(cfg, report))
+    return gated_idempotent_send(cfg, report, sender, subject, redacted_path, gatekeeper)

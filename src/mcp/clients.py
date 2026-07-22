@@ -16,6 +16,8 @@ import logging
 from fastmcp import Client
 from fastmcp.client.auth import BearerAuth
 
+from src.api.gatekeeper import ApiGatekeeper
+
 _log = logging.getLogger("marl.mcp.client")
 
 
@@ -27,16 +29,24 @@ def make_client(url: str, token: str) -> Client:
 class AgentClient:
     """Async typed wrapper over a FastMCP ``Client`` for one agent server."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 — client + retry/label/backoff/timeout/gatekeeper are distinct
         self,
         client: Client,
         max_retries: int = 3,
         label: str = "peer",
         backoff_s: float = 0.0,
         timeout_s: float | None = None,
+        gatekeeper: object = None,
     ) -> None:
-        """Wrap a (HTTP or in-memory) client with a bounded retry/backoff/timeout budget + a log label."""
+        """Wrap a (HTTP or in-memory) client with a bounded retry/backoff/timeout budget + a log label.
+
+        ``gatekeeper`` governs OUTBOUND peer-MCP egress (V3 §5): every tool call is admitted
+        through the ``peer_mcp`` token bucket, so no outbound API call bypasses the single
+        governor. Defaults to a process-wide :class:`~src.api.gatekeeper.ApiGatekeeper`;
+        in-memory test transports may pass their own or an admit-all double.
+        """
         self._client = client
+        self._gate = gatekeeper if gatekeeper is not None else ApiGatekeeper()
         self._max_retries = max(1, int(max_retries))
         self._label = label
         self._backoff_s = max(0.0, float(backoff_s))
@@ -62,6 +72,8 @@ class AgentClient:
         last: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
+                # §5: admit through the peer_mcp channel BEFORE the outbound call leaves.
+                self._gate.execute("peer_mcp", lambda: None)
                 call = self._client.call_tool(tool, args)
                 # wrap in the configured timeout so a hung call fails fast (then retries) vs blocking
                 result = await (asyncio.wait_for(call, self._timeout_s) if self._timeout_s else call)
