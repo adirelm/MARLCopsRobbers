@@ -95,6 +95,17 @@ convention = "google"
 # Tests are exempt from the docstring (D) gate; magic-value (PLR2004) is fine in asserts.
 "tests/**" = ["PLR2004", "D"]
 
+# Linux deploys (Render free tier: 512MB RAM) get CPU-only torch — the default pypi
+# linux wheel drags ~2GB of CUDA packages the CPU-only MCP servers never use. macOS
+# (local dev) keeps the regular pypi wheel; resolution there is unchanged.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.coverage.run]
 branch = true
 source = ["src"]

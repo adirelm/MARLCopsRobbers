@@ -1,48 +1,45 @@
-# Render blueprint (fallback to Prefect Horizon) for the two MARL MCP servers (T8.5).
+# Render blueprint for the two MARL MCP servers (T8.5 — the LIVE Stage-2 target).
 #
-# Each service serves the SAME canonical tool contract as localhost over RS256 JWT auth
-# (MCP_AUTH_MODE=jwt). Secrets (MCP_PUBLIC_KEY, MODEL_PATH, REVOKED_TOKEN_JTIS, the peer
-# token) are set in the Render dashboard / a secret group with `sync: false` — NEVER
-# inlined here (V3 §7.4). uv is bootstrapped via its official installer (no pip; §8.4).
+# Chosen over FastMCP Cloud's free tier (2026-07-22): Horizon's free plan forces its own
+# platform OAuth in FRONT of the app, which (a) breaks the brief's PUBLIC-access
+# requirement and (b) dead-locks with our in-app RS256 JWT (one Authorization header
+# cannot satisfy two bearer layers). On Render the endpoint is public and OUR JWT is
+# the only auth — exactly the §5.3 architecture (token auth we mint + revoke).
+#
+# Each service serves the SAME canonical tool contract as localhost over RS256 JWT
+# (MCP_AUTH_MODE=jwt). Linux resolves CPU-only torch (pyproject [tool.uv.sources]) so
+# the build fits the free tier. The ONLY dashboard secret is MCP_PUBLIC_KEY (paste the
+# one-line \n-escaped PEM; the server normalizes) — NEVER inlined here (V3 §7.4).
+# uv is bootstrapped via its official installer (no pip; §8.4).
 services:
   - type: web
     name: adrl-001-cop
     runtime: python
     plan: free
-    buildCommand: "curl -LsSf https://astral.sh/uv/install.sh | sh && uv sync --group mcp --group cloud"
-    startCommand: "uv run fastmcp run src/mcp/cloud_cop.py:mcp --transport http --host 0.0.0.0 --port $PORT"
-    healthCheckPath: /mcp
+    buildCommand: "curl -LsSf https://astral.sh/uv/install.sh | sh && $HOME/.local/bin/uv sync --frozen --no-dev"
+    startCommand: "$HOME/.local/bin/uv run fastmcp run src/mcp/cloud_cop.py:mcp --transport http --host 0.0.0.0 --port $PORT"
     envVars:
       - key: MCP_AUTH_MODE
         value: jwt
-      - key: MCP_PUBLIC_KEY
-        sync: false
       - key: MODEL_PATH
-        sync: false
+        value: deploy/model/bonus_cop.pt
       - key: REVOKED_TOKEN_JTIS
-        sync: false
-      - key: PEER_MCP_URL
-        sync: false
-      - key: PEER_MCP_TOKEN
+        value: ""
+      - key: MCP_PUBLIC_KEY
         sync: false
 
   - type: web
     name: adrl-001-thief
     runtime: python
     plan: free
-    buildCommand: "curl -LsSf https://astral.sh/uv/install.sh | sh && uv sync --group mcp --group cloud"
-    startCommand: "uv run fastmcp run src/mcp/cloud_thief.py:mcp --transport http --host 0.0.0.0 --port $PORT"
-    healthCheckPath: /mcp
+    buildCommand: "curl -LsSf https://astral.sh/uv/install.sh | sh && $HOME/.local/bin/uv sync --frozen --no-dev"
+    startCommand: "$HOME/.local/bin/uv run fastmcp run src/mcp/cloud_thief.py:mcp --transport http --host 0.0.0.0 --port $PORT"
     envVars:
       - key: MCP_AUTH_MODE
         value: jwt
-      - key: MCP_PUBLIC_KEY
-        sync: false
       - key: MODEL_PATH
-        sync: false
+        value: deploy/model/bonus_thief.pt
       - key: REVOKED_TOKEN_JTIS
-        sync: false
-      - key: PEER_MCP_URL
-        sync: false
-      - key: PEER_MCP_TOKEN
+        value: ""
+      - key: MCP_PUBLIC_KEY
         sync: false
