@@ -22,9 +22,10 @@ file, generate it at deploy time and never track it: `uv export --no-dev > /tmp/
 ## Stage 2 — mint an RS256 keypair + set the server env (T8.1)
 
 ```bash
-# Generate a keypair (private mints client tokens; public verifies on the servers):
+# Generate a keypair (private mints client tokens; public verifies on the servers).
+# NOTE: fastmcp 3.x wraps private_key in a pydantic SecretStr — unwrap when writing:
 uv run python -c "from fastmcp.server.auth.providers.jwt import RSAKeyPair; \
-kp=RSAKeyPair.generate(); open('/tmp/mcp_priv.pem','w').write(kp.private_key); \
+kp=RSAKeyPair.generate(); open('/tmp/mcp_priv.pem','w').write(kp.private_key.get_secret_value()); \
 open('/tmp/mcp_pub.pem','w').write(kp.public_key); print('wrote /tmp/mcp_{priv,pub}.pem')"
 ```
 
@@ -58,11 +59,19 @@ print(asyncio.run(Client('https://adrl-001-cop.fastmcp.app/mcp', auth=BearerAuth
 Mint a client token from the private key (the minter):
 
 ```bash
-uv run python -c "from fastmcp.server.auth.providers.jwt import RSAKeyPair; \
-kp=RSAKeyPair(private_key=open('/tmp/mcp_priv.pem').read(), public_key=open('/tmp/mcp_pub.pem').read()); \
+# (private_key is a pydantic SecretStr in fastmcp 3.x — wrap the PEM on load)
+uv run python -c "from pydantic import SecretStr; \
+from fastmcp.server.auth.providers.jwt import RSAKeyPair; \
+kp=RSAKeyPair(private_key=SecretStr(open('/tmp/mcp_priv.pem').read()), public_key=open('/tmp/mcp_pub.pem').read()); \
 print(kp.create_token(subject='marl-cop', issuer='adrl-001-mcp-auth', audience='marl-cop', \
 scopes=['game:write'], additional_claims={'jti':'cop-001'}))"
 ```
+
+> **Pre-flight (verified locally, 2026-07-22):** the full cloud stack was smoke-proven on this
+> machine BEFORE any account existed — `fastmcp run src/mcp/cloud_cop.py:mcp --transport http`
+> with `MCP_PUBLIC_KEY` + `MODEL_PATH=deploy/model/bonus_cop.pt`: valid RS256 token → 200
+> (+protocol version), bad token → 401, revoked `jti` (via `REVOKED_TOKEN_JTIS`) → 401,
+> missing token → 401.
 
 ## Stage 4 — Gmail report (Phase 9)
 
