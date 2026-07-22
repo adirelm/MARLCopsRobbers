@@ -55,6 +55,8 @@ def build_jwt_verifier(cfg: dict, role: str, public_key: str | None = None) -> R
     public_key = public_key or os.environ.get("MCP_PUBLIC_KEY")
     if not public_key:
         raise ValueError("no RS256 public key: set MCP_PUBLIC_KEY")
+    # Cloud env UIs are one-line KEY=value: a PEM arrives with literal \n escapes — normalize.
+    public_key = public_key.replace("\\n", "\n")
     return RevocableJWTVerifier(
         public_key=public_key,
         issuer=auth["issuer"],
