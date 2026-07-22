@@ -1984,8 +1984,11 @@ name = "marlcopsrobbers"
 version = "1.1.1"
 source = { editable = "." }
 dependencies = [
+    { name = "fastmcp" },
+    { name = "httpx" },
     { name = "matplotlib" },
     { name = "numpy" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "pyyaml" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -2011,11 +2014,6 @@ mail = [
     { name = "google-auth" },
     { name = "google-auth-oauthlib" },
 ]
-mcp = [
-    { name = "fastmcp" },
-    { name = "httpx" },
-    { name = "pyjwt", extra = ["crypto"] },
-]
 notebook = [
     { name = "ipykernel" },
     { name = "nbconvert" },
@@ -2023,9 +2021,12 @@ notebook = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fastmcp", specifier = ">=2.11" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "pygame-ce", marker = "extra == 'gui'", specifier = ">=2.5.7" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.9" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "torch", specifier = ">=2.2" },
@@ -2044,11 +2045,7 @@ mail = [
     { name = "google-auth", specifier = ">=2.34" },
     { name = "google-auth-oauthlib", specifier = ">=1.2" },
 ]
-mcp = [
-    { name = "fastmcp", specifier = ">=2.11" },
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.9" },
-]
+mcp = []
 notebook = [
     { name = "ipykernel", specifier = ">=6.0" },
     { name = "nbconvert", specifier = ">=7.0" },

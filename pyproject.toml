@@ -21,6 +21,12 @@ dependencies = [
     "matplotlib>=3.8",
     "pyyaml>=6.0",
     "scipy>=1.17.1",
+    # §5.3 MCP server runtime — BASE deps (not a group): cloud builders install the
+    # bare project (`uv sync --no-dev`), and the shipped servers genuinely need these
+    # at runtime (goal: the FastMCP Cloud build's own fastmcp presence check passes).
+    "fastmcp>=2.11",
+    "httpx>=0.27",
+    "pyjwt[crypto]>=2.9",
 ]
 
 # §5.4 GUI (Pygame god-view spectator) is an OPTIONAL extra, needed only at P7 —
@@ -40,12 +46,11 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.6",
 ]
-# §5.3 — two FastMCP servers + HTTP inter-agent comms + JWT bearer auth (P5 localhost).
-mcp = [
-    "fastmcp>=2.11",
-    "httpx>=0.27",
-    "pyjwt[crypto]>=2.9",
-]
+# §5.3 — the MCP runtime (fastmcp/httpx/pyjwt) MOVED to [project.dependencies]
+# (2026-07-22, cloud deploy): FastMCP Cloud builds with `uv sync --no-dev`, which
+# installs only base deps — its fastmcp presence check failed while these lived
+# here. The group is kept EMPTY so every documented `--group mcp` command still works.
+mcp = []
 # §8 — Prefect Horizon cloud deploy (P8 only; split out so the P5 localhost MCP
 # install stays light — Prefect pulls a large transitive tree not needed locally).
 cloud = [
