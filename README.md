@@ -9,16 +9,28 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.1.1 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (538 tests, ~99.4% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (652 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
 ## Installation
 
+### System requirements
+
+| Requirement | Value | Notes |
+|---|---|---|
+| Python | **≥ 3.11** (`requires-python` in `pyproject.toml`) | CI runs 3.12; local dev on 3.14 |
+| Package manager | **uv only** | no pip / conda anywhere (CLAUDE.md §7) |
+| OS | macOS, Linux (CI = `ubuntu-latest`), Windows | POSIX paths only; nothing OS-specific in `src/` |
+| **GPU** | **not required — CPU-only** | there is no `cuda` call in the codebase; on Linux `[tool.uv.sources]` pins torch to the `pytorch-cpu` index (keeps the 512 MB Render tier under its RAM cap), macOS uses the stock PyPI wheel |
+| RAM / cores | ~2 GB, 2 cores | `compute.num_threads` caps torch's intra-op pool so training never freezes a laptop |
+| SDL / display | only for the GUI extra | `uv sync --extra gui` installs `pygame-ce`; headless hosts need `SDL_VIDEODRIVER=dummy` |
+| Network | only for the cloud/Gmail paths | training, tests and the localhost MCP match are fully offline |
+
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (538 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (652 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -48,6 +60,49 @@ scoring 20/10/5/5), env/observation, QMIX/VDN/IQL, OLoRA, self-play, MCP ports/a
 Gmail. Egress rate limits in [`config/rate_limits.json`](config/rate_limits.json). Secrets in
 `.env` (see `.env-example`); real identities in `players.local.yaml` (git-ignored) — see
 `players.example.yaml`.
+
+### Config sections at a glance
+
+Every top-level key of `config/config.yaml` and what it controls:
+
+| Section | Controls |
+|---|---|
+| `version` | the single version of record — must equal `src.__version__` and `pyproject.version` (gated by `tests/architecture/`) |
+| `project` | group code (`adrl-001`) and report timezone (`Asia/Jerusalem`) |
+| `game` | the graded §3 match rules: `grid_size` 5, `max_moves` 25, `num_games` 6, `max_barriers` 5, and the 20/10/5/5 `scoring` table (scoreboard only — never the RL signal) |
+| `env` | the Dec-POMDP environment: `num_cops`, `move_resolution`, `capture_on_swap`, `reward_mode`, the observation encoding (`view_radius_by_grid`, `obs_channels`, `obs_scalars`), the `actions` set, and the `curriculum` grid ladder |
+| `algo` | the learner: `name` (`qmix`/`vdn`/`iql`), `double_q`, `gamma`, agent/mixer learning rates, weight decay, grad clipping, Huber delta, `batch_episodes` |
+| `nets` | network shape — GRU `hidden_dim`, encoder trunk widths |
+| `compute` | torch thread-pool caps (`num_threads`, `num_interop_threads`) applied before any training |
+| `olora` | OLoRA adapter rank, `scale`, and which layers are wrapped (encoder Linears only) |
+| `bc` | behavior-cloning pre-training: `epochs`, `lr`, expert `epsilon` |
+| `replay` | episodic replay `buffer_episodes` and `min_replay_episodes` warmup |
+| `selfplay` | alternating best-response regime: frozen-opponent `window_k`, `pool_size`, `update_ratio`, `rounds`, `episodes_per_round` |
+| `training` | the 5 fixed `seeds` behind every figure, plus the ε-greedy anneal schedule |
+| `minimax_q` | the standalone tabular Minimax-Q bonus baseline (grid, episodes, α/ε decay, zero-sum payoffs) |
+| `reward` | the **RL training signal** only: potential-based shaping toggles, capture/timeout terminals, step penalty, barrier cost |
+| `mcp` | the two FastMCP servers: `host`, `cop_port` 8001 / `thief_port` 8002, `path`, transport, protocol version, client timeout/retries, and the auth *scheme* (token **values** live in `.env`) |
+| `cloud` | Stage-2 deploy record: platform and the public cop/thief URLs |
+| `gmail` | §3.5 report: recipient, SMTP host/port, subject templates, output dir, idempotency sentinel (sender + App Password come from `.env`) |
+| `gui` | spectator screenshot sizes and output dir (colors/fonts/FPS are local to `src/gui/palette.py` by design) |
+| `paths` | `runs_dir`, `figures_dir`, experiment manifest, checkpoint dirs |
+| `logging` | log level for the `marl.*` loggers (PII/secret redaction is unconditional, never a flag) |
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `ModuleNotFoundError: No module named 'pygame'` on `uv run python -m src.gui` | the GUI is an **optional extra** — headless training/CI deliberately do not install SDL | `uv sync --extra gui` (or `--all-extras`) |
+| GUI crashes / hangs on a headless box or over SSH | SDL has no display to open | export `SDL_VIDEODRIVER=dummy` (and `SDL_AUDIODRIVER=dummy`) before launching — this is exactly what `tests/conftest.py` does for the render tests |
+| `SystemExit: no runs in results/runs/history.jsonl — run scripts/run_results.py first` | `make_figures` is a pure analysis layer over the append-only run log; heavy artifacts are git-ignored, so a fresh clone has none | run `uv run python scripts/run_results.py` (or a training run) first, then `uv run python -m src.results.make_figures` |
+| MCP client fails to connect over HTTP | the two servers are separate OS processes and must already be listening on `127.0.0.1:8001` (cop) and `127.0.0.1:8002` (thief) at path `/mcp` | let `uv run python scripts/serve_match_http.py` spawn them, or start each by hand with `uv run fastmcp run src/mcp/localhost_cop.py:mcp --transport http --host 127.0.0.1 --port 8001` (and `localhost_thief.py:mcp` on 8002); check nothing else holds those ports |
+| MCP call returns **401** | the bearer token is missing/wrong — Stage 1 uses a static token, Stage 2 an RS256 JWT | fill `COP_MCP_TOKEN` / `THIEF_MCP_TOKEN` / `REFEREE_MCP_TOKEN` (and `PEER_MCP_TOKEN`) in `.env`, copied from `.env-example`; for JWT mode also set `MCP_AUTH_MODE=jwt` + `MCP_PUBLIC_KEY` |
+| `KeyError: 'MODEL_PATH'` importing `src.mcp.cloud_cop` / `cloud_thief` | those are **deploy entrypoints**, not importable library modules — they load an actor bundle at import time | set `MODEL_PATH` to the actor-only `.pt` bundle, or use the tested factory `src.mcp.cloud.build_cloud_server` instead |
+| Cloud request times out on the first call | Render's free tier cold-starts the container | the client already sets `mcp.client.timeout_s: 10`, `max_retries: 3` and a `prewarm_ping`; just retry, or raise `timeout_s` |
+| Gmail send fails to authenticate | the shipped path is smtplib + a 16-char **App Password** (needs 2FA on the account) — not your normal password | set `GMAIL_SENDER` + `GMAIL_APP_PASSWORD` in `.env`; the recipient is fixed in `gmail.to` and has no env override |
+| Send returns `sent=False, reason=already_sent` | the sender is content-keyed idempotent: the report's sha256 is already recorded in the `results/.report_sent` sentinel | that is correct behaviour for an unchanged report; a genuinely changed report has a new digest and sends. To force a resend of identical content, remove its digest line from the sentinel |
+| `uv run pytest` fails with a coverage error, not a test failure | `--cov-fail-under=85` is on by default | fix the coverage gap; use `--no-cov` only for a quick local subset run |
+| `check_file_sizes.py` fails right after a clean `ruff format` | formatting can expand a file past the 150-LOC cap | run `ruff format` **first**, then the size check (this ordering is what CI uses) |
 
 ## Contributing
 

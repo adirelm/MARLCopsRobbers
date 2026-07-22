@@ -5,3 +5,15 @@ records, ``aggregate`` reduces them to per-method mean±SE curves + final stats,
 renders the matplotlib figures, and ``make_figures`` is the single regen entry. No
 business logic lives here — it only reads the append-only run log the SDK produced.
 """
+
+# V3 §14 public surface. Submodule names (not eagerly imported symbols): the package is a
+# module container, so `from ... import *` binds the modules and heavy/optional deps stay
+# off the import path. Private `_*` helpers and CLI/deploy entrypoints are deliberately out.
+__all__ = [
+    "aggregate",
+    "comms",
+    "make_figures",
+    "plots",
+    "run_log",
+    "sensitivity",
+]

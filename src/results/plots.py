@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 from src.results.aggregate import curve, final_by_algorithm, final_by_grid
 
-_DPI = 150
+_DPI = 300  # V3 §9.3 "high resolution" — print-quality raster for every figure
 _FIGSIZE = (7.0, 4.5)
 _BAND_ALPHA = 0.2
 

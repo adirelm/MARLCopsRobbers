@@ -1,4 +1,4 @@
-"""make_figures integration (T10.2) — synthetic runs -> 4 PNGs + manifest (headless Agg)."""
+"""make_figures integration (T10.2) — synthetic runs -> 6 PNGs + manifest (headless Agg)."""
 
 from __future__ import annotations
 
@@ -45,12 +45,15 @@ def _cfg_tmp(cfg: dict, tmp_path: Path) -> dict:
     return cfg
 
 
-def test_make_figures_writes_four_pngs_and_manifest(tmp_path, cfg):
+def test_make_figures_writes_six_pngs_and_manifest(tmp_path, cfg):
     cfg = _cfg_tmp(cfg, tmp_path)
     (tmp_path / "runs").mkdir()
     _write_runs(tmp_path / "runs" / "history.jsonl")
     saved = main(cfg)
-    assert len(saved) == 4
+    # 4 line/bar figures + the two §9.3 variety figures (BOX + HEATMAP)
+    assert len(saved) == 6
+    names = {Path(p).name for p in saved}
+    assert {"final_distribution.png", "capture_heatmap.png"} <= names
     for path in saved:
         assert Path(path).exists() and Path(path).stat().st_size > 1000  # a real PNG, not empty
     manifest = json.loads((tmp_path / "figs" / "experiment_manifest.json").read_text(encoding="utf-8"))

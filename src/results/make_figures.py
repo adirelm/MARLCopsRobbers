@@ -1,11 +1,11 @@
 """make_figures — regenerate F1/F2/F5/F6 from ``results/runs/`` + pin a manifest (T10.1/2).
 
 ``uv run python -m src.results.make_figures``. Reads the append-only run log, writes the
-four PLOTTED figures (F1 learning curves, F2 loss, F5 IQL/VDN/QMIX comparison, F6 scaling)
-to ``results/figures/``, and pins ``experiment_manifest.json`` (run count, algorithms,
-stages, seeds, config hash) so figure drift is detectable (R8). F3 (GUI screenshots) + F4
-(MCP comms) are captured artifacts, NOT regenerated here. The comparison stage is the
-largest stage present (where IQL diverges from CTDE).
+PLOTTED figures (F1 learning curves, F2 loss, F5 IQL/VDN/QMIX comparison, F6 scaling, plus
+the §9.3 BOX final-distribution and HEATMAP capture matrix) to ``results/figures/``, and pins
+``experiment_manifest.json`` (run count, algorithms, stages, seeds, config hash) so figure
+drift is detectable (R8). F3 (GUI screenshots) + F4 (MCP comms) are captured artifacts, NOT
+regenerated here. The comparison stage is the largest stage present (IQL diverges from CTDE).
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from pathlib import Path
 
 from src.results.aggregate import load_runs
 from src.results.plots import plot_comparison, plot_scaling, plot_two_agent_panels
+from src.results.plots_extra import final_values_by_seed, plot_capture_heatmap, plot_final_distribution
 from src.utils.config_loader import load_config
 
 
@@ -76,8 +77,24 @@ def _return_curves(cfg: dict, fig_dir: Path) -> list[str]:
     ]
 
 
+def _variety_figures(records: list[dict], stage: int, fig_dir: Path) -> list[str]:
+    """V3 §9.3 chart variety: the BOX (per-seed spread) + HEATMAP (algorithm x stage) figures.
+
+    Each is SKIPPED — never faked — when the log lacks its data: the box plot needs at least
+    one algorithm with final rounds at the focus stage, the heatmap needs at least one stage.
+    """
+    algos = {rec["algorithm"] for rec in records}
+    saved = []
+    if any(final_values_by_seed(records, "capture_rate", a, stage) for a in algos):
+        out = plot_final_distribution(records, "capture_rate", stage, fig_dir / "final_distribution.png")
+        saved.append(str(out))
+    if any(rec["stage"] is not None for rec in records):
+        saved.append(str(plot_capture_heatmap(records, "capture_rate", fig_dir / "capture_heatmap.png")))
+    return saved
+
+
 def main(cfg: dict | None = None) -> list[str]:
-    """Regenerate the four plotted figures + the manifest; return the figure paths."""
+    """Regenerate the plotted figures + the manifest; return the figure paths."""
     cfg = cfg or load_config()
     fig_dir = Path(cfg["paths"]["figures_dir"])
     records = load_runs(Path(cfg["paths"]["runs_dir"]) / "history.jsonl")
@@ -120,6 +137,7 @@ def main(cfg: dict | None = None) -> list[str]:
         str(plot_comparison(records, "capture_rate", stage, fig_dir / "baseline_comparison.png")),
         str(plot_scaling(records, "capture_rate", fig_dir / "scaling.png")),
     ]
+    saved += _variety_figures(records, stage, fig_dir)  # V3 §9.3: BOX + HEATMAP families
     saved += _return_curves(cfg, fig_dir)
     manifest_path = Path(cfg["paths"]["experiment_manifest"])  # config-driven (no hardcoded path)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
