@@ -9,6 +9,7 @@ __all__ = [
     "episode_pad",
     "finetune",
     "heuristic_policy",
+    "matchup_eval",
     "pipelines",
     "policy",
     "rollout",

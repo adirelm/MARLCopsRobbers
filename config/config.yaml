@@ -387,6 +387,14 @@ gui:
 # All §7.3 figures regenerate from results/runs/*.jsonl via one command so README
 # numbers can never drift from code (ADR-D10-C). Heavy artifacts are git-ignored.
 # ============================================================================
+# ============================================================================
+# MATCHUP EVAL — the ANALYSIS §12 exploitability probe (scripts/eval_matchup.py)
+# ============================================================================
+matchup_eval:
+  n_games: 60                     # sub-games per arm (per 60-seed block)
+  base_seed: 1000                 # seed-block start — DISJOINT from the match seeds 7-12
+  thief_eps_grid: [0.0, 0.10, 0.25]  # thief exploration noise per net arm (cop stays greedy)
+
 paths:
   runs_dir: "results/runs"               # append-only per-episode JSONL run records
   figures_dir: "results/figures"         # F1-F6 PNGs referenced by README §7.3

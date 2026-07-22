@@ -39,6 +39,13 @@ def _pipelines():
     return pipelines
 
 
+def _matchup():
+    """Lazily import the matchup-eval service (torch-heavy head-to-head arms)."""
+    from src.services import matchup_eval  # noqa: PLC0415 — lazy: heavy eval deps
+
+    return matchup_eval
+
+
 class MarlSDK:
     """The single sanctioned entry point for MARL Cops & Robbers business logic."""
 
@@ -60,18 +67,10 @@ class MarlSDK:
     def train(self, algorithm: str, seed: int, stage_idx: int = 0) -> list[dict]:
         """Train one curriculum stage via self-play (the single training entry).
 
-        Routes through :class:`~src.services.trainer.SelfPlayTrainer` (compute
-        thread caps applied on its construction, so a full run cannot freeze the
-        host). UIs / scripts / sweeps call ONLY this — never the trainer directly.
-
-        Args:
-            algorithm: ``"qmix"`` (primary), ``"vdn"`` (ablation), or ``"iql"``.
-            seed: Master training seed (reproducible).
-            stage_idx: Curriculum stage index (``env.curriculum.stages``); 0 == 2x2.
-
-        Returns:
-            The per-round self-play history (``round`` / ``role`` / ``loss`` /
-            ``capture_rate`` dicts).
+        Routes through :class:`~src.services.trainer.SelfPlayTrainer`; UIs / scripts /
+        sweeps call ONLY this, never the trainer directly. ``algorithm`` is
+        qmix/vdn/iql; ``stage_idx`` indexes ``env.curriculum.stages``. Returns the
+        per-round self-play history (round / role / loss / capture_rate dicts).
         """
         _validate_input(algorithm, seed, stage_idx)
         cfg = cfg_for_algo(self._cfg, algorithm)
@@ -138,6 +137,10 @@ class MarlSDK:
     def run_ablation_sweep(self, algorithms: list[str], stage_idx: int = 0) -> list[dict]:
         """Sweep ``algorithms`` x ``training.seeds`` at one stage; return the run records."""
         return _pipelines().ablation_sweep(self, self._cfg, algorithms, stage_idx)
+
+    def run_matchup_eval(self, thief_kind: str = "net", thief_eps: float = 0.0) -> dict:
+        """One arm of the ANALYSIS §12 exploitability table: serving cop vs {net|flee|random}."""
+        return _matchup().run_arm(self, self._cfg, thief_kind, thief_eps)
 
     def export_weights(self, net: object, role: str, path: str | Path) -> Path:
         """Export ONLY the agent net + shape sidecar (no mixer/global state); return the sidecar."""

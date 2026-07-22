@@ -341,6 +341,15 @@ body is committed at
 (schema-valid, 6 sub-games, PII-redacted). URLs: `adrl-001-cop.onrender.com/mcp` ·
 `adrl-001-thief.onrender.com/mcp` (RS256 JWT required).*
 
+**Why does the shipped match end 0–6 for the cop?** Not incompetence — the same serving cop
+captures a scripted flee baseline 59/60 and a uniform-random thief 179/180 pooled (99.4%),
+barriers included. The self-play thief wins the greedy replay via **per-start deterministic
+escape trajectories** (distinct per seed, sharing a left/right-oscillation motif) that exploit
+this specific cop's deterministic greedy responses — inject ε=0.10 exploration noise into the
+thief and captures recover 8/60 → 26/60 (ε=0.25 → 47/60). The full adversarially-verified
+probe, its confidence intervals, and the self-play co-adaptation reading are in
+[`docs/ANALYSIS.md`](docs/ANALYSIS.md) §12; reproduce with `uv run python scripts/eval_matchup.py`.
+
 ![Cloud auth matrix](results/figures/cloud_auth.png)
 *Cloud auth (§5.3 "token-based auth that can be blocked/revoked") verified live against both public
 endpoints: a valid RS256 token → 200; a bad token, a missing token, and a **wrong-audience** token

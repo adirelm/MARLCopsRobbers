@@ -224,3 +224,58 @@ view radius — the same partial-observability cost F6 plots, here shown per-arm
 > `src/results/plots_extra.py::plot_final_distribution` / `plot_capture_heatmap`); the per-seed
 > numbers above are `final_values_by_seed(load_runs("results/runs/history.jsonl"), "capture_rate",
 > algorithm, stage=2)` and the matrix rows are their per-stage means.
+
+## §12 Exploitability probe — why the greedy §3.5 match is 0–6 while the cop is a ~99% pursuer
+
+The shipped match (`scripts/run_match.py`, seeds 7–12 on the 5×5 one-cop board — board size
+fixed by `run_local_match`'s `stage=(5,5,1)` default plus `config game.grid_size: 5`, not by the
+§3.5 report JSON, which carries no grid field) ends **Cop 30 – Thief 60**: the thief evades for
+all 25 moves in all six sub-games. Read alone, that looks like a failed cop. The head-to-head
+probe below shows the true picture is more interesting — and it was **adversarially verified**
+(5 independent verifiers + a cross-examining critic; harness proven bit-identical to the real
+MCP referee path on the match seeds, 300/300 ticks, before any number below was trusted).
+
+| Arm (60 sub-games/block, cop always greedy) | seeds 1000–1059 | fresh block 5000–5059 |
+|---|---|---|
+| cop vs scripted flee baseline | **59/60** | 59/60 |
+| cop vs uniform-random thief | **59/60** | 60/60 (and 120/120 at N=120, seeds 3000–3119) |
+| cop vs OUR self-play thief (greedy, ε=0) | **8/60** | 8/60 |
+| cop vs OUR thief, ε=0.10 exploration noise | **26/60** | 25/60 |
+| cop vs OUR thief, ε=0.25 | **47/60** | 45/60 |
+
+The flee baseline, described accurately: uniform-random over legal moves **before** first
+opponent sighting, deterministic greedy distance-maximising **after**; it ignores its epsilon
+argument. Pooled over all blocks the cop catches a uniform-random thief **179/180 (99.4%)**.
+
+**Finding 1 — the cop is a competent pursuer, barriers included.** 59/60 against the scripted
+flee policy (34 §3.3 barrier placements across the arm's 472 cop moves) and 99.4% pooled against
+a random walker. The 0–6 match is not general incompetence.
+
+**Finding 2 — against our own self-play thief at greedy evaluation the cop captures 8/60
+(~13%; 95% CI 8–21%, pooled over two independent 60-seed blocks that both landed on exactly
+8/60).** The thief our self-play produced beats the cop our self-play produced, decisively,
+under the serving convention.
+
+**Finding 3 — but that advantage is a brittle DETERMINISTIC LOCK, not across-the-board thief
+superiority.** Injecting small exploration noise into the thief alone recovers captures
+monotonically in both seed blocks (8 → 26/25 → 47/45). At ε=0 both policies are bit-identically
+reproducible across runs *and* across RNG seeds (the RNG is consumed every tick but provably
+inert on actions), so each start position replays one fixed greedy escape trajectory — **distinct
+per seed** (6 seeds → 6 distinct sequences, one of which is even captured), sharing a
+left/right-oscillation motif — that exploits *this specific cop's* deterministic greedy
+responses. On actual match seed 7, a single ε=0.10 deviation at tick 14 flips a 25-move evasion
+into a capture at move 15. No claim is made about any other cop: only this one was evaluated.
+
+**Interpretation (§7.2 non-stationarity, honestly reported).** This is the classic self-play
+pathology: alternating best-response converges to a co-adapted pair, and the frozen evaluation
+pits a policy against the very opponent it was last shaped by. The correct summary of the match
+is therefore *"the co-adapted thief wins the deterministic replay 6–0"*, not *"the thief is the
+stronger agent"* — the ε-sweep refutes the stronger reading, and we report it anyway because the
+probe was designed to be able to refute our own preferred narrative. Scope note: greedy ε=0 is
+the **serving/match** convention (`agent_runtime` plays `act(..., 0.0, ...)`); the training-curve
+capture rates elsewhere in this document are ε-annealed (1.0 → 0.05) rollout metrics — a
+different quantity, deliberately not compared against this table.
+
+> Reproduce: `uv run python scripts/eval_matchup.py` (~minutes, CPU; block shape from the
+> `matchup_eval` config; service: `src/services/matchup_eval.py` via `MarlSDK.run_matchup_eval`).
+> The in-repo script reproduces the seeds-1000 column above bit-for-bit.
