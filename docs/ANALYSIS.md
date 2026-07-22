@@ -279,3 +279,46 @@ different quantity, deliberately not compared against this table.
 > Reproduce: `uv run python scripts/eval_matchup.py` (~minutes, CPU; block shape from the
 > `matchup_eval` config; service: `src/services/matchup_eval.py` via `MarlSDK.run_matchup_eval`).
 > The in-repo script reproduces the seeds-1000 column above bit-for-bit.
+
+## §13 Foreign-cop stress test — §9 bonus readiness (adversarially verified)
+
+Before the inter-group bonus we asked: *does the shipped thief lineup
+(`AdaptiveThiefPolicy`: flee-primary, switch-to-net on first barrier sighting) survive cops we
+did not train it against?* We built a battery — a perfect-information BFS oracle, a
+partial-obs pursuit cop, a barrier-placing pursuit cop (`src/services/foreign_cops.py`, 15
+TDD tests), and two best-response **exploiter** cops trained locally against our frozen
+policies — and ran every cop against three thief candidates over 60-seed blocks, with a
+disjoint second block, cop-side ε=0.05 noise variants, and 10×6-game **sticky-switch** matches
+matching the real §9 semantics. A critic then independently re-drove **17/17 decisive cells —
+all reproduced exactly**, and re-derived the §9 scoring from the brief.
+
+| Cop \ Thief (captures/60, greedy) | shipped Adaptive | raw net | pure flee |
+|---|---|---|---|
+| PursuitCop (no barriers) | **0** | 21 | 0 |
+| OracleBfsCop (perfect info, no barriers) | **0** | 20 | 0 |
+| BarrierPursuitCop | 25 (29 @block-2) | 35 (23 @block-2) — **statistical tie** | 1 |
+| our own serving cop | 28 (sticky: 14) | 8 | 59 |
+| exploiter (BR vs shipped) | 59 | 44 | 38 |
+| exploiter (BR vs raw net) | 39 | **60** | 5 |
+
+**Verdict — KEEP the shipped lineup (critic: UPHOLD).** Against barrier-less cops, staying in
+flee mode is not a loophole but the optimal branch: even the perfect-information BFS oracle
+scores **0/120 pooled** against flee (an equal-speed move-only chaser can never convert under
+simultaneous resolution — the Minimax-Q escape floor, empirically), while the raw net concedes
+~20/60 to the same cops. Against barrier cops the switch fires reliably (47–49/60; 10/10
+sticky matches) and the lineups tie. Against dedicated best responses **both** lineups lose
+(59–60/60) — exploiters exist for anything deterministic.
+
+**Win model** (Table 1 ⇒ margin = 20·(A−B), win iff our cop's captures exceed theirs;
+critic-audited): vs weak/median opponents P(win) ≈ 1.0; vs a strong barrier cop ≈ 0.87–0.90;
+vs an opponent fielding a **net-quality thief** we likely lose (P ≈ 0.08) — the binding
+constraint is **our cop** (proxy p=16/120 vs a net evader, likely pessimistic since the proxy
+is our own co-adapted thief). Honest risks, stated plainly: our weights are in a PUBLIC repo,
+so a targeted exploiter is reproducible by any opponent (~2 min of training; symmetric if
+their repo is public); §9 pays win +10 / **loss +7 / tie +5** (a tie is worth *less* than a
+loss); and the bonus requires both groups' valid emails with `mutual_agreement=true`, else
+both score 0. Full matrix, scoring model, and 12 caveats: `results/bonus/stress_report.json`.
+
+> Reproduce: policies in `src/services/foreign_cops.py` (`foreign_cop_factories`), driven via
+> `src/services/matchup_eval.py` (the cop now receives `state=` — net policies ignore it, the
+> thief never gets it, referee bit-identity unaffected).

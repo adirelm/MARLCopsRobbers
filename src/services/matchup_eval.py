@@ -46,7 +46,10 @@ def play_matchup(  # noqa: PLR0913 — cfg + 2 policies + seed + stage + eps are
 
     The cop always plays greedy (eps=0, the serving convention); ``thief_eps`` injects
     exploration noise into the THIEF only — the perturbation probe for the
-    deterministic-lock finding (ANALYSIS §12).
+    deterministic-lock finding (ANALYSIS §12). The cop's ``act`` also receives the
+    sanctioned train-only ``env.state()`` via ``state=``: net/scripted local policies
+    ignore it, while privileged scripted opponents (the foreign-cop battery's
+    ``OracleBfsCop``) read it. The THIEF never receives state (its CTDE seal holds).
     """
     h, w, num_cops = stage
     env = CopsRobbersEnv(cfg, h=h, w=w, num_cops=num_cops)
@@ -58,7 +61,8 @@ def play_matchup(  # noqa: PLR0913 — cfg + 2 policies + seed + stage + eps are
     terminated, moves = False, 0
     while not terminated:
         masks = info["action_mask"]
-        cop_a = cop_policy.act([obs["cop_0"]], [list(map(bool, masks["cop_0"]))], 0.0, rng)[0]
+        cop_masks = [list(map(bool, masks["cop_0"]))]
+        cop_a = cop_policy.act([obs["cop_0"]], cop_masks, 0.0, rng, state=env.state())[0]
         thief_a = thief_policy.act([obs["thief"]], [list(map(bool, masks["thief"]))], thief_eps, rng)[0]
         tally[Action(int(cop_a)).name] += 1
         obs, _r, terminated, info = env.step({"cop_0": Action(int(cop_a)), "thief": Action(int(thief_a))})

@@ -8,6 +8,7 @@ __all__ = [
     "checkpoints",
     "episode_pad",
     "finetune",
+    "foreign_cops",
     "heuristic_policy",
     "matchup_eval",
     "pipelines",

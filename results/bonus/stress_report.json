@@ -1,0 +1,1505 @@
+{
+  "matrix": {
+    "meta": {
+      "generated_by": "stress-matrix workflow, this session; every number measured this run",
+      "harness": "src/services/matchup_eval.py evaluate_matchup (verified bit-identical to the MCP referee path); cop greedy eps=0 unless a robustness variant says otherwise; thief greedy eps=0",
+      "block": {
+        "n_games": 60,
+        "base_seed": 1000,
+        "stage": [
+          5,
+          5,
+          1
+        ],
+        "max_moves": 25
+      },
+      "rows_cops": {
+        "random_cop": "UniformRandomPolicy over legal actions (weak-tier calibration)",
+        "pursuit": "PursuitCop — partial-obs chaser, never places barriers (median tier)",
+        "barrier_pursuit": "BarrierPursuitCop — pursuit + visibility-gated barrier drops (strong tier, triggers the adaptive switch)",
+        "oracle_bfs": "OracleBfsCop — perfect-information BFS via env.state() passthrough, never places barriers (strong-tier upper bound on pure pursuit)",
+        "our_cop": "our serving cop deploy/model/bonus_cop.pt (calibration row)",
+        "exploiter_adaptive": "IQL double-DQN best response trained THIS SESSION vs the shipped AdaptiveThiefPolicy (warm start = bonus_cop; plateau-stopped chunk 7)",
+        "exploiter_vs_net": "same recipe trained THIS SESSION vs the RAW net thief (plateau-stopped chunk 8)"
+      },
+      "cols_thieves": {
+        "adaptive_shipped": "AdaptiveThiefPolicy(cfg, bonus_thief net) rebuilt fresh per sub-game (switch cleared per game; see adaptive_sticky_match for real cross-sub-game-sticky semantics)",
+        "raw_net": "RecurrentPolicy over deploy/model/bonus_thief.pt",
+        "flee": "ObsFleePolicy (partial-obs greedy flee)",
+        "random_thief": "UniformRandomPolicy (calibration column)"
+      },
+      "cell_fields": "captures/games (cop captures), capture_rate, mean_moves, cop_barriers_total (PLACE_BARRIER count over the block), adaptive_switch_games (games where the adaptive thief saw a barrier and switched)",
+      "exploiter_provenance": "the earlier exploiter run was killed pre-export; both exploiters were retrained this session with the builder's train_exploiter.py recipe (seed 7): vs-adaptive best-net final 59/60, vs-net best-net final 60/60 on this same seed block — reproduced by the matrix cells below"
+    },
+    "cells": {
+      "random_cop": {
+        "adaptive_shipped": {
+          "captures": 4,
+          "games": 60,
+          "capture_rate": 0.0667,
+          "mean_moves": 24.1,
+          "cop_barriers_total": 366,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.3,
+          "adaptive_switch_games": 42
+        },
+        "raw_net": {
+          "captures": 5,
+          "games": 60,
+          "capture_rate": 0.0833,
+          "mean_moves": 24.08,
+          "cop_barriers_total": 330,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.2
+        },
+        "flee": {
+          "captures": 5,
+          "games": 60,
+          "capture_rate": 0.0833,
+          "mean_moves": 24.35,
+          "cop_barriers_total": 349,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        },
+        "random_thief": {
+          "captures": 39,
+          "games": 60,
+          "capture_rate": 0.65,
+          "mean_moves": 15.77,
+          "cop_barriers_total": 227,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        }
+      },
+      "pursuit": {
+        "adaptive_shipped": {
+          "captures": 0,
+          "games": 60,
+          "capture_rate": 0.0,
+          "mean_moves": 25.0,
+          "cop_barriers_total": 0,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.3,
+          "adaptive_switch_games": 0
+        },
+        "raw_net": {
+          "captures": 21,
+          "games": 60,
+          "capture_rate": 0.35,
+          "mean_moves": 19.38,
+          "cop_barriers_total": 0,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.2
+        },
+        "flee": {
+          "captures": 0,
+          "games": 60,
+          "capture_rate": 0.0,
+          "mean_moves": 25.0,
+          "cop_barriers_total": 0,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        },
+        "random_thief": {
+          "captures": 55,
+          "games": 60,
+          "capture_rate": 0.9167,
+          "mean_moves": 8.42,
+          "cop_barriers_total": 0,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.0
+        }
+      },
+      "barrier_pursuit": {
+        "adaptive_shipped": {
+          "captures": 25,
+          "games": 60,
+          "capture_rate": 0.4167,
+          "mean_moves": 21.38,
+          "cop_barriers_total": 204,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.3,
+          "adaptive_switch_games": 47
+        },
+        "raw_net": {
+          "captures": 35,
+          "games": 60,
+          "capture_rate": 0.5833,
+          "mean_moves": 20.6,
+          "cop_barriers_total": 234,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.2
+        },
+        "flee": {
+          "captures": 1,
+          "games": 60,
+          "capture_rate": 0.0167,
+          "mean_moves": 24.78,
+          "cop_barriers_total": 195,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        },
+        "random_thief": {
+          "captures": 52,
+          "games": 60,
+          "capture_rate": 0.8667,
+          "mean_moves": 13.08,
+          "cop_barriers_total": 166,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        }
+      },
+      "oracle_bfs": {
+        "adaptive_shipped": {
+          "captures": 0,
+          "games": 60,
+          "capture_rate": 0.0,
+          "mean_moves": 25.0,
+          "cop_barriers_total": 0,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.3,
+          "adaptive_switch_games": 0
+        },
+        "raw_net": {
+          "captures": 20,
+          "games": 60,
+          "capture_rate": 0.3333,
+          "mean_moves": 18.85,
+          "cop_barriers_total": 0,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.2
+        },
+        "flee": {
+          "captures": 0,
+          "games": 60,
+          "capture_rate": 0.0,
+          "mean_moves": 25.0,
+          "cop_barriers_total": 0,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        },
+        "random_thief": {
+          "captures": 60,
+          "games": 60,
+          "capture_rate": 1.0,
+          "mean_moves": 6.5,
+          "cop_barriers_total": 0,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.0
+        }
+      },
+      "our_cop": {
+        "adaptive_shipped": {
+          "captures": 28,
+          "games": 60,
+          "capture_rate": 0.4667,
+          "mean_moves": 16.18,
+          "cop_barriers_total": 35,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.3,
+          "adaptive_switch_games": 35
+        },
+        "raw_net": {
+          "captures": 8,
+          "games": 60,
+          "capture_rate": 0.1333,
+          "mean_moves": 22.82,
+          "cop_barriers_total": 22,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.4
+        },
+        "flee": {
+          "captures": 59,
+          "games": 60,
+          "capture_rate": 0.9833,
+          "mean_moves": 7.87,
+          "cop_barriers_total": 34,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        },
+        "random_thief": {
+          "captures": 59,
+          "games": 60,
+          "capture_rate": 0.9833,
+          "mean_moves": 6.2,
+          "cop_barriers_total": 33,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        }
+      },
+      "exploiter_adaptive": {
+        "adaptive_shipped": {
+          "captures": 59,
+          "games": 60,
+          "capture_rate": 0.9833,
+          "mean_moves": 9.77,
+          "cop_barriers_total": 35,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.2,
+          "adaptive_switch_games": 35
+        },
+        "raw_net": {
+          "captures": 44,
+          "games": 60,
+          "capture_rate": 0.7333,
+          "mean_moves": 13.95,
+          "cop_barriers_total": 23,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.2
+        },
+        "flee": {
+          "captures": 38,
+          "games": 60,
+          "capture_rate": 0.6333,
+          "mean_moves": 15.48,
+          "cop_barriers_total": 35,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.2
+        },
+        "random_thief": {
+          "captures": 59,
+          "games": 60,
+          "capture_rate": 0.9833,
+          "mean_moves": 6.15,
+          "cop_barriers_total": 35,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        }
+      },
+      "exploiter_vs_net": {
+        "adaptive_shipped": {
+          "captures": 39,
+          "games": 60,
+          "capture_rate": 0.65,
+          "mean_moves": 15.73,
+          "cop_barriers_total": 170,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.3,
+          "adaptive_switch_games": 37
+        },
+        "raw_net": {
+          "captures": 60,
+          "games": 60,
+          "capture_rate": 1.0,
+          "mean_moves": 6.28,
+          "cop_barriers_total": 37,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        },
+        "flee": {
+          "captures": 5,
+          "games": 60,
+          "capture_rate": 0.0833,
+          "mean_moves": 23.73,
+          "cop_barriers_total": 234,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.2
+        },
+        "random_thief": {
+          "captures": 54,
+          "games": 60,
+          "capture_rate": 0.9,
+          "mean_moves": 8.9,
+          "cop_barriers_total": 220,
+          "cop_eps": 0.0,
+          "base_seed": 1000,
+          "wall_sec": 0.1
+        }
+      }
+    }
+  },
+  "robustness_checks": {
+    "cop_eps05_full_matrix": {
+      "what": "entire matrix rerun with 5% uniform-legal cop-side action noise (inner policy still steps first, so recurrent hidden state advances as in the greedy run); note eps noise can emit PLACE_BARRIER for otherwise barrier-less cops, which is why oracle/pursuit show nonzero barriers and switches here",
+      "cells": {
+        "random_cop": {
+          "adaptive_shipped": {
+            "captures": 8,
+            "games": 60,
+            "capture_rate": 0.1333,
+            "mean_moves": 23.97,
+            "cop_barriers_total": 355,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.3,
+            "adaptive_switch_games": 45
+          },
+          "raw_net": {
+            "captures": 3,
+            "games": 60,
+            "capture_rate": 0.05,
+            "mean_moves": 24.43,
+            "cop_barriers_total": 362,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 0,
+            "games": 60,
+            "capture_rate": 0.0,
+            "mean_moves": 25.0,
+            "cop_barriers_total": 344,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 31,
+            "games": 60,
+            "capture_rate": 0.5167,
+            "mean_moves": 19.0,
+            "cop_barriers_total": 279,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          }
+        },
+        "pursuit": {
+          "adaptive_shipped": {
+            "captures": 4,
+            "games": 60,
+            "capture_rate": 0.0667,
+            "mean_moves": 24.37,
+            "cop_barriers_total": 10,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.3,
+            "adaptive_switch_games": 7
+          },
+          "raw_net": {
+            "captures": 24,
+            "games": 60,
+            "capture_rate": 0.4,
+            "mean_moves": 19.47,
+            "cop_barriers_total": 5,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 2,
+            "games": 60,
+            "capture_rate": 0.0333,
+            "mean_moves": 24.68,
+            "cop_barriers_total": 20,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 59,
+            "games": 60,
+            "capture_rate": 0.9833,
+            "mean_moves": 10.0,
+            "cop_barriers_total": 3,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.0
+          }
+        },
+        "barrier_pursuit": {
+          "adaptive_shipped": {
+            "captures": 27,
+            "games": 60,
+            "capture_rate": 0.45,
+            "mean_moves": 21.27,
+            "cop_barriers_total": 202,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2,
+            "adaptive_switch_games": 48
+          },
+          "raw_net": {
+            "captures": 31,
+            "games": 60,
+            "capture_rate": 0.5167,
+            "mean_moves": 21.53,
+            "cop_barriers_total": 238,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 1,
+            "games": 60,
+            "capture_rate": 0.0167,
+            "mean_moves": 25.0,
+            "cop_barriers_total": 205,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 50,
+            "games": 60,
+            "capture_rate": 0.8333,
+            "mean_moves": 13.88,
+            "cop_barriers_total": 169,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.0
+          }
+        },
+        "oracle_bfs": {
+          "adaptive_shipped": {
+            "captures": 4,
+            "games": 60,
+            "capture_rate": 0.0667,
+            "mean_moves": 24.55,
+            "cop_barriers_total": 12,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.3,
+            "adaptive_switch_games": 10
+          },
+          "raw_net": {
+            "captures": 27,
+            "games": 60,
+            "capture_rate": 0.45,
+            "mean_moves": 18.08,
+            "cop_barriers_total": 10,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 1,
+            "games": 60,
+            "capture_rate": 0.0167,
+            "mean_moves": 24.83,
+            "cop_barriers_total": 18,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 60,
+            "games": 60,
+            "capture_rate": 1.0,
+            "mean_moves": 5.67,
+            "cop_barriers_total": 3,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.0
+          }
+        },
+        "our_cop": {
+          "adaptive_shipped": {
+            "captures": 35,
+            "games": 60,
+            "capture_rate": 0.5833,
+            "mean_moves": 15.53,
+            "cop_barriers_total": 45,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2,
+            "adaptive_switch_games": 33
+          },
+          "raw_net": {
+            "captures": 15,
+            "games": 60,
+            "capture_rate": 0.25,
+            "mean_moves": 22.08,
+            "cop_barriers_total": 46,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.4
+          },
+          "flee": {
+            "captures": 59,
+            "games": 60,
+            "capture_rate": 0.9833,
+            "mean_moves": 8.48,
+            "cop_barriers_total": 40,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 60,
+            "games": 60,
+            "capture_rate": 1.0,
+            "mean_moves": 6.2,
+            "cop_barriers_total": 36,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          }
+        },
+        "exploiter_adaptive": {
+          "adaptive_shipped": {
+            "captures": 57,
+            "games": 60,
+            "capture_rate": 0.95,
+            "mean_moves": 10.5,
+            "cop_barriers_total": 43,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2,
+            "adaptive_switch_games": 35
+          },
+          "raw_net": {
+            "captures": 42,
+            "games": 60,
+            "capture_rate": 0.7,
+            "mean_moves": 14.97,
+            "cop_barriers_total": 42,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 38,
+            "games": 60,
+            "capture_rate": 0.6333,
+            "mean_moves": 15.68,
+            "cop_barriers_total": 50,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2
+          },
+          "random_thief": {
+            "captures": 59,
+            "games": 60,
+            "capture_rate": 0.9833,
+            "mean_moves": 7.03,
+            "cop_barriers_total": 37,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          }
+        },
+        "exploiter_vs_net": {
+          "adaptive_shipped": {
+            "captures": 46,
+            "games": 60,
+            "capture_rate": 0.7667,
+            "mean_moves": 14.62,
+            "cop_barriers_total": 124,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2,
+            "adaptive_switch_games": 41
+          },
+          "raw_net": {
+            "captures": 60,
+            "games": 60,
+            "capture_rate": 1.0,
+            "mean_moves": 7.3,
+            "cop_barriers_total": 53,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          },
+          "flee": {
+            "captures": 10,
+            "games": 60,
+            "capture_rate": 0.1667,
+            "mean_moves": 22.82,
+            "cop_barriers_total": 288,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.2
+          },
+          "random_thief": {
+            "captures": 58,
+            "games": 60,
+            "capture_rate": 0.9667,
+            "mean_moves": 8.58,
+            "cop_barriers_total": 152,
+            "cop_eps": 0.05,
+            "base_seed": 1000,
+            "wall_sec": 0.1
+          }
+        }
+      }
+    },
+    "disjoint_seed_block_2000": {
+      "what": "entire matrix rerun greedy on seeds 2000-2059",
+      "cells": {
+        "random_cop": {
+          "adaptive_shipped": {
+            "captures": 3,
+            "games": 60,
+            "capture_rate": 0.05,
+            "mean_moves": 24.5,
+            "cop_barriers_total": 340,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.3,
+            "adaptive_switch_games": 41
+          },
+          "raw_net": {
+            "captures": 0,
+            "games": 60,
+            "capture_rate": 0.0,
+            "mean_moves": 25.0,
+            "cop_barriers_total": 343,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.3
+          },
+          "flee": {
+            "captures": 2,
+            "games": 60,
+            "capture_rate": 0.0333,
+            "mean_moves": 24.48,
+            "cop_barriers_total": 362,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 37,
+            "games": 60,
+            "capture_rate": 0.6167,
+            "mean_moves": 16.83,
+            "cop_barriers_total": 237,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          }
+        },
+        "pursuit": {
+          "adaptive_shipped": {
+            "captures": 0,
+            "games": 60,
+            "capture_rate": 0.0,
+            "mean_moves": 25.0,
+            "cop_barriers_total": 0,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.4,
+            "adaptive_switch_games": 0
+          },
+          "raw_net": {
+            "captures": 20,
+            "games": 60,
+            "capture_rate": 0.3333,
+            "mean_moves": 20.57,
+            "cop_barriers_total": 0,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 0,
+            "games": 60,
+            "capture_rate": 0.0,
+            "mean_moves": 25.0,
+            "cop_barriers_total": 0,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 57,
+            "games": 60,
+            "capture_rate": 0.95,
+            "mean_moves": 9.95,
+            "cop_barriers_total": 0,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.0
+          }
+        },
+        "barrier_pursuit": {
+          "adaptive_shipped": {
+            "captures": 29,
+            "games": 60,
+            "capture_rate": 0.4833,
+            "mean_moves": 20.37,
+            "cop_barriers_total": 197,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.2,
+            "adaptive_switch_games": 49
+          },
+          "raw_net": {
+            "captures": 23,
+            "games": 60,
+            "capture_rate": 0.3833,
+            "mean_moves": 22.68,
+            "cop_barriers_total": 225,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 5,
+            "games": 60,
+            "capture_rate": 0.0833,
+            "mean_moves": 24.65,
+            "cop_barriers_total": 211,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 54,
+            "games": 60,
+            "capture_rate": 0.9,
+            "mean_moves": 12.83,
+            "cop_barriers_total": 174,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.0
+          }
+        },
+        "oracle_bfs": {
+          "adaptive_shipped": {
+            "captures": 0,
+            "games": 60,
+            "capture_rate": 0.0,
+            "mean_moves": 25.0,
+            "cop_barriers_total": 0,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.3,
+            "adaptive_switch_games": 0
+          },
+          "raw_net": {
+            "captures": 19,
+            "games": 60,
+            "capture_rate": 0.3167,
+            "mean_moves": 19.73,
+            "cop_barriers_total": 0,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 0,
+            "games": 60,
+            "capture_rate": 0.0,
+            "mean_moves": 25.0,
+            "cop_barriers_total": 0,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 60,
+            "games": 60,
+            "capture_rate": 1.0,
+            "mean_moves": 6.43,
+            "cop_barriers_total": 0,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.0
+          }
+        },
+        "our_cop": {
+          "adaptive_shipped": {
+            "captures": 31,
+            "games": 60,
+            "capture_rate": 0.5167,
+            "mean_moves": 15.52,
+            "cop_barriers_total": 32,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.2,
+            "adaptive_switch_games": 32
+          },
+          "raw_net": {
+            "captures": 8,
+            "games": 60,
+            "capture_rate": 0.1333,
+            "mean_moves": 22.8,
+            "cop_barriers_total": 45,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.4
+          },
+          "flee": {
+            "captures": 60,
+            "games": 60,
+            "capture_rate": 1.0,
+            "mean_moves": 7.22,
+            "cop_barriers_total": 32,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          },
+          "random_thief": {
+            "captures": 60,
+            "games": 60,
+            "capture_rate": 1.0,
+            "mean_moves": 5.95,
+            "cop_barriers_total": 30,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          }
+        },
+        "exploiter_adaptive": {
+          "adaptive_shipped": {
+            "captures": 58,
+            "games": 60,
+            "capture_rate": 0.9667,
+            "mean_moves": 9.28,
+            "cop_barriers_total": 31,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1,
+            "adaptive_switch_games": 31
+          },
+          "raw_net": {
+            "captures": 43,
+            "games": 60,
+            "capture_rate": 0.7167,
+            "mean_moves": 14.38,
+            "cop_barriers_total": 19,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.2
+          },
+          "flee": {
+            "captures": 34,
+            "games": 60,
+            "capture_rate": 0.5667,
+            "mean_moves": 15.38,
+            "cop_barriers_total": 32,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.2
+          },
+          "random_thief": {
+            "captures": 60,
+            "games": 60,
+            "capture_rate": 1.0,
+            "mean_moves": 5.87,
+            "cop_barriers_total": 32,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          }
+        },
+        "exploiter_vs_net": {
+          "adaptive_shipped": {
+            "captures": 37,
+            "games": 60,
+            "capture_rate": 0.6167,
+            "mean_moves": 16.35,
+            "cop_barriers_total": 224,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.3,
+            "adaptive_switch_games": 35
+          },
+          "raw_net": {
+            "captures": 60,
+            "games": 60,
+            "capture_rate": 1.0,
+            "mean_moves": 6.62,
+            "cop_barriers_total": 36,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          },
+          "flee": {
+            "captures": 6,
+            "games": 60,
+            "capture_rate": 0.1,
+            "mean_moves": 23.65,
+            "cop_barriers_total": 182,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.2
+          },
+          "random_thief": {
+            "captures": 59,
+            "games": 60,
+            "capture_rate": 0.9833,
+            "mean_moves": 7.77,
+            "cop_barriers_total": 132,
+            "cop_eps": 0.0,
+            "base_seed": 2000,
+            "wall_sec": 0.1
+          }
+        }
+      }
+    },
+    "adaptive_sticky_match": {
+      "what": "real §9 semantics — ONE AdaptiveThiefPolicy per 6-sub-game match (switch sticky across sub-games), 10 matches over the same 60 seeds, barrier-capable cop rows",
+      "cells": {
+        "barrier_pursuit": {
+          "captures": 30,
+          "games": 60,
+          "capture_rate": 0.5,
+          "mean_moves": 21.6,
+          "matches_switched": 10,
+          "matches": 10,
+          "base_seed": 1000
+        },
+        "our_cop": {
+          "captures": 14,
+          "games": 60,
+          "capture_rate": 0.2333,
+          "mean_moves": 20.7,
+          "matches_switched": 10,
+          "matches": 10,
+          "base_seed": 1000
+        },
+        "exploiter_adaptive": {
+          "captures": 49,
+          "games": 60,
+          "capture_rate": 0.8167,
+          "mean_moves": 12.25,
+          "matches_switched": 10,
+          "matches": 10,
+          "base_seed": 1000
+        },
+        "exploiter_vs_net": {
+          "captures": 52,
+          "games": 60,
+          "capture_rate": 0.8667,
+          "mean_moves": 9.6,
+          "matches_switched": 10,
+          "matches": 10,
+          "base_seed": 1000
+        }
+      }
+    },
+    "decisive_cells": [
+      {
+        "cell": "pursuit x adaptive_shipped",
+        "values": {
+          "greedy_seed1000": "0/60",
+          "greedy_seed2000": "0/60",
+          "cop_eps05_seed1000": "4/60"
+        },
+        "why": "median tier, KEEP arm: a competent barrier-less chaser never converts against the flee-mode thief (simultaneous-move parity); the 4/60 under cop-eps arrives mostly via eps-induced accidental barrier drops that flip the switch"
+      },
+      {
+        "cell": "pursuit x raw_net",
+        "values": {
+          "greedy_seed1000": "21/60",
+          "greedy_seed2000": "20/60",
+          "cop_eps05_seed1000": "24/60"
+        },
+        "why": "median tier, SWITCH arm: the raw net concedes ~20-24/60 to the same barrier-less chaser — the largest stable lineup gap in the matrix"
+      },
+      {
+        "cell": "oracle_bfs x adaptive_shipped",
+        "values": {
+          "greedy_seed1000": "0/60",
+          "greedy_seed2000": "0/60",
+          "cop_eps05_seed1000": "4/60"
+        },
+        "why": "strong barrier-less bound, KEEP arm: even a PERFECT-INFORMATION BFS pursuer cannot beat flee mode (0/120 greedy pooled) — the strongest single pillar for keeping the flee-primary lineup"
+      },
+      {
+        "cell": "oracle_bfs x raw_net",
+        "values": {
+          "greedy_seed1000": "20/60",
+          "greedy_seed2000": "19/60",
+          "cop_eps05_seed1000": "27/60"
+        },
+        "why": "strong barrier-less bound, SWITCH arm: the raw net concedes 19-27/60 to the same oracle — the ordering vs the adaptive lineup is large and stable in every variant"
+      },
+      {
+        "cell": "exploiter_vs_net x adaptive_shipped",
+        "values": {
+          "greedy_seed1000": "39/60",
+          "greedy_seed2000": "37/60",
+          "cop_eps05_seed1000": "46/60",
+          "match_sticky_seed1000": "52/60"
+        },
+        "why": "adversarial cross, KEEP arm: what a best response trained against the RAW net does to the shipped adaptive lineup (did keeping dodge the mis-targeted BR?)"
+      },
+      {
+        "cell": "exploiter_adaptive x raw_net",
+        "values": {
+          "greedy_seed1000": "44/60",
+          "greedy_seed2000": "43/60",
+          "cop_eps05_seed1000": "42/60"
+        },
+        "why": "adversarial cross, SWITCH arm: what a best response trained against the ADAPTIVE lineup does to the raw net; together with the previous cell it shows the cross pair is comparable and flips under sticky semantics — so it cannot overturn the barrier-less cells"
+      }
+    ],
+    "flip_findings": [
+      "barrier_pursuit ordering FLIPS across seed blocks: adaptive 25/60 vs raw 35/60 on seeds 1000-1059, but adaptive 29/60 vs raw 23/60 on 2000-2059 (eps05: 27 vs 31; pooled 54/120 vs 58/120) — the barrier-cop tier is a statistical tie, and no conclusion is drawn from it",
+      "adversarial cross ordering FLIPS under real sticky semantics: per-game-fresh adaptive concedes 37-46/60 to the anti-raw exploiter (raw concedes 42-44/60 to the anti-adaptive one), but match-sticky adaptive concedes 52/60 — comparable either way, no robust ordering",
+      "our_cop row is the one place raw looks better (8/60 vs adaptive 28/60 greedy), but it is a co-adaptation artifact (the raw thief was trained by self-play against this exact cop): it is cop-eps-fragile (8 -> 15/60 at eps=0.05) and mostly closes under real sticky semantics (adaptive 14/60); it does not transfer to foreign cops",
+      "cop-eps=0.05 lets otherwise barrier-less scripted cops occasionally emit PLACE_BARRIER (noise is uniform over ALL legal actions), so their 'never places barriers' property is strict only at eps=0 — the adaptive thief's few eps05 concessions partly route through those accidental switches"
+    ]
+  },
+  "scoring_model": {
+    "table1": {
+      "cop_win": 20,
+      "thief_win": 10,
+      "cop_loss": 5,
+      "thief_loss": 5
+    },
+    "match_structure": {
+      "num_games_per_match": 6,
+      "assumption": "symmetric §9 match: our cop vs their thief for N sub-games and their cop vs our thief for N sub-games; primary N=3 (one 6-sub-game match split evenly), secondary N=6 (a full 6-game series per role pairing) — the win condition is N-invariant"
+    },
+    "derivation": {
+      "our_total": "as cop: 20*A + 5*(N-A); as thief: 10*(N-B) + 5*B  =>  15N + 15A - 5B",
+      "their_total": "15N + 15B - 5A (mirror)",
+      "margin": "our - their = 20*(A - B)  =>  we WIN iff A > B, for any equal N",
+      "per_capture_swing": "one capture by our cop: +15 to our total (20 instead of 5) and -5 to theirs (5 instead of 10) = +20 margin; symmetric for their cop",
+      "symbols": "A = our cop's captures of their thief (A~Bin(N,p_c)); B = their cop's captures of our thief (B~Bin(N,p_t)); independence assumed across sub-games"
+    },
+    "tier_probabilities_source": "pooled greedy blocks (seeds 1000-1059 + 2000-2059, 120 games per cell); sticky variants from the 10x6-match runs",
+    "tiers": {
+      "weak": {
+        "their_cop_model": "random_cop (uniform over legal actions incl. barrier)",
+        "their_thief_model": "uniform-random thief",
+        "p_our_cop_captures_their_thief": {
+          "value": 0.9917,
+          "measured_as": "our_cop x random_thief pooled greedy blocks 1000+2000 = 119/120"
+        },
+        "lineups": {
+          "adaptive_shipped": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.0583,
+              "measured_as": "random_cop x adaptive_shipped pooled greedy blocks 1000+2000 = 7/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 88.8,
+              "expected_their_total": 32.7,
+              "expected_margin": 56.0,
+              "p_win": 0.9995,
+              "p_tie": 0.0005,
+              "p_lose": 0.0
+            },
+            "n6_per_side": {
+              "expected_our_total": 177.5,
+              "expected_their_total": 65.5,
+              "expected_margin": 112.0,
+              "p_win": 1.0,
+              "p_tie": 0.0,
+              "p_lose": 0.0
+            }
+          },
+          "raw_net": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.0417,
+              "measured_as": "random_cop x raw_net pooled greedy blocks 1000+2000 = 5/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 89.0,
+              "expected_their_total": 32.0,
+              "expected_margin": 57.0,
+              "p_win": 0.9998,
+              "p_tie": 0.0002,
+              "p_lose": 0.0
+            },
+            "n6_per_side": {
+              "expected_our_total": 178.0,
+              "expected_their_total": 64.0,
+              "expected_margin": 114.0,
+              "p_win": 1.0,
+              "p_tie": 0.0,
+              "p_lose": 0.0
+            }
+          }
+        }
+      },
+      "median": {
+        "their_cop_model": "PursuitCop (partial-obs last-seen chaser, no barriers)",
+        "their_thief_model": "flee-class scripted evader",
+        "p_our_cop_captures_their_thief": {
+          "value": 0.9917,
+          "measured_as": "our_cop x flee pooled greedy blocks 1000+2000 = 119/120"
+        },
+        "lineups": {
+          "adaptive_shipped": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.0,
+              "measured_as": "pursuit x adaptive_shipped pooled greedy blocks 1000+2000 = 0/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 89.6,
+              "expected_their_total": 30.1,
+              "expected_margin": 59.5,
+              "p_win": 1.0,
+              "p_tie": 0.0,
+              "p_lose": -0.0
+            },
+            "n6_per_side": {
+              "expected_our_total": 179.3,
+              "expected_their_total": 60.2,
+              "expected_margin": 119.0,
+              "p_win": 1.0,
+              "p_tie": 0.0,
+              "p_lose": 0.0
+            }
+          },
+          "raw_net": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.3417,
+              "measured_as": "pursuit x raw_net pooled greedy blocks 1000+2000 = 41/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 84.5,
+              "expected_their_total": 45.5,
+              "expected_margin": 39.0,
+              "p_win": 0.9543,
+              "p_tie": 0.0446,
+              "p_lose": 0.001
+            },
+            "n6_per_side": {
+              "expected_our_total": 169.0,
+              "expected_their_total": 91.0,
+              "expected_margin": 78.0,
+              "p_win": 0.9974,
+              "p_tie": 0.0025,
+              "p_lose": 0.0001
+            }
+          }
+        }
+      },
+      "strong": {
+        "their_cop_model": "BarrierPursuitCop (partial-obs chaser + visibility-gated barrier drops) — worst case of the strong scripted battery; OracleBfsCop (perfect-info, no barriers) reported separately",
+        "their_thief_model": "flee-class scripted evader",
+        "p_our_cop_captures_their_thief": {
+          "value": 0.9917,
+          "measured_as": "our_cop x flee pooled greedy blocks 1000+2000 = 119/120"
+        },
+        "lineups": {
+          "adaptive_shipped": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.45,
+              "measured_as": "barrier_pursuit x adaptive_shipped pooled greedy blocks 1000+2000 = 54/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 82.9,
+              "expected_their_total": 50.4,
+              "expected_margin": 32.5,
+              "p_win": 0.9005,
+              "p_tie": 0.0971,
+              "p_lose": 0.0023
+            },
+            "n6_per_side": {
+              "expected_our_total": 165.8,
+              "expected_their_total": 100.7,
+              "expected_margin": 65.0,
+              "p_win": 0.9885,
+              "p_tie": 0.011,
+              "p_lose": 0.0005
+            },
+            "match_sticky_variant": {
+              "p_their_cop_captures_our_thief": {
+                "value": 0.5,
+                "measured_as": "barrier_pursuit sticky 10x6-game matches = 30/60"
+              },
+              "n3_per_side": {
+                "expected_our_total": 82.1,
+                "expected_their_total": 52.6,
+                "expected_margin": 29.5,
+                "p_win": 0.8657,
+                "p_tie": 0.1312,
+                "p_lose": 0.0032
+              }
+            }
+          },
+          "raw_net": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.4833,
+              "measured_as": "barrier_pursuit x raw_net pooled greedy blocks 1000+2000 = 58/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 82.4,
+              "expected_their_total": 51.9,
+              "expected_margin": 30.5,
+              "p_win": 0.8781,
+              "p_tie": 0.119,
+              "p_lose": 0.0029
+            },
+            "n6_per_side": {
+              "expected_our_total": 164.8,
+              "expected_their_total": 103.7,
+              "expected_margin": 61.0,
+              "p_win": 0.983,
+              "p_tie": 0.0162,
+              "p_lose": 0.0007
+            }
+          }
+        }
+      },
+      "strong_net_thief_sensitivity": {
+        "their_cop_model": "BarrierPursuitCop",
+        "their_thief_model": "net-quality evader (proxy: our raw self-play thief vs our cop — co-adapted, so pessimistic for our cop)",
+        "p_our_cop_captures_their_thief": {
+          "value": 0.1333,
+          "measured_as": "our_cop x raw_net pooled greedy blocks 1000+2000 = 16/120"
+        },
+        "lineups": {
+          "adaptive_shipped": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.45,
+              "measured_as": "barrier_pursuit x adaptive_shipped pooled greedy blocks 1000+2000 = 54/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 44.2,
+              "expected_their_total": 63.3,
+              "expected_margin": -19.0,
+              "p_win": 0.0787,
+              "p_tie": 0.2466,
+              "p_lose": 0.6747
+            },
+            "n6_per_side": {
+              "expected_our_total": 88.5,
+              "expected_their_total": 126.5,
+              "expected_margin": -38.0,
+              "p_win": 0.0519,
+              "p_tie": 0.1167,
+              "p_lose": 0.8314
+            },
+            "match_sticky_variant": {
+              "p_their_cop_captures_our_thief": {
+                "value": 0.5,
+                "measured_as": "barrier_pursuit sticky 10x6-game matches = 30/60"
+              },
+              "n3_per_side": {
+                "expected_our_total": 43.5,
+                "expected_their_total": 65.5,
+                "expected_margin": -22.0,
+                "p_win": 0.0627,
+                "p_tie": 0.2116,
+                "p_lose": 0.7256
+              }
+            }
+          },
+          "raw_net": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.4833,
+              "measured_as": "barrier_pursuit x raw_net pooled greedy blocks 1000+2000 = 58/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 43.7,
+              "expected_their_total": 64.7,
+              "expected_margin": -21.0,
+              "p_win": 0.0678,
+              "p_tie": 0.2231,
+              "p_lose": 0.7091
+            },
+            "n6_per_side": {
+              "expected_our_total": 87.5,
+              "expected_their_total": 129.5,
+              "expected_margin": -42.0,
+              "p_win": 0.0406,
+              "p_tie": 0.0978,
+              "p_lose": 0.8616
+            }
+          }
+        }
+      },
+      "adversarial_targeted": {
+        "their_cop_model": "learned best-response exploiter (targeted at the lineup named per column for 'targeted'; at the OTHER lineup for 'cross')",
+        "their_thief_model": "net-quality co-adapted evader (proxy: our raw self-play thief)",
+        "p_our_cop_captures_their_thief": {
+          "value": 0.1333,
+          "measured_as": "our_cop x raw_net pooled greedy blocks 1000+2000 = 16/120 (co-adapted proxy for a net-quality foreign thief)"
+        },
+        "lineups": {
+          "adaptive_shipped": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.975,
+              "measured_as": "exploiter_adaptive x adaptive_shipped pooled greedy blocks 1000+2000 = 117/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 36.4,
+              "expected_their_total": 86.9,
+              "expected_margin": -50.5,
+              "p_win": 0.0003,
+              "p_tie": 0.006,
+              "p_lose": 0.9937
+            },
+            "match_sticky_variant": {
+              "p_their_cop_captures_our_thief": {
+                "value": 0.8167,
+                "measured_as": "exploiter_adaptive sticky 10x6-game matches = 49/60"
+              },
+              "n3_per_side": {
+                "expected_our_total": 38.7,
+                "expected_their_total": 79.8,
+                "expected_margin": -41.0,
+                "p_win": 0.007,
+                "p_tie": 0.047,
+                "p_lose": 0.946
+              }
+            }
+          },
+          "raw_net": {
+            "p_their_cop_captures_our_thief": {
+              "value": 1.0,
+              "measured_as": "exploiter_vs_net x raw_net pooled greedy blocks 1000+2000 = 120/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 36.0,
+              "expected_their_total": 88.0,
+              "expected_margin": -52.0,
+              "p_win": 0.0,
+              "p_tie": 0.0024,
+              "p_lose": 0.9976
+            }
+          }
+        }
+      },
+      "adversarial_cross": {
+        "their_cop_model": "learned best-response exploiter (targeted at the lineup named per column for 'targeted'; at the OTHER lineup for 'cross')",
+        "their_thief_model": "net-quality co-adapted evader (proxy: our raw self-play thief)",
+        "p_our_cop_captures_their_thief": {
+          "value": 0.1333,
+          "measured_as": "our_cop x raw_net pooled greedy blocks 1000+2000 = 16/120 (co-adapted proxy for a net-quality foreign thief)"
+        },
+        "lineups": {
+          "adaptive_shipped": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.6333,
+              "measured_as": "exploiter_vs_net x adaptive_shipped pooled greedy blocks 1000+2000 = 76/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 41.5,
+              "expected_their_total": 71.5,
+              "expected_margin": -30.0,
+              "p_win": 0.0307,
+              "p_tie": 0.1298,
+              "p_lose": 0.8395
+            },
+            "match_sticky_variant": {
+              "p_their_cop_captures_our_thief": {
+                "value": 0.8667,
+                "measured_as": "exploiter_vs_net sticky 10x6-game matches = 52/60"
+              },
+              "n3_per_side": {
+                "expected_our_total": 38.0,
+                "expected_their_total": 82.0,
+                "expected_margin": -44.0,
+                "p_win": 0.0038,
+                "p_tie": 0.0308,
+                "p_lose": 0.9654
+              }
+            }
+          },
+          "raw_net": {
+            "p_their_cop_captures_our_thief": {
+              "value": 0.725,
+              "measured_as": "exploiter_adaptive x raw_net pooled greedy blocks 1000+2000 = 87/120"
+            },
+            "n3_per_side": {
+              "expected_our_total": 40.1,
+              "expected_their_total": 75.6,
+              "expected_margin": -35.5,
+              "p_win": 0.0163,
+              "p_tie": 0.0839,
+              "p_lose": 0.8998
+            }
+          }
+        }
+      }
+    }
+  },
+  "lineup_comparison": {
+    "per_tier": {
+      "weak": {
+        "adaptive_shipped": "WIN (P=1.000, E margin +56.0)",
+        "raw_net": "WIN (P=1.000, E margin +57.0)",
+        "verdict": "tie — both crush the tier; lineup indifferent"
+      },
+      "median": {
+        "adaptive_shipped": "WIN (P=1.000, E margin +59.5)",
+        "raw_net": "WIN (P=0.954, E margin +39.0)",
+        "verdict": "ADAPTIVE better — it concedes 0/120 to the pursuit-class cop vs 41/120 for raw; both still win the tier"
+      },
+      "strong_scripted_thief": {
+        "adaptive_shipped": "WIN (P=0.900 fresh / 0.866 sticky, E margin +32.5 / +29.5)",
+        "raw_net": "WIN (P=0.878, E margin +30.5)",
+        "verdict": "tie vs the barrier cop (ordering flips across seed blocks); vs the barrier-LESS strong cop (oracle variant below) ADAPTIVE is decisively better",
+        "oracle_strong_cop_variant": {
+          "adaptive_shipped": {
+            "p_t": 0.0,
+            "expected_our_total": 89.6,
+            "expected_their_total": 30.1,
+            "expected_margin": 59.5,
+            "p_win": 1.0,
+            "p_tie": 0.0,
+            "p_lose": -0.0
+          },
+          "raw_net": {
+            "p_t": 0.325,
+            "expected_our_total": 84.8,
+            "expected_their_total": 44.7,
+            "expected_margin": 40.0,
+            "p_win": 0.9603,
+            "p_tie": 0.0388,
+            "p_lose": 0.0009
+          }
+        }
+      },
+      "strong_net_thief_sensitivity": {
+        "adaptive_shipped": "LOSE (P(win)=0.079 fresh / 0.063 sticky)",
+        "raw_net": "LOSE (P(win)=0.068)",
+        "verdict": "tie — both lose; the binding constraint is OUR COP's 16/120 vs net-quality evaders, not the thief lineup"
+      },
+      "adversarial_targeted": {
+        "adaptive_shipped": "LOSE (P(win)~0.000 fresh / 0.007 sticky)",
+        "raw_net": "LOSE (P(win)~0.000; the anti-raw BR is a perfect 120/120)",
+        "verdict": "tie — a best response trained against whichever lineup we ship beats it; adaptive is marginally less bad"
+      },
+      "adversarial_cross": {
+        "adaptive_shipped": "LOSE (P(win)=0.031 fresh / 0.004 sticky)",
+        "raw_net": "LOSE (P(win)=0.016)",
+        "verdict": "tie — no robust ordering (sticky flips it); neither lineup dodges a mis-targeted best response"
+      }
+    },
+    "overall": "the adaptive lineup weakly dominates: it is decisively better in the median tier and against every barrier-less strong cop (0-4/60 conceded vs ~20-27/60), statistically tied everywhere else, and never robustly worse; the single raw-favoring cell (our own co-adapted cop) does not transfer to foreign opponents"
+  },
+  "recommendation": {
+    "decision": "KEEP the shipped AdaptiveThiefPolicy (flee-primary, net-on-barrier-sighting).",
+    "plain_language": "Keep the shipped adaptive thief. The open question — 'against a strong foreign cop that never places barriers, the shipped thief stays in flee mode; is that right?' — resolves emphatically YES: this run shows even a perfect-information BFS cop cannot beat flee mode (0/120 pooled greedy; 4/60 only under injected cop noise that accidentally drops barriers), while the raw net concedes ~20-27/60 to the very same barrier-less cops. Staying in flee mode against barrier-less cops is not a loophole, it is the optimal branch. Against barrier-placing cops the switch fires (47-49/60 games) and the two lineups are statistically tied; against dedicated best responses both lineups lose regardless. The only cell favoring the raw net is against OUR OWN cop, a co-adaptation artifact that is eps-fragile and does not transfer. Expected match outcomes with the shipped lineup: win vs weak/median/strong-scripted tiers (P 0.87-1.00), lose vs net-quality-thief teams and dedicated exploiters — driven by our cop's evasion gap, not by the thief choice.",
+    "conditions_that_would_flip_it": "SWITCH to the raw net only if we learned most opponents field self-play net cops co-adapted-style with sparse barrier use AND no scripted/BFS chaser fallback (the our_cop-row regime) — every scripted row and both exploiter rows point the other way; even then sticky semantics close most of the gap (14/60 vs 16/120)."
+  },
+  "caveats": [
+    "Foreign-cop battery is scripted plus two locally trained best responses; real opposing teams field unknown learned cops — the our_cop and exploiter rows bracket that range, but no un-co-adapted foreign net cop was available to test.",
+    "Exploiter rows are LOWER BOUNDS on exploitability: both best responses were plateau-stopped after 7-8 chunks (~1-2 min); a longer or regularized BR could be stronger. Whichever lineup we ship, a BR trained against it reached 117/120 (adaptive) and 120/120 (raw).",
+    "p(our cop captures a net-quality thief) = 16/120 uses OUR self-play thief as proxy — co-adapted against this exact cop, so likely PESSIMISTIC for our cop vs a foreign (non-co-adapted) net thief; the strong-net-sensitivity and adversarial tiers may be understated for us.",
+    "Match structure assumed an even role split (N=3 sub-games per side of the 6; N=6 also reported); the win condition (win iff our cop out-captures theirs) is N-invariant under Table 1, margin = 20*(A-B).",
+    "Binomial win probabilities assume sub-game independence; the sticky adaptive switch violates independence within a match — measured directly instead via the 10x6-match sticky blocks and reported as variants.",
+    "The matrix's adaptive column rebuilds the policy per sub-game (switch cleared); real §9 semantics are sticky across sub-games — reported separately (adaptive_sticky_match), and every barrier cop flipped the switch in 10/10 matches, moving adaptive's numbers toward the raw net's, as expected.",
+    "Seed blocks 1000-1059 and 2000-2059 are disjoint from the match seeds 7-12; deterministic policy pairs can still lock per-seed on the actual match seeds (the reason for the eps and second-block probes).",
+    "The exploiter .pt files live in the session scratchpad (not committed); the earlier exploiter run died before exporting, so both were retrained this session with the builder's recipe (logs: exploiter_log2.txt, exploiter_net_log.txt; finals 59/60 and 60/60 reproduced by the matrix cells).",
+    "The adversarial tier assumes the opponent trains a best response against our exact artifacts. This is REALISTIC, not hypothetical: deploy/model/bonus_*.pt are tracked in the PUBLIC repo, so any opponent can clone them and reproduce our exploiter result (~2 min of local training reached 59/60 vs the shipped lineup). Symmetrically, we can do the same against any public opponent repo. Accepted risk for a friendly §9 partner; noted for honesty.",
+    "§9 payoff quirk (critic finding): bonus points are win +10, LOSE +7, TIE +5 — a tie is worth less than a loss. Expected-bonus ordering across tiers is unchanged (adaptive 10.00/9.51/6.74 vs raw 9.77/9.40/6.76), but 'P(win)' is not the literal §9 objective.",
+    "§9 awards the bonus only if BOTH groups send valid bonus emails AND mutual_agreement=true; an operational failure gives both groups 0 regardless of lineup strength.",
+    "The flee-invincibility bound is battery-relative: proven vs greedy-BFS chasers (0/120 pooled), not vs a minimax simultaneous-move pursuer; no learned barrier-less cop was tested. Wilson 95% upper bound for 0/120 is ~3.1% — read P_win=1.00 as >=0.997 under the model, never certainty."
+  ],
+  "critic_verdict": {
+    "lineup": "UPHOLD — KEEP the shipped AdaptiveThiefPolicy; no _match_policy change",
+    "spot_checks": "17/17 decisive cells independently re-driven on full 60-seed blocks; all reproduced exactly (captures AND switch counts)",
+    "scoring_audit": "BRIEF §9 structure confirmed (6 sub-games, roles alternate 3/3); margin=20(A-B), win iff A>B, N-invariant; all tier expectations recomputed by hand to rounding"
+  }
+}
