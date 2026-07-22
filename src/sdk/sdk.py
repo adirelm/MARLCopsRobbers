@@ -25,6 +25,13 @@ from src.services.trainer import SelfPlayTrainer
 from src.utils.compute import apply_compute_limits
 
 
+def _pipelines():
+    """Lazily import the slow-pipeline service module (keeps the SDK import light)."""
+    from src.services import pipelines  # noqa: PLC0415 — lazy: heavy BC/sweep deps
+
+    return pipelines
+
+
 class MarlSDK:
     """The single sanctioned entry point for MARL Cops & Robbers business logic."""
 
@@ -40,16 +47,7 @@ class MarlSDK:
     def build_env(
         self, h: int | None = None, w: int | None = None, num_cops: int | None = None
     ) -> CopsRobbersEnv:
-        """Construct a P2 :class:`CopsRobbersEnv` (config defaults when args None).
-
-        Args:
-            h: Board rows; defaults to ``game.grid_size``.
-            w: Board columns; defaults to ``game.grid_size``.
-            num_cops: Cop count; defaults to ``env.num_cops``.
-
-        Returns:
-            A ready-to-reset env.
-        """
+        """Construct a P2 :class:`CopsRobbersEnv`; ``None`` args fall back to the config."""
         return CopsRobbersEnv(self._cfg, h=h, w=w, num_cops=num_cops)
 
     def train(self, algorithm: str, seed: int, stage_idx: int = 0) -> list[dict]:
@@ -92,23 +90,12 @@ class MarlSDK:
         olora: bool = True,
         rounds_per_stage: int | None = None,
     ) -> dict:
-        """OLoRA-wrapped CTDE curriculum finetune across stages (the T4.5 loop).
+        """OLoRA-wrapped CTDE curriculum finetune across ``stage_indices`` (the T4.5 loop).
 
-        Wraps the BC-pretrained base nets with OLoRA (encoder adapters; frozen
-        base + GRU) when ``olora`` is set, then carries them through the
-        curriculum via :func:`~src.services.finetune.finetune_curriculum`. Always
-        the QMIX arm. Routes through the SDK so scripts stay thin.
-
-        Args:
-            seed: Master finetune seed.
-            stage_indices: Ordered curriculum stage indices (e.g. ``[1, 2, 3]``).
-            cop_net: The BC-pretrained cop base net (``n_agents=2``).
-            thief_net: The BC-pretrained thief base net (``n_agents=1``).
-            olora: Wrap the encoders with OLoRA before finetuning (default True).
-            rounds_per_stage: Rounds per stage (default ``selfplay.rounds``).
-
-        Returns:
-            ``{"history", "cop_net", "thief_net"}`` from the curriculum loop.
+        Wraps the BC-pretrained base nets with OLoRA (encoder adapters; frozen base + GRU)
+        when ``olora`` is set, then carries them through the curriculum via
+        :func:`~src.services.finetune.finetune_curriculum` (always the QMIX arm).
+        Returns ``{"history", "cop_net", "thief_net"}``.
         """
         cfg = cfg_for_algo(self._cfg, "qmix")
         if olora:
@@ -138,6 +125,14 @@ class MarlSDK:
             net.reset()
             return net
         return RecurrentPolicy(net, n_agents)
+
+    def run_bc_olora_pipeline(self) -> dict:
+        """BC-pretrain both roles then OLoRA-finetune up the curriculum (the slow T4.5 loop)."""
+        return _pipelines().bc_olora_pipeline(self, self._cfg)
+
+    def run_ablation_sweep(self, algorithms: list[str], stage_idx: int = 0) -> list[dict]:
+        """Sweep ``algorithms`` x ``training.seeds`` at one stage; return the run records."""
+        return _pipelines().ablation_sweep(self, self._cfg, algorithms, stage_idx)
 
     def export_weights(self, net: object, role: str, path: str | Path) -> Path:
         """Export ONLY the agent net + shape sidecar (no mixer/global state); return the sidecar."""

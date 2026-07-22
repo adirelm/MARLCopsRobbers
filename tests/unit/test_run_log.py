@@ -7,8 +7,22 @@ from src.results.run_log import append_records, done_runs, history_records, run_
 
 def _history():
     return [
-        {"round": 0, "role": "cop", "loss": 0.5, "capture_rate": 0.2},
-        {"round": 1, "role": "thief", "loss": 0.4, "capture_rate": 0.3},
+        {
+            "round": 0,
+            "role": "cop",
+            "loss": 0.5,
+            "capture_rate": 0.2,
+            "cop_return": -3.5,
+            "thief_return": 2.5,
+        },
+        {
+            "round": 1,
+            "role": "thief",
+            "loss": 0.4,
+            "capture_rate": 0.3,
+            "cop_return": -2.0,
+            "thief_return": 1.0,
+        },
     ]
 
 
@@ -24,6 +38,8 @@ def test_history_records_carries_run_keys_and_metrics(cfg):
         "role": "cop",
         "loss": 0.5,
         "capture_rate": 0.2,
+        "cop_return": -3.5,
+        "thief_return": 2.5,
     }
 
 
@@ -46,3 +62,11 @@ def test_run_and_log_uses_sdk_and_appends(tmp_path, cfg):
     records = run_and_log(_SDK(), cfg, "vdn", 37, 1, out)
     assert len(records) == 2 and records[0]["algorithm"] == "vdn"
     assert len(out.read_text(encoding="utf-8").splitlines()) == 2
+
+
+def test_history_records_default_returns_for_legacy_histories(cfg):
+    """A pre-§7.3(a) history (no return fields) logs 0.0 rather than raising KeyError."""
+    legacy = [{"round": 0, "role": "cop", "loss": 0.1, "capture_rate": 0.9}]
+    record = history_records(cfg, "vdn", 7, 0, legacy)[0]
+    assert record["cop_return"] == 0.0
+    assert record["thief_return"] == 0.0

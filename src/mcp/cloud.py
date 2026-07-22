@@ -65,4 +65,20 @@ def build_cloud_server(role: str, net: object = None, cfg: dict | None = None) -
         # the path proven live on the cloud (README §7.3d F4c). `query_opponent` is the
         # optional server-to-server convenience seam, wired only in the localhost match
         # (`src/mcp/match.py`); on the cloud it reports `visible: false`.
-        return factory(cfg, net)
+        return factory(cfg, _match_policy(cfg, role, net))
+
+
+def _match_policy(cfg: dict, role: str, net: object) -> object:
+    """Return what the role's server should ACT with (§9 lineup, README §9).
+
+    The thief serves the greedy-flee primary wrapped in
+    :class:`~src.services.bonus_policies.AdaptiveThiefPolicy`, which switches itself to
+    the trained contingency net the moment an opponent barrier is seen — the lineup the
+    README advertises. Without this the server would act with the raw net from tick 0 and
+    the flee primary would never reach the field. The cop serves its trained net directly.
+    """
+    if role != "thief":
+        return net
+    from src.services.bonus_policies import AdaptiveThiefPolicy  # noqa: PLC0415 — lazy
+
+    return AdaptiveThiefPolicy(cfg, net)

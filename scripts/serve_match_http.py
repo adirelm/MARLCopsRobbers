@@ -2,10 +2,11 @@
 
 Boots the cop + thief FastMCP servers as SEPARATE OS PROCESSES on ``mcp.cop_port`` /
 ``mcp.thief_port`` over Streamable HTTP (``fastmcp run … --transport http`` — the SAME command
-``deploy/render.yaml`` uses for the cloud), then plays a sub-game over HTTP with per-role bearer
-tokens and prints the redacted cop<->thief comms trace: the SAME ``session_id`` on BOTH servers
-over the wire (§7.3d proof). Manual (needs the two configured ports free), not a CI gate (real
-sockets/subprocesses): ``uv run python scripts/serve_match_http.py``.
+``deploy/render.yaml`` uses for the cloud), then plays the FULL ``game.num_games`` match over HTTP
+with per-role bearer tokens, printing the redacted cop<->thief comms trace: the SAME
+``session_id`` on BOTH servers over the wire (§7.3d proof). Manual (needs the two configured
+ports free), not a CI gate (real sockets/subprocesses):
+``uv run python scripts/serve_match_http.py``.
 """
 
 from __future__ import annotations
@@ -49,7 +50,7 @@ def _wait_ready(host: str, port: int) -> bool:
 
 
 async def _play(cfg: dict, urls: dict, tokens: dict) -> dict:
-    """Play ONE sub-game over HTTP bearer clients; return the match summary."""
+    """Play the full match over HTTP bearer clients; return the match summary."""
     cc = cfg["mcp"]["client"]
     kw = {
         "max_retries": int(cc["max_retries"]),
@@ -61,11 +62,12 @@ async def _play(cfg: dict, urls: dict, tokens: dict) -> dict:
     async with cop_c as cop, thief_c as thief:
         await cop.health()
         await thief.health()
-        return await MatchRunner(Referee(cfg, 5, 5, 1), 1, 7).play_match(cop, thief)
+        games = int(cfg["game"]["num_games"])  # §5.3 stage 1: the WHOLE game over real HTTP
+        return await MatchRunner(Referee(cfg, 5, 5, 1), games, 7).play_match(cop, thief)
 
 
 def main() -> dict:
-    """Serve both roles over HTTP, play a sub-game over the wire, print the comms proof."""
+    """Serve both roles over HTTP, play the match over the wire, print the comms proof."""
     cfg = load_config()
     m = cfg["mcp"]
     host, path = m["host"], m["path"]

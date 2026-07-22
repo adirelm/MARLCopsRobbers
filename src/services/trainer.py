@@ -93,11 +93,18 @@ class SelfPlayTrainer:
         self._thief_buf.add_episode(thief_ep, SourceTag.SELF_PLAY)
 
     def _round(self, round_idx: int) -> dict:
-        """Run one best-response round; return ``{round, role, loss, capture_rate}``."""
+        """Run one best-response round; return its history record.
+
+        Records BOTH agents' mean CUMULATIVE EPISODIC RETURN (``cop_return`` /
+        ``thief_return``) next to the capture rate — §7.3(a) mandates learning curves
+        showing cumulative-reward convergence, so the plotted quantity is the real
+        episodic return, not only a proxy metric.
+        """
         role = training_role(round_idx, self._window_k)
         cop_pol, thief_pol, trainee = self._policies(role)
         buf = self._cop_buf if role == "cop" else self._thief_buf
         captures, losses = 0, []
+        returns = {"cop": 0.0, "thief": 0.0}
         for _ in range(self._eps_per_round):
             eps = linear_epsilon(self._cfg, self._env_steps)
             episode_seed = self._rng.randrange(2**31)
@@ -105,6 +112,8 @@ class SelfPlayTrainer:
             self._store(out)
             self._env_steps += len(out["cop"])
             captures += int(out["capture"])
+            for key in returns:  # sum every step's per-agent reward = the episodic return
+                returns[key] += sum(sum(step["rews"]) for step in out[key])
             if len(buf) >= self._min_replay:  # honor the configured replay warmup
                 losses += [trainee.update(buf.sample(self._batch))["loss"] for _ in range(self._update_ratio)]
         (self._cop_pool if role == "cop" else self._thief_pool).add(trainee.online_net)
@@ -113,6 +122,8 @@ class SelfPlayTrainer:
             "role": role,
             "loss": (sum(losses) / len(losses)) if losses else 0.0,  # 0.0 during warmup (no updates)
             "capture_rate": captures / self._eps_per_round,
+            "cop_return": returns["cop"] / self._eps_per_round,
+            "thief_return": returns["thief"] / self._eps_per_round,
         }
 
     def train_stage(self, rounds: int | None = None) -> list[dict]:

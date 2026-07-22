@@ -40,7 +40,8 @@ freezes the host; the append-only log makes the sweep resumable.
 
 - **OLoRA fine-tuning** trains only `{A, B, head, mixer}` (the GRU + encoder stay frozen) —
   ~8× fewer trainable parameters than full fine-tuning across curriculum transfer.
-- **Seeded reuse + curriculum transfer**: each stage warm-starts from the previous stage's
+- **Seeded reuse + curriculum transfer** (available via `finetune_ctde.py`; the shipped
+  results matrix trains each stage from scratch): each stage can warm-start from the previous stage's
   nets rather than from scratch.
 - **Compute governance**: torch thread caps from config bound every SDK training path.
 - **Prompt-cache discipline** (dev cost): batch edits per turn; keep within the cache TTL.

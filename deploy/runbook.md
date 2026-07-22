@@ -45,7 +45,9 @@ Each server (cop / thief) needs, in its cloud env (NEVER tracked — see `.env-e
 |---|---|
 | `MCP_AUTH_MODE=jwt` | selects the RS256 verifier via the `build_verifier` seam |
 | `MCP_PUBLIC_KEY` | the RS256 public-key PEM (verifies bearer tokens) |
-| `MODEL_PATH` | path to the OLoRA-tuned actor `.pt` (cop=`n_agents 2`, thief=`1`) |
+| `MODEL_PATH` | path to the actor `.pt` (cop=`n_agents 2`, thief=`1`). The deployed
+`deploy/model/bonus_*.pt` are plain QMIX self-play actors; an OLoRA bundle from
+`finetune_ctde.py` is drop-in compatible |
 | `REVOKED_TOKEN_JTIS` | comma-separated jti deny-list (the revoke demo) |
 | ~~`PEER_MCP_URL` / `PEER_MCP_TOKEN`~~ | NOT used by the cloud build — `query_opponent`'s direct peer seam is wired only in the localhost match; the cloud's §5.3 mutual verification goes through `reveal_location` (see `src/mcp/cloud.py`) |
 

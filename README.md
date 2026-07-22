@@ -110,8 +110,9 @@ strictness. (This README does not award itself a number — the work has real, n
 
 ### 7.1 Formalism — Dec-POMDP `M` + POSG caveat
 
-The cooperative cop team is a **Dec-POMDP** `M = ⟨N, S, {A_i}, T, R, {Ω_i}, O, γ⟩` (eq 1, cite
-`[1]`), with **N = the cooperative COP TEAM** (the Thief is folded into `T`; value decomposition
+The cooperative cop team is a **Dec-POMDP** `M = ⟨N, S, A, T, R, Ω, O, γ⟩` (eq 1, cite `[1]` —
+Bernstein, Givan, Immerman & Zilberstein, *Math. of OR* 27(4):819–840, 2002, which proved
+finite-horizon Dec-POMDP planning **NEXP-complete**), with **N = the cooperative COP TEAM** (the Thief is folded into `T`; value decomposition
 never crosses the cop/thief boundary). The faithful full game is a general-sum **POSG**
 `G = ⟨I, S, {A_i}, {O_i}, P, Ω, {R_i}, γ⟩` (eq 3, NEXP^NP) with `R_cop ≠ R_thief`. We deliberately
 **collapse the adversary into `T`** via alternating best-response self-play — a Dec-POMDP *proxy*
@@ -159,7 +160,7 @@ not cherry-picked.
 but **cannot represent non-monotonic joint values** — e.g. a *pincer* where catching the thief
 needs both cops to move toward it simultaneously, so each cop's marginal value is negative unless
 the other also commits. **QPLEX** `[10]` (duplex dueling) and **Weighted-QMIX** `[9]` (weighted
-projection) relax this; we reproduce the L10 Table 3 ordering qualitatively.
+projection) relax this; we do NOT implement QPLEX/WQMIX (out of scope) — the comparison here is analytical.
 
 **(4) Pursuit-evasion & curriculum.** The 2×2→5×5 ladder follows curriculum pursuit-evasion `[5]`;
 policy-gradient CTDE alternatives (COMA `[8]`, MAPPO/MADDPG) trade our value-decomposition for a
@@ -200,7 +201,7 @@ pins arms / seeds / stages + a config hash (= 45 runs, zero README↔code drift,
 ![F1 learning curves](results/figures/learning_curves.png)
 *F1 — §7.3a BOTH agents' learning at the 4×4 two-cop focus stage (cross-seed mean±SE; capture rate is
 the reward proxy — the terminal signal dominates and shaping is train-only). The cop panel STARTS high
-(curriculum-transferred, BC-warm-started cops) and capture then falls as the self-play thief improves —
+(the cop's greedy policy starts strong against an untrained thief) and capture then falls as the self-play thief improves —
 the right panel shows the thief's escape rate climbing in mirror: §7.2's non-stationarity made visible.
 QMIX's wider band is the monotonic-mixer training instability (R1). Train reads global `s`, exec local `o_i`.*
 
@@ -326,8 +327,9 @@ Our §9 stack is built and tested: the `bonus_game` report serializer + §9.2 cl
 derivation ([`src/reporting/bonus.py`](src/reporting/bonus.py)), the PDF-exact subject +
 dual-block redaction + one-valid-email idempotent send
 ([`src/reporting/bonus_send.py`](src/reporting/bonus_send.py)),
-[`docs/schema/bonus.schema.json`](docs/schema/bonus.schema.json), partner-identity intake
-(`players.partner.local.yaml`, git-ignored), and the pre-game rules agreement + neutral
+[`docs/schema/bonus.schema.json`](docs/schema/bonus.schema.json), the partner-identity template
+(`players.partner.example.yaml` → git-ignored `players.partner.local.yaml`; the loader is
+part of the remaining match-day work), and the pre-game rules agreement + neutral
 wire protocol ([`docs/interfaces/intergroup_mcp.md`](docs/interfaces/intergroup_mcp.md)).
 Per §9.3, this section will record — once the match is played and both groups agree —
 the opponent group's name, the final `totals_by_group`, our `bonus_claim`, and

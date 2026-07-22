@@ -29,6 +29,10 @@ def history_records(cfg: dict, algorithm: str, seed: int, stage_idx: int, histor
             "role": entry["role"],
             "loss": float(entry["loss"]),
             "capture_rate": float(entry["capture_rate"]),
+            # §7.3(a) mandates cumulative-REWARD convergence curves for BOTH agents.
+            # Older logs predate these keys, so they default to 0.0 rather than KeyError.
+            "cop_return": float(entry.get("cop_return", 0.0)),
+            "thief_return": float(entry.get("thief_return", 0.0)),
         }
         for entry in history
     ]

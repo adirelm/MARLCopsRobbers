@@ -14,18 +14,21 @@
 ## 1. The cooperative Dec-POMDP `M` (eq 1, cite [1])
 
 The cooperative pursuer team is modeled as a **Dec-POMDP** with the canonical tuple
-(ex06 **eq 1**; primary source Bernstein et al. 2002 `[1]`; Amato 2024 `[4]`):
+(ex06 **eq 1**; primary source `[1]` — Bernstein, Givan, Immerman & Zilberstein, *“The
+complexity of decentralized control of Markov decision processes”*, **Mathematics of
+Operations Research 27(4):819–840, 2002**, the paper that proved finite-horizon
+Dec-POMDP planning is **NEXP-complete**; see also Amato 2024 `[4]`):
 
-> **(eq 1)**  `M = ⟨ N, S, {A_i}, T, R, {Ω_i}, O, γ ⟩`
+> **(eq 1)**  `M = ⟨ N, S, A, T, R, Ω, O, γ ⟩`
 
 | Symbol | Meaning | Concrete instantiation (config key) |
 |---|---|---|
 | **N** | agent set = the **cooperative COP TEAM** | `N` is the cooperative pursuer team that value decomposition spans — **NOT** `{cop, thief}`. `\|N\| = env.num_cops`: **1** in the graded 5×5 match (`env.num_cops`), **2** on the 4×4 training stage (`env.curriculum.num_cops_by_stage`) so the QMIX mixer is genuinely multi-agent. **The Thief is folded into the transition `T`** (a separate adversarial Double-DQN) and is NOT a member of `N`. Value decomposition NEVER crosses the cop/thief boundary. |
 | **S** | global state (**train-only**) | `GlobalState(cop_pos, thief_pos, barriers, barriers_used, step, h, w, terminal)` — reachable ONLY via `env.state()`, never via `step()` (CTDE split). `h, w` are carried on the state (architect decision #1) so the live grid is self-describing. |
-| **{A_i}** | per-agent action sets | The Dec-POMDP joint action is `A = ×_{i∈N} A_cop`. **`\|A_cop\| = 5`** `{UP, DOWN, LEFT, RIGHT, PLACE_BARRIER}` (`env.actions.a_cop`); **`\|A_thief\| = 4`** `{UP, DOWN, LEFT, RIGHT}` (`env.actions.a_thief`, `PLACE_BARRIER` masked). `STAY`/`NOOP` exists in the enum but is **config-gated OFF** (`env.actions.enable_stay: false`) — the BRIEF rule is "both agents move one cell each turn", so there is no STAY/NOOP action head. `PLACE_BARRIER` is cop-only and masked when `barriers_used == game.max_barriers`. The thief's `{A_thief}` belongs to the full POSG `T` (§3), not to `M`'s joint action. |
+| **A** | joint action space (`A = ×_{i∈N} A_i`) | The Dec-POMDP joint action is `A = ×_{i∈N} A_cop`. **`\|A_cop\| = 5`** `{UP, DOWN, LEFT, RIGHT, PLACE_BARRIER}` (`env.actions.a_cop`); **`\|A_thief\| = 4`** `{UP, DOWN, LEFT, RIGHT}` (`env.actions.a_thief`, `PLACE_BARRIER` masked). `STAY`/`NOOP` exists in the enum but is **config-gated OFF** (`env.actions.enable_stay: false`) — the BRIEF rule is "both agents move one cell each turn", so there is no STAY/NOOP action head. `PLACE_BARRIER` is cop-only and masked when `barriers_used == game.max_barriers`. The thief's `{A_thief}` belongs to the full POSG `T` (§3), not to `M`'s joint action. |
 | **T** | transition `T(s'\|s, ā)` | **Deterministic, RNG-free** core (reproducible CI): **simultaneous** joint-move resolution (`env.move_resolution`); barriers and board edges impassable to both; barrier placement consumes the move. No stochastic-transition option is implemented. The Thief is folded into `T` from any single cop learner's view ⇒ **non-stationarity**. |
 | **R** | reward | RL signal = config-driven shaped reward, **shared over the cop team** in `dec_pomdp` mode (`env.reward_mode`), per-agent in `posg`. Potential-based shaping with team potential `Φ = −min_{i∈N} manhattan(cop_i, thief) / d_max` (the *closest* cop sets the potential). The §3.4 scoreboard (20/10/5/5) is a **separate** `Scorer`, never the training signal (shaping details: `src/marl/env/reward.py` + ADR-0005). |
-| **{Ω_i}** | observation spaces | Per-agent egocentric Manhattan-radius window, padded to a fixed `2·env.view_radius_max + 1` footprint so one encoder spans 2×2→5×5. Exposed as the local `Observation(image, scalars)` TypedDict — it carries NO global field (architect decision #3). |
+| **Ω** | observation space (`o_i ∈ Ω_i` per agent) | Per-agent egocentric Manhattan-radius window, padded to a fixed `2·env.view_radius_max + 1` footprint so one encoder spans 2×2→5×5. Exposed as the local `Observation(image, scalars)` TypedDict — it carries NO global field (architect decision #3). |
 | **O** | observation function `O(ō\|s', ā)` | Deterministic crop of `S` to radius-`r` cells around agent `i` (`env.view_radius_by_grid`); `O = 1` for the true window. Partial observability comes from the **bounded view radius**, not observation noise — no `env.obs_noise` option is implemented. |
 | **γ** | discount | `algo.gamma` (default `0.99`, suited to the ≤25-step horizon, `game.max_moves`). |
 
@@ -101,7 +104,9 @@ hypothetical. Numbers + convergence figure: `docs/ANALYSIS.md` §10; comparison 
 
 ## References
 
-`[1]` Bernstein et al. 2002 — Dec-POMDP complexity. `[2]` Sunehag et al. 2018 — **VDN**
+`[1]` Bernstein, Givan, Immerman & Zilberstein 2002 — *The complexity of decentralized
+control of Markov decision processes*, Math. of OR 27(4):819–840 (**Dec-POMDP planning is
+NEXP-complete**). `[2]` Sunehag et al. 2018 — **VDN**
 (1706.05296). `[3]` Rashid et al. 2018 — **QMIX** (1803.11485). `[4]` Amato 2024 —
 Cooperative MARL intro (2405.06161). `[9]` Rashid et al. 2020 — **Weighted QMIX**
 (2006.10800). `[10]` Wang et al. 2021 — **QPLEX** (2008.01062). Full list in `docs/PRD.md` §13.
