@@ -58,4 +58,11 @@ def build_cloud_server(role: str, net: object = None, cfg: dict | None = None) -
     net = net if net is not None else _load_actor(cfg, role)
     factory = make_cop_server if role == "cop" else make_thief_server
     with _jwt_env():
+        # NOTE: `peer_query` is intentionally NOT wired in the cloud build. The §5.3
+        # mutual position verification runs through `reveal_location` — the referee (or
+        # any authorized peer) queries the OTHER server over HTTP and gets a radius-gated
+        # answer; that is the canonical, referee-mediated topology (ADR-0011) and it is
+        # the path proven live on the cloud (README §7.3d F4c). `query_opponent` is the
+        # optional server-to-server convenience seam, wired only in the localhost match
+        # (`src/mcp/match.py`); on the cloud it reports `visible: false`.
         return factory(cfg, net)

@@ -238,10 +238,15 @@ on ports 8001/8002 with bearer auth, one shared `session_id` across both servers
 (`scripts/serve_match_http.py`).*
 
 ![F4c cloud comms](results/figures/mcp_comms_cloud.png)
-*F4c — **§5.3 Stage-2 LIVE**: the identical tool contract between two servers deployed on Render
-(Oregon), driven by the referee over the **public internet**. Every `request_move` alternates
-cop↔thief carrying the same `trace=sg-0` — one session spanning BOTH cloud servers.
-URLs: `adrl-001-cop.onrender.com/mcp` · `adrl-001-thief.onrender.com/mcp` (RS256 JWT required).*
+*F4c — **§5.3 Stage-2 LIVE**: a **FULL 6-sub-game match** played between two servers deployed on
+Render (Oregon), driven by the referee over the **public internet** (traces `sg-0`…`sg-5`, final
+cop 30 – thief 60). The capture also shows the §5.3 **mutual position verification**: each server's
+`reveal_location` answers the *other* agent's HTTP query, radius-gated — an adjacent requester gets
+`{visible: true, position: [1,0]}`, a distant one gets `{visible: false}`. The match's §3.5 report
+body is committed at
+[`results/subgames/cloud_match_5x5.redacted.json`](results/subgames/cloud_match_5x5.redacted.json)
+(schema-valid, 6 sub-games, PII-redacted). URLs: `adrl-001-cop.onrender.com/mcp` ·
+`adrl-001-thief.onrender.com/mcp` (RS256 JWT required).*
 
 ![Cloud auth matrix](results/figures/cloud_auth.png)
 *Cloud auth (§5.3 "token-based auth that can be blocked/revoked") verified live against both public
@@ -272,7 +277,7 @@ notebook — LaTeX equations, the six plotted figures, citations, committed **ex
 | **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 + the terminal / barrier / view-radius states (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png`, `state_{terminal,barriers,view_radius}.png` |
 | **F4** | MCP-comms proof — localhost in-memory contract (CAPTURED, CI-deterministic) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |
 | **F4b** | MCP-comms proof over REAL localhost HTTP — ports 8001/8002, bearer auth, shared `session_id` (§5.3 Stage-1) | `scripts/serve_match_http.py` | `results/figures/mcp_comms_http.png` |
-| **F4c** | **Stage-2 LIVE cloud** comms — two Render servers, public internet, RS256 JWT, shared `session_id` | referee vs the two live cloud URLs | `results/figures/mcp_comms_cloud.png` |
+| **F4c** | **Stage-2 LIVE cloud** — full 6-sub-game match + mutual `reveal_location` verification over the public internet, RS256 JWT | referee vs the two live cloud URLs | `results/figures/mcp_comms_cloud.png` |
 | **Auth** | Live cloud auth matrix — 200 valid / 401 bad / 401 none / 401 wrong-audience / 401 revoked | live verification vs both endpoints | `results/figures/cloud_auth.png` |
 | **F5** | IQL vs VDN vs QMIX final capture rate at 4×4, the 2-cop stage (bar + SE whiskers) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
 | **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |

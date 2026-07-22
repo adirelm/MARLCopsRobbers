@@ -1,12 +1,22 @@
 # Cloud deploy runbook (§8 four-stage) — MARL Cops & Robbers
 
-The copy-pasteable, ordered version of the BRIEF §8 appendix. Cloud is **upside, not an
-A6 grading gate** (ADR-D10-E) — the localhost match (F4, Phase 5/6) is canonical. Both
-cloud servers expose the **same** canonical tool contract + `/mcp` path as localhost
-(ADR-D5-01); the only delta is the auth verifier (static → RS256 JWT).
+The copy-pasteable, ordered version of the BRIEF §8 appendix. Both cloud servers expose
+the **same** canonical tool contract + `/mcp` path as localhost (ADR-D5-01); the only
+delta is the auth verifier (static → RS256 JWT).
 
-> Requires accounts you own: a Prefect Horizon (`horizon.prefect.io`) login and, for the
-> fallback, a Render account. These are the only steps Claude cannot run for you.
+> **STATUS: DEPLOYED AND LIVE (2026-07-22)** on **Render** —
+> `https://adrl-001-cop.onrender.com/mcp` + `https://adrl-001-thief.onrender.com/mcp`
+> (recorded in `config.cloud.cop_url/thief_url`). A full 6-sub-game match ran between the
+> two cloud servers over the public internet, plus the §5.3 mutual position verification
+> and the auth matrix — see README §7.3d (F4c + cloud_auth) and the "What actually
+> happened" section at the end of this file.
+>
+> **Why Render, not Prefect Horizon** (Stage 3 below is kept for reference): Horizon's
+> FREE tier forces its own platform OAuth *in front of* the app. That breaks §5.3's
+> public-access requirement AND collides with our in-app RS256 JWT (a single
+> `Authorization` header cannot satisfy two bearer layers); disabling it is a paid
+> Developer-plan feature. Render serves the endpoint publicly with OUR token auth as the
+> only gate — exactly the §5.3 architecture. See `deploy/render.yaml`.
 
 ## Stage 1 — local uv deps (T8.0)
 
@@ -37,7 +47,7 @@ Each server (cop / thief) needs, in its cloud env (NEVER tracked — see `.env-e
 | `MCP_PUBLIC_KEY` | the RS256 public-key PEM (verifies bearer tokens) |
 | `MODEL_PATH` | path to the OLoRA-tuned actor `.pt` (cop=`n_agents 2`, thief=`1`) |
 | `REVOKED_TOKEN_JTIS` | comma-separated jti deny-list (the revoke demo) |
-| `PEER_MCP_URL` / `PEER_MCP_TOKEN` | the other server's URL + a bearer for `query_opponent` |
+| ~~`PEER_MCP_URL` / `PEER_MCP_TOKEN`~~ | NOT used by the cloud build — `query_opponent`'s direct peer seam is wired only in the localhost match; the cloud's §5.3 mutual verification goes through `reveal_location` (see `src/mcp/cloud.py`) |
 
 Deploy entrypoints (module-level `mcp`): `src/mcp/cloud_cop.py:mcp` and
 `src/mcp/cloud_thief.py:mcp`.
@@ -81,14 +91,29 @@ After the 6th cloud sub-game, the cop emails the §3.5 report exactly once:
 uv run python scripts/run_match.py --send    # needs GMAIL_SENDER / GMAIL_APP_PASSWORD
 ```
 
-## §7.3d proof captures (redaction is built into the capture path — `src/results/comms.py` masks bearer/token material before any render)
+## What actually happened (the LIVE run, 2026-07-22)
 
-1. **cloud comms** — a 3-turn cross-server run; the SAME `trace_id` in BOTH logs → `cloud_comms.png`.
-2. **401 without token** — call a tool with no / a bad bearer → `cloud_auth_401.png`.
-3. **revoke** — add the token's jti to `REVOKED_TOKEN_JTIS`, redeploy, re-run → old token 401,
-   a freshly-minted token 200 → `cloud_revoke.png`.
+Deployed via `deploy/render.yaml` (Blueprint → repo → path `deploy/render.yaml`); the only
+dashboard secret is `MCP_PUBLIC_KEY` (the one-line `\n`-escaped PEM; the verifier
+normalizes it). Captured evidence, all against the two public endpoints:
 
-## Render fallback (T8.5)
+1. **Full match over the cloud** → `results/figures/mcp_comms_cloud.png` (F4c): **6 valid
+   sub-games** (traces `sg-0`…`sg-5`), every `request_move` alternating cop↔thief, final
+   cop 30 – thief 60. Its §3.5 body: `results/subgames/cloud_match_5x5.redacted.json`.
+2. **§5.3 mutual position verification** (same capture): `reveal_location` answered the
+   *other* agent's HTTP query radius-gated — adjacent requester → `{visible: true,
+   position: [1,0]}`, distant requester → `{visible: false}`, in both directions.
+3. **Auth matrix** → `results/figures/cloud_auth.png`: valid RS256 → 200; bad token,
+   missing token, and **wrong-audience** token → 401; revoked `jti` → 401.
 
-`deploy/render.yaml` is a Render blueprint for the same two entrypoints. After a Render
-deploy, warm it with a `health()` ping (cold start) before the match.
+Deployment gotchas found the hard way (all fixed in-repo):
+
+- The builder installs base deps only (`uv sync --no-dev`) → `fastmcp`/`httpx`/`pyjwt`
+  must live in `[project.dependencies]`, not a dependency-group.
+- Linux needs CPU-only torch (`[tool.uv.sources]` → pytorch-cpu index) or the image
+  drags ~2 GB of CUDA wheels and blows the free tier.
+- The build-time `uv` binary is **not** preserved at runtime → start via
+  `.venv/bin/fastmcp` (deps are still uv-resolved, `--frozen`).
+- fastmcp 3.x wraps `RSAKeyPair.private_key` in a pydantic `SecretStr`.
+- Free tier sleeps after 15 min → the first request takes ~60–70 s; the client's
+  `prewarm_ping` + retries absorb it (mention this to anyone testing the URLs).
