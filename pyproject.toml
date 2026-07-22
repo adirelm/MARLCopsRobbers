@@ -10,7 +10,7 @@ packages = ["src"]
 
 [project]
 name = "marlcopsrobbers"
-version = "1.1.1"
+version = "1.2.0"
 description = "Bar-Ilan Vibe-Coding & RL Workshop — Assignment 6 (MARL Cops & Robbers: CTDE QMIX/VDN/IQL, dual-MCP, cloud, GUI)"
 # §7.4 privacy: the repo is public, so authorship is the GitHub handle + its
 # noreply address only — no real name, id, or personal mailbox in tracked content.

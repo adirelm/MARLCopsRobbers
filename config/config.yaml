@@ -19,7 +19,7 @@
 # ============================================================================
 
 # --- Project identity (BRIEF "Standing submission rules"; V3 version gate) ---
-version: "1.1.1"                  # "1.00" start (V3 gate); 1.1.0 = Minimax-Q L11 §5 bonus; 1.1.1 = post-audit hardening
+version: "1.2.0"                  # "1.00" start (V3 gate); 1.1.0 = Minimax-Q L11 §5 bonus; 1.1.1 = post-audit hardening; 1.2.0 = V3 breadth (§9.3 charts, §12 seams, §14 exports, §16 blocks)
                                   # (3-segment A5-accepted mapping; ADR-0011)
 project:
   group_code: "adrl-001"          # 8-char group code (NOT read by code — the §3.5 report's group id is players.local.yaml group_name)

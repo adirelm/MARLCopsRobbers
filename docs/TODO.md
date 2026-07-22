@@ -1,6 +1,6 @@
 # TODO — Assignment 6: MARL Cops & Robbers (Cloud-MCP, Vibe Coding)
 
-> **Group:** `adrl-001` · **Version:** `1.1.1` · **SOLO submission (role A)** — the A/B work-stream labels below are planning lanes, not people · **V3 software-excellence rubric.**
+> **Group:** `adrl-001` · **Version:** `1.2.0` · **SOLO submission (role A)** — the A/B work-stream labels below are planning lanes, not people · **V3 software-excellence rubric.**
 > **Ground truth:** `planning/BRIEF.md` (ex06.pdf §0-§10) + `L10-MARL.pdf`. Bibliography `[1]`-`[11]` per BRIEF §10.
 > **Companion docs:** `docs/PRD.md` (requirements), `docs/PLAN.md` (architecture/ADRs), `docs/THEORY.md`, `docs/ANALYSIS.md`, `docs/UX.md`, `README.md` (the §7 academic paper).
 >
@@ -498,7 +498,7 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 | 5 | **0 secrets + `.env-example`** | tokens/JWT keys/App-Password/PII in `.env` + repo-root `players.local.yaml`; `.env-example` names-only committed; `.gitignore` covers `.env *.pem *.key credentials*.json players.local.yaml secrets/` | `check_secrets.py`; `test_no_secrets_committed.py` |
 | 6 | **uv-only (NO requirements.txt)** | CI uses `uv`; no pip/conda; `uv.lock` committed; deploy deps come from `pyproject.toml` / `uv export` — **NO `deploy/requirements.txt`** (V3 forbids requirements.txt) | CI `uv sync --frozen`; `check_no_requirements_txt.py` |
 | 7 | **Single SDK entry for UIs** (scripts exempt) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers | `test_sdk_single_entry.py`; `test_mcp_servers_have_no_logic.py` |
-| 8 | **Version starts `1.00`** | started `1.0.0` → `1.1.0` (L11 §5 Minimax-Q bonus) → now `1.1.1` (post-audit hardening; distinct from the DEFERRED §9 inter-group "P-bonus" phase): `src/__init__.py::__version__` == `config.version` == `pyproject` (ADR-0011) | `tests/unit/test_config_loader.py` (see the implementation note above) |
+| 8 | **Version starts `1.00`** | started `1.0.0` → `1.1.0` (L11 §5 Minimax-Q bonus) → now `1.2.0` (post-audit hardening; distinct from the DEFERRED §9 inter-group "P-bonus" phase): `src/__init__.py::__version__` == `config.version` == `pyproject` (ADR-0011) | `tests/unit/test_config_loader.py` (see the implementation note above) |
 | 9 | **§5 External-API governance** (N/A→**REQUIRED** for A6) | all peer-MCP + Gmail egress via `src/api/gatekeeper.py` + `config/rate_limits.json` | `test_egress_via_gatekeeper.py`; ADR-0006 |
 | 10 | **§10 UX / Nielsen** (N/A→**REQUIRED** — GUI mandatory) | `docs/UX.md` maps all 10 heuristics + screenshot per state | `test_required_docs_present.py` |
 | 11 | **PRD/PLAN/TODO + ADRs** | `docs/PRD.md`, `docs/PLAN.md`, this `docs/TODO.md`, `docs/prd/*`, ADRs 0001-0014 + dimension ADRs; human §1.4 sign-off before code | `test_required_docs_present.py` |

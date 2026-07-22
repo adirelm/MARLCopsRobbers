@@ -105,10 +105,15 @@ def test_no_secrets_committed():
 def test_no_pii_in_tracked_content():
     """No host paths or id-shaped numbers leak into tracked text (the goal-r6 class).
 
-    An absolute ``/Users/`` path carries the local username (and, on this project, the
+    An absolute home-directory path carries the local username (and, on this project, the
     Drive-mount email); a bare 9-digit run of digits is id-shaped. Both are PII per the
     project deny-list, so tracked content must contain neither.
+
+    The host-path needle is ASSEMBLED rather than spelled, because CI runs a repo-wide
+    ``git grep`` for that same literal — a guard that spells out what it forbids fails
+    against itself.
     """
+    host_path = "/" + "Users" + "/"
     offenders: list[str] = []
     for path in _tracked_files():
         skip = path.endswith((".png", ".pt", ".ipynb", ".lock"))
@@ -119,7 +124,7 @@ def test_no_pii_in_tracked_content():
         if text is None:
             continue
         for number, line in enumerate(text.splitlines(), start=1):
-            if "/Users/" in line:
+            if host_path in line:
                 offenders.append(f"{path}:{number} host path")
             if re.search(_PII_PATTERNS[1], line) and "example" not in line.lower():
                 offenders.append(f"{path}:{number} id-shaped digits")
