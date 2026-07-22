@@ -1,0 +1,113 @@
+{
+  "report_type": "bonus_game",
+  "groups": {
+    "group_1": "adrl-001",
+    "group_2": "<PARTNER GROUP CODE>"
+  },
+  "github_repo_group_1": "https://github.com/<OWNER>/Assignment6-MARLCopsRobbers",
+  "github_repo_group_2": "https://github.com/<PARTNER-OWNER>/<PARTNER-REPO>",
+  "timezone": "Asia/Jerusalem",
+  "students_group_1": [
+    {
+      "role": "A",
+      "full_name": "<STUDENT A FULL NAME>",
+      "id": "<STUDENT A ID>"
+    }
+  ],
+  "students_group_2": [
+    {
+      "role": "A",
+      "full_name": "<PARTNER STUDENT A FULL NAME>",
+      "id": "<PARTNER STUDENT A ID>"
+    }
+  ],
+  "sub_games": [
+    {
+      "id": 1,
+      "start": "2026-07-23T02:20:07.170+03:00",
+      "end": "2026-07-23T02:20:07.344+03:00",
+      "moves": 5,
+      "winner": "cop",
+      "scores": {
+        "cop": 20,
+        "thief": 5
+      },
+      "cop_group": "adrl-001",
+      "thief_group": "<PARTNER GROUP CODE>"
+    },
+    {
+      "id": 2,
+      "start": "2026-07-23T02:20:07.344+03:00",
+      "end": "2026-07-23T02:20:07.449+03:00",
+      "moves": 7,
+      "winner": "cop",
+      "scores": {
+        "cop": 20,
+        "thief": 5
+      },
+      "cop_group": "adrl-001",
+      "thief_group": "<PARTNER GROUP CODE>"
+    },
+    {
+      "id": 3,
+      "start": "2026-07-23T02:20:07.450+03:00",
+      "end": "2026-07-23T02:20:07.826+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      },
+      "cop_group": "adrl-001",
+      "thief_group": "<PARTNER GROUP CODE>"
+    },
+    {
+      "id": 4,
+      "start": "2026-07-23T02:20:07.826+03:00",
+      "end": "2026-07-23T02:20:07.913+03:00",
+      "moves": 5,
+      "winner": "cop",
+      "scores": {
+        "cop": 20,
+        "thief": 5
+      },
+      "cop_group": "<PARTNER GROUP CODE>",
+      "thief_group": "adrl-001"
+    },
+    {
+      "id": 5,
+      "start": "2026-07-23T02:20:07.913+03:00",
+      "end": "2026-07-23T02:20:08.028+03:00",
+      "moves": 7,
+      "winner": "cop",
+      "scores": {
+        "cop": 20,
+        "thief": 5
+      },
+      "cop_group": "<PARTNER GROUP CODE>",
+      "thief_group": "adrl-001"
+    },
+    {
+      "id": 6,
+      "start": "2026-07-23T02:20:08.028+03:00",
+      "end": "2026-07-23T02:20:08.387+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      },
+      "cop_group": "<PARTNER GROUP CODE>",
+      "thief_group": "adrl-001"
+    }
+  ],
+  "totals_by_group": {
+    "adrl-001": 65,
+    "<PARTNER GROUP CODE>": 65
+  },
+  "bonus_claim": {
+    "adrl-001": 5,
+    "<PARTNER GROUP CODE>": 5
+  },
+  "mutual_agreement": false
+}

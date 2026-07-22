@@ -35,10 +35,13 @@ queue instead of crashing on overflow; training runs are resumable (`done_runs`)
 ## Security
 RS256 bearer-JWT cloud auth with a `jti` revoke deny-list (`RevocableJWTVerifier`),
 per-role audience enforcement, and `request_move` rejecting any `global_state` at the
-protocol edge; ALL outbound egress is admitted through the single `ApiGatekeeper` — the Gmail report send
-and every peer-MCP tool call (`peer_mcp` channel, asserted by routing in
-`test_egress_via_gatekeeper.py`, not merely by import location) — and logs are redacted; PII
-lives only in git-ignored files. Evidence: `src/mcp/jwt_auth.py` (codex-validated); `src/mcp/schemas.py`; `.env-example`.
+protocol edge; Outbound egress is admitted through the single `ApiGatekeeper` on every channel where its
+queue semantics fit — the Gmail report send and every peer-MCP tool call (`peer_mcp` channel,
+asserted by ROUTING in `test_egress_via_gatekeeper.py`, not merely by import location). The one
+documented exception: the §9 wire-match client (`src/mcp/wire_client.py`) bypasses the
+gatekeeper BY DESIGN — its DEFERRED/queue semantics are incompatible with the match's
+synchronous 10-second move deadline (a deferred move IS a technical fault). Logs are redacted;
+PII lives only in git-ignored files. Evidence: `src/mcp/jwt_auth.py` (codex-validated); `src/mcp/schemas.py`; `.env-example`.
 
 ## Maintainability
 Every `.py` ≤150 LOC; all business logic behind the single `MarlSDK` seam; OOP with no

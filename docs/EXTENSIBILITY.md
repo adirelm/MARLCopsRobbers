@@ -74,8 +74,9 @@ server = make_thief_server(cfg, AlwaysUpPolicy())   # serves immediately
 ```
 
 then call `gate.execute("slack_notify", thunk)`. Rate limiting, the FIFO overflow queue,
-backpressure and logging come for free — and the architecture test asserts that *all*
-outbound calls route this way.
+backpressure and logging come for free — and the architecture test asserts the Gmail and
+peer-MCP channels route this way. (The §9 wire-match client is the one documented exception:
+queueing is incompatible with its synchronous 10-second move deadline.)
 
 ## 4. Add an email transport
 

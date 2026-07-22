@@ -43,8 +43,8 @@ proposed conventions — confirm them, or counter-propose BEFORE the seeds are f
 | P4 | Barrier semantics | a barrier blocks BOTH sides from *entering*; the agent standing on it may still leave |
 | P5 | Observability | partial, **Manhattan radius 2**: you receive the opponent's position only when `manhattan(you, opponent) ≤ 2`, else `null`; barrier cells are reported only within radius 2 of your position |
 | P6 | Start positions | seeded random with `manhattan(cop, thief) > 2` (spawned outside view range) |
-| P7 | Seed schedule | we jointly agree an ORDERED list of **6+ seeds** `s1..sN` in writing before the match. Sub-game `k` and its mirror `k+3` both use `s_k` (k = 1..3), so both groups play cop and thief from identical layouts. If sub-game `k` is voided, the next unused spare seed replaces `s_k` **for both k and k+3** |
-| P8 | Fault definition | per-move timeout **10 s**, one retry, then void (§3.7 replay); malformed response (unknown action string, thief sending `place_barrier`) → void after one retry; persistent no-show → match called off, no forfeit claims |
+| P7 | Seed schedule + void replay | we jointly agree an ORDERED list of **6+ seeds** `s1..sN` in writing before the match. Sub-game `k` and its mirror `k+3` both use `s_k` (k = 1..3), so both groups play cop and thief from identical layouts. **Voids:** a technically-voided sub-game (P8) is replayed immediately — SAME sub-game, SAME `session_id`, SAME seed — a transient fault never changes the layout either group prepared for. Only after **3 consecutive voids of the same sub-game** does the next unused spare seed (`s4`, `s5`, …) permanently replace `s_k` **for the whole pair k and k+3**; if the pair's other game already completed on the replaced seed, it is re-queued and replayed first, so the mirror pair always shares one seed. If every spare is exhausted, the match is called off and rescheduled (no forfeit claims) |
+| P8 | Fault definition | per-move timeout **10 s**, one identical re-POST, then void (§3.7 replay); malformed response (unknown action string, thief sending `place_barrier`) → one retry, then void. Retries are per fault layer (a malformed reply retried once may itself get one transport re-POST), so a single tick sees at most a handful of identical POSTs — idempotency makes them harmless; persistent no-show → match called off, no forfeit claims |
 
 Coordinate convention (used everywhere below): cells are `[row, col]`, 0-indexed,
 origin **top-left**. `up = row−1, down = row+1, left = col−1, right = col+1`.
@@ -76,7 +76,8 @@ information is revealed in either direction).
 ```
 → respond `{"ok": true}`. Reset ALL per-session state here (memory, RNN state, and your
 idempotency cache for that `session_id`) — a voided sub-game is replayed by calling
-`new_sub_game` again with the SAME `session_id` and a fresh seed.
+`new_sub_game` again with the SAME `session_id` and, per P7, the SAME seed (a spare
+seed appears only after 3 consecutive voids of that sub-game).
 
 **`POST /request_move`** — called once per tick:
 ```json

@@ -427,7 +427,18 @@ late-penalty R15, solo-overload R16) are tabulated in `docs/PLAN.md §10`.
 
 ## 9. Inter-group bonus match (ex06 §9 — counts toward the FINAL PROJECT)
 
-**Status: PREPARED — a partner group is confirmed; the match has not been played yet.**
+**Status: MATCH-READY — the full wire stack is built and dress-rehearsed; the match has
+not been played yet.** The neutral wire protocol we offer partners is specified in
+[`docs/interfaces/partner_agent_brief.md`](docs/interfaces/partner_agent_brief.md) (a
+self-contained brief their coding agent can implement from directly). Our side is
+implemented end-to-end: `src/mcp/wire_obs.py` reconstructs our policies' observations
+from wire payloads with **proven bit-equivalence** to the env (the served policy is
+exactly the evaluated one), `src/mcp/wire_agent.py` serves them over stdlib HTTP
+(bearer auth, idempotent re-POST, void-replay resets), and `src/mcp/wire_referee.py`
+drives the 6 sub-games with role alternation, the P7 seed schedule, radius-2 masking,
+and a shareable per-request JSONL log. A full 6-sub-game dress rehearsal ran over real
+localhost HTTP (evidence: `results/wire_match/`), including a live void-replay drill
+and a move-for-move fidelity check of HTTP-served vs in-process actions.
 Our §9 stack is built and tested: the `bonus_game` report serializer + §9.2 claim
 derivation ([`src/reporting/bonus.py`](src/reporting/bonus.py)), the PDF-exact subject +
 dual-block redaction + one-valid-email idempotent send
