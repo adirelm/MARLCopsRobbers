@@ -83,15 +83,6 @@ def test_new_session_resets_hidden_stream(cfg):
     assert ctrl._sessions["s1"] is not before
 
 
-def test_end_session_drops_hidden(cfg):
-    """end_session removes the session's hidden state (end_sub_game)."""
-    ctrl = _controller(cfg)
-    ctrl.new_session("s1")
-    assert ctrl.has_session("s1")
-    ctrl.end_session("s1")
-    assert not ctrl.has_session("s1")
-
-
 def test_build_verifier_returns_static_verifier(cfg):
     """build_verifier with an explicit token yields a StaticTokenVerifier."""
     assert isinstance(build_verifier(cfg, "cop", token="dev-cop-token"), StaticTokenVerifier)

@@ -8,7 +8,6 @@ a test asserts this module imports nothing from config. RGB triples are 0-255.
 
 from __future__ import annotations
 
-# Colours (R, G, B), 0-255.
 BG = (18, 18, 24)
 GRID_LINE = (60, 60, 72)
 CHECKER = (26, 26, 34)

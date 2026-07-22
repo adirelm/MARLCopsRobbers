@@ -205,6 +205,15 @@ the reward proxy — the terminal signal dominates and shaping is train-only). T
 the right panel shows the thief's escape rate climbing in mirror: §7.2's non-stationarity made visible.
 QMIX's wider band is the monotonic-mixer training instability (R1). Train reads global `s`, exec local `o_i`.*
 
+![F1b cumulative return](results/figures/return_curves.png)
+*F1b — **§7.3(a) literal**: BOTH agents' **cumulative episodic return** (the measured reward
+sum per episode, mean±SE over 5 seeds) vs self-play round at 4×4. This is the reward-convergence
+plot the brief names; F1 above is the same story in capture/escape rate. Note the coupling: the
+IQL/VDN cop return climbs toward ≈+1.0 while its thief counterpart is pushed negative, whereas the
+QMIX cop return sits **below zero** — the same monotonic-mixer instability §6 reports, now visible
+in reward units. Source: `results/runs/returns_history.jsonl` (the return fields post-date the
+headline 45-run matrix, so they are logged separately at the 4×4 focus stage).*
+
 ![F5 baseline comparison](results/figures/baseline_comparison.png)
 *F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers; "final" = mean over each seed's
 LAST 5 rounds, `aggregate.final_by_algorithm`, which is why it differs from the F1 endpoint): VDN most consistent (0.84), IQL a
@@ -274,6 +283,7 @@ notebook — LaTeX equations, the six plotted figures, citations, committed **ex
 | Fig | Content | Generator | Path |
 |---|---|---|---|
 | **F1** | BOTH agents' learning at 4×4 (§7.3a): cop capture-rate panel + thief escape-rate panel, cross-seed mean±SE | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
+| **F1b** | BOTH agents' CUMULATIVE EPISODIC RETURN at 4×4 (§7.3a literal reward-convergence plot) | `python -m src.results.make_figures` (reads `returns_history.jsonl`) | `results/figures/return_curves.png` |
 | **F2** | Per-NETWORK TD-loss at 4×4 (§7.3b): cop net (QMIX/VDN/IQL) panel + thief Double-DQN panel | `python -m src.results.make_figures` | `results/figures/loss_curves.png` |
 | **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 + the terminal / barrier / view-radius states (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png`, `state_{terminal,barriers,view_radius}.png` |
 | **F4** | MCP-comms proof — localhost in-memory contract (CAPTURED, CI-deterministic) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |

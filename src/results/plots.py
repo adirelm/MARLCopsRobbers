@@ -1,9 +1,9 @@
 """Matplotlib figure builders for F1/F2/F5/F6 (T10.2; Agg headless).
 
 Each function reads the aggregated run records and writes ONE PNG. Styling literals
-(dpi / fontsize / alpha / figsize) are LOCAL to this rendering module (CLAUDE.md §4). F1
-and F2 are per-round cross-seed mean±SE curves with a shaded SE band per algorithm; F5 is
-a final-capture bar with SE whiskers; F6 is capture rate vs grid size. All regenerate
+(dpi / fontsize / alpha / figsize) are LOCAL to this rendering module (CLAUDE.md §4). F1,
+F1b and F2 are two-panel per-AGENT mean±SE curves with a shaded SE band per algorithm; F5
+is a final-capture bar with SE whiskers; F6 is capture rate vs grid size. All regenerate
 deterministically from ``results/runs/`` via :mod:`src.results.make_figures`.
 """
 
@@ -39,38 +39,27 @@ def _save(fig: object, out_path: str | Path) -> Path:
     return out_path
 
 
-def plot_curve_figure(  # noqa: PLR0913 — records + metric + stage + 2 labels + path are distinct
-    records: list[dict], metric: str, stage: int, title: str, ylabel: str, out_path: str | Path
-) -> Path:
-    """F1/F2: per-round cross-seed mean±SE of ``metric``, one line + SE band per algorithm."""
-    fig, ax = plt.subplots(figsize=_FIGSIZE)
-    for algorithm in _algorithms(records):
-        rounds, mean, se = curve(records, metric, algorithm, stage)
-        if not rounds:
-            continue
-        lower = [m - s for m, s in zip(mean, se, strict=True)]
-        upper = [m + s for m, s in zip(mean, se, strict=True)]
-        (line,) = ax.plot(rounds, mean, label=algorithm.upper())
-        ax.fill_between(rounds, lower, upper, alpha=_BAND_ALPHA, color=line.get_color())
-    ax.set_xlabel("self-play round")
-    ax.set_ylabel(ylabel)
-    ax.set_title(title)
-    ax.legend()
-    return _save(fig, out_path)
-
-
 def plot_two_agent_panels(  # noqa: PLR0913 — records + metric + stage + 2 panel specs + path
-    records: list[dict], metric: str, stage: int, panels: list[tuple], suptitle: str, out_path: str | Path
+    records: list[dict],
+    metric: str,
+    stage: int,
+    panels: list[tuple],
+    suptitle: str,
+    out_path: str | Path,
+    metric_by_panel: dict | None = None,
 ) -> Path:
     """F1/F2 (§7.3a-b): one panel per AGENT — role-filtered per-algorithm mean±SE curves.
 
     ``panels`` = two ``(role, title, ylabel, transform)`` tuples; ``transform`` (e.g.
     ``1 - x`` for the thief's escape rate) is applied to the mean before the SE band.
+    ``metric_by_panel`` overrides ``metric`` per role — the return curves plot a DIFFERENT
+    column per agent (``cop_return`` / ``thief_return``) rather than one shared metric.
     """
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.2))
     for ax, (role, title, ylabel, transform) in zip(axes, panels, strict=True):
+        column = (metric_by_panel or {}).get(role, metric)
         for algorithm in _algorithms(records):
-            rounds, mean, se = curve(records, metric, algorithm, stage, role=role)
+            rounds, mean, se = curve(records, column, algorithm, stage, role=role)
             if not rounds:
                 continue
             if transform:

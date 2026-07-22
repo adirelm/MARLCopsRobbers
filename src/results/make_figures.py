@@ -45,6 +45,37 @@ def _manifest(cfg: dict, records: list[dict]) -> dict:
     }
 
 
+def _return_curves(cfg: dict, fig_dir: Path) -> list[str]:
+    """F1b (§7.3a literal): BOTH agents' CUMULATIVE EPISODIC RETURN vs self-play round.
+
+    §7.3(a) asks for "convergence of the cumulative reward" — the measured episodic return,
+    not a proxy. Those fields post-date the headline matrix, so they live in their own
+    append-only log; the figure is skipped (not faked) when that log is absent.
+    """
+    path = Path(cfg["paths"]["runs_dir"]) / "returns_history.jsonl"
+    if not path.exists():
+        return []
+    records = load_runs(path)
+    stage = _focus_stage(records)
+    grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
+    return [
+        str(
+            plot_two_agent_panels(
+                records,
+                "cop_return",
+                stage,
+                [
+                    ("cop", "Cop cumulative return (cop-training rounds)", "episodic return", None),
+                    ("thief", "Thief cumulative return (thief-training rounds)", "episodic return", None),
+                ],
+                f"Both agents' cumulative reward at {grid}x{grid} (mean±SE over seeds)",
+                fig_dir / "return_curves.png",
+                metric_by_panel={"thief": "thief_return"},
+            )
+        )
+    ]
+
+
 def main(cfg: dict | None = None) -> list[str]:
     """Regenerate the four plotted figures + the manifest; return the figure paths."""
     cfg = cfg or load_config()
@@ -89,6 +120,7 @@ def main(cfg: dict | None = None) -> list[str]:
         str(plot_comparison(records, "capture_rate", stage, fig_dir / "baseline_comparison.png")),
         str(plot_scaling(records, "capture_rate", fig_dir / "scaling.png")),
     ]
+    saved += _return_curves(cfg, fig_dir)
     manifest_path = Path(cfg["paths"]["experiment_manifest"])  # config-driven (no hardcoded path)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(_manifest(cfg, records), indent=2), encoding="utf-8")

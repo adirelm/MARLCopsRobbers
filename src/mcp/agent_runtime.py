@@ -45,14 +45,6 @@ class AgentController:
             "last_tick": -1,
         }
 
-    def end_session(self, session_id: str) -> None:
-        """Drop a session's hidden state (teardown; reset on ``new_sub_game``); a no-op if unknown."""
-        self._sessions.pop(session_id, None)
-
-    def has_session(self, session_id: str) -> bool:
-        """Return whether ``session_id`` has an active hidden-state stream."""
-        return session_id in self._sessions
-
     def act(self, session_id: str, tick: int, image: list, scalars: list, legal_mask: list) -> int:
         """Advance ``z_t`` one tick (idempotently) and return the GREEDY legal action int.
 

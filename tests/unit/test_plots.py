@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.results.aggregate import curve
-from src.results.plots import plot_curve_figure, plot_sensitivity
+from src.results.plots import plot_sensitivity, plot_two_agent_panels
 
 
 def test_plot_sensitivity_writes_figure(tmp_path):
@@ -39,7 +39,8 @@ def test_curve_figure_skips_algo_absent_from_stage(tmp_path):
             "capture_rate": 0.1,
         }
     ]
-    out = plot_curve_figure(records, "capture_rate", 3, "title", "ylabel", tmp_path / "c.png")
+    panels = [("cop", "cop", "y", None), ("thief", "thief", "y", None)]
+    out = plot_two_agent_panels(records, "capture_rate", 3, panels, "sup", tmp_path / "c.png")
     assert Path(out).exists() and Path(out).stat().st_size > 0
     # Prove the fixture exercises the skip path: ghost has NO stage-3 data (so the
     # `if not rounds: continue` guard skips it), while qmix DOES have stage-3 data.
