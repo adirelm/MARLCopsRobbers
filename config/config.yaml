@@ -330,11 +330,13 @@ mcp:
 # store, never tracked. Filled-in URLs are placeholders until Stage-2 deploy.
 # ============================================================================
 cloud:
-  platform: "prefect_horizon"     # Prefect Horizon / FastMCP Cloud (*.fastmcp.app).
-                                  #   Fallback host: render (Render.com free Web Service).
-  cop_url: ""                     # e.g. https://adrl-001-cop.fastmcp.app/mcp (set at deploy)
-  thief_url: ""                   # e.g. https://adrl-001-thief.fastmcp.app/mcp (set at deploy)
-  fallback_platform: "render"
+  platform: "render"              # LIVE Stage-2 host (2026-07-22). Horizon/FastMCP Cloud
+                                  #   was tried first but its FREE tier forces platform OAuth
+                                  #   in front of the app -> breaks §5.3 public access AND
+                                  #   collides with our in-app RS256 JWT (see deploy/render.yaml).
+  cop_url: "https://adrl-001-cop.onrender.com/mcp"      # LIVE (RS256 JWT required)
+  thief_url: "https://adrl-001-thief.onrender.com/mcp"  # LIVE (RS256 JWT required)
+  fallback_platform: "prefect_horizon"
   workers: 1                      # SINGLE worker per server: the server-side GRU hidden
                                   #   state z_t (BRIEF eq 8) is in-process, so >1 worker would
                                   #   split z_t across processes. The free single-instance tier

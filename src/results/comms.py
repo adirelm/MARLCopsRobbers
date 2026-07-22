@@ -56,12 +56,16 @@ def capture(cfg: dict) -> list[str]:
     return handler.lines
 
 
-def render(lines: list[str], out_path: str | Path) -> Path:
-    """Render the comms transcript (first 40 lines) to a monospace PNG; return the path."""
+def render(lines: list[str], out_path: str | Path, title: str | None = None) -> Path:
+    """Render the comms transcript (first 40 lines) to a monospace PNG; return the path.
+
+    ``title`` overrides the default localhost caption (the Stage-2 cloud captures pass
+    their own, so the figure never mislabels which stage produced it).
+    """
     shown = lines[:40]
     fig, ax = plt.subplots(figsize=(9.0, 0.28 * len(shown) + 1.0))
     ax.axis("off")
-    ax.set_title("localhost cop<->thief MCP comms (redacted) — shared trace per sub-game")
+    ax.set_title(title or "localhost cop<->thief MCP comms (redacted) — shared trace per sub-game")
     ax.text(0.01, 0.99, "\n".join(shown), va="top", family="monospace", fontsize=8)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)

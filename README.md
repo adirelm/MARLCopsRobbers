@@ -92,7 +92,8 @@ Reported plainly — the brief grades honest analysis over a polished narrative:
 - **OLoRA is a stability/efficiency aid, not the non-stationarity cure** (§7.2, `[7]`); the OLoRA-vs-
   full-fine-tune **ablation chart/table was descoped** (a PRD-designated stretch item) — the ~8×
   trainable-param reduction it would visualize is still asserted by `tests/unit/test_olora_linear.py`.
-- **Cloud deploy + the Gmail send are built + tested, not live-run** — they are account/cred-gated
+- **The Gmail send is built + tested, not live-run** — it is credential-gated
+  (Stage-2 cloud IS live since 2026-07-22: see §7.3d)
   (a deliberate scope line — PLAN §6 ADR-0012 + risk R2; the localhost match F4 is canonical).
 
 **Self-grade.** No numeric self-grade is claimed in this public repo: the rubric self-score lives on the
@@ -236,6 +237,19 @@ cooperative team ([`docs/ANALYSIS.md`](docs/ANALYSIS.md) §10).*
 on ports 8001/8002 with bearer auth, one shared `session_id` across both servers' calls
 (`scripts/serve_match_http.py`).*
 
+![F4c cloud comms](results/figures/mcp_comms_cloud.png)
+*F4c — **§5.3 Stage-2 LIVE**: the identical tool contract between two servers deployed on Render
+(Oregon), driven by the referee over the **public internet**. Every `request_move` alternates
+cop↔thief carrying the same `trace=sg-0` — one session spanning BOTH cloud servers.
+URLs: `adrl-001-cop.onrender.com/mcp` · `adrl-001-thief.onrender.com/mcp` (RS256 JWT required).*
+
+![Cloud auth matrix](results/figures/cloud_auth.png)
+*Cloud auth (§5.3 "token-based auth that can be blocked/revoked") verified live against both public
+endpoints: a valid RS256 token → 200; a bad token, a missing token, and a **wrong-audience** token
+(a cop token replayed at the thief) → 401. Revocation via the `jti` deny-list (`REVOKED_TOKEN_JTIS`)
+→ 401 on the identical stack. Auth is enforced in OUR app — the endpoints are publicly reachable,
+as §5.3 requires.*
+
 ![F3 GUI 2×2](results/screenshots/grid_2x2.png) ![F3 GUI 3×3](results/screenshots/grid_3x3.png) ![F3 GUI 4×4](results/screenshots/grid_4x4.png) ![F3 GUI 5×5](results/screenshots/grid_5x5.png)
 *F3 — Pygame god-view spectator at 2×2 / 3×3 / 4×4 / 5×5 (the mandatory §7.3c GUI screenshots at different grid sizes).*
 
@@ -258,6 +272,8 @@ notebook — LaTeX equations, the six plotted figures, citations, committed **ex
 | **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 + the terminal / barrier / view-radius states (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png`, `state_{terminal,barriers,view_radius}.png` |
 | **F4** | MCP-comms proof — localhost in-memory contract (CAPTURED, CI-deterministic) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |
 | **F4b** | MCP-comms proof over REAL localhost HTTP — ports 8001/8002, bearer auth, shared `session_id` (§5.3 Stage-1) | `scripts/serve_match_http.py` | `results/figures/mcp_comms_http.png` |
+| **F4c** | **Stage-2 LIVE cloud** comms — two Render servers, public internet, RS256 JWT, shared `session_id` | referee vs the two live cloud URLs | `results/figures/mcp_comms_cloud.png` |
+| **Auth** | Live cloud auth matrix — 200 valid / 401 bad / 401 none / 401 wrong-audience / 401 revoked | live verification vs both endpoints | `results/figures/cloud_auth.png` |
 | **F5** | IQL vs VDN vs QMIX final capture rate at 4×4, the 2-cop stage (bar + SE whiskers) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
 | **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |
 | **Sens.** | V3-§9 sensitivity — final capture vs the 4×4 view radius, all else pinned | `scripts/sensitivity_sweep.py` | `results/figures/sensitivity_view_radius.png` |
