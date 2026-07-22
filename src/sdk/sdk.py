@@ -21,6 +21,7 @@ from pathlib import Path
 
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.nets.olora_linear import wrap_encoder
+from src.sdk import _nets
 from src.sdk._train_helpers import cfg_for_algo
 from src.sdk._validation import _validate_config, _validate_input
 from src.services.checkpoints import export_agent_weights, load_agent_weights
@@ -111,15 +112,12 @@ class MarlSDK:
         return finetune_curriculum(cfg, seed, stage_indices, cop_net, thief_net, rounds_per_stage)
 
     def fresh_net(self, role: str, n_agents: int | None = None) -> object:
-        """Build an UNTRAINED role net (cop n_agents=2 / thief 1) — the SDK net factory.
+        """Build an UNTRAINED role net — for training and tests, NOT for graded artifacts."""
+        return _nets.fresh_net(self._cfg, role, n_agents)
 
-        Lets thin launchers / the results layer obtain a net WITHOUT importing the marl
-        net class directly (keeps the SDK the single seam, §4.1).
-        """
-        from src.marl.nets.agent_net import RecurrentQNet  # noqa: PLC0415 — lazy: keep import light
-
-        agents = n_agents if n_agents is not None else (2 if role == "cop" else 1)
-        return RecurrentQNet(self._cfg, role, agents)
+    def serving_net(self, role: str, n_agents: int | None = None) -> object:
+        """Load the TRAINED role net from its configured bundle — the policy we ship (§3.5/§5.3)."""
+        return _nets.serving_net(self._cfg, role, n_agents)
 
     def build_policy(self, role: str, net: object, n_agents: int = 1) -> object:
         """Return an acting policy over ``net`` — the single local-obs acting seam.

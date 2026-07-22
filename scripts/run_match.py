@@ -22,7 +22,7 @@ def main(cfg: dict | None = None, send: bool = False) -> dict:
     cfg = cfg or load_config()
     sdk = MarlSDK(cfg)
     seed = int(cfg["training"]["seeds"][0])
-    out = sdk.run_local_match(sdk.fresh_net("cop"), sdk.fresh_net("thief"), load_players(), seed)
+    out = sdk.run_local_match(sdk.serving_net("cop"), sdk.serving_net("thief"), load_players(), seed)
     print(f"[match] {out['num_games']} sub-games | totals={out['report']['totals']} | ack={out['ack']}")
     if send:  # pragma: no cover - real Gmail egress; requires creds + network + explicit go
         result = sdk.send_final_report(out["report"])

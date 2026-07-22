@@ -30,7 +30,7 @@ def _train(sdk: object, cfg: dict, args: argparse.Namespace) -> dict:
 def _play(sdk: object, cfg: dict, args: argparse.Namespace) -> dict:
     """Run the 6-sub-game match over the in-memory MCP (dry-run); print + return the result."""
     out = sdk.run_local_match(
-        sdk.fresh_net("cop"), sdk.fresh_net("thief"), load_players(), int(cfg["training"]["seeds"][0])
+        sdk.serving_net("cop"), sdk.serving_net("thief"), load_players(), int(cfg["training"]["seeds"][0])
     )
     print(f"[cli play] {out['num_games']} sub-games | totals={out['report']['totals']}")
     return out

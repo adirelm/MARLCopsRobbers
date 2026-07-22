@@ -20,5 +20,5 @@ from src.utils.config_loader import load_config
 
 _cfg = load_config()
 mcp = make_cop_server(
-    _cfg, MarlSDK(_cfg).fresh_net("cop"), token=os.environ.get("COP_MCP_TOKEN") or secrets.token_hex(8)
+    _cfg, MarlSDK(_cfg).serving_net("cop"), token=os.environ.get("COP_MCP_TOKEN") or secrets.token_hex(8)
 )

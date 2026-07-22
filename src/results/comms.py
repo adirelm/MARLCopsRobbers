@@ -50,7 +50,9 @@ def capture(cfg: dict) -> list[str]:
     try:
         sdk = MarlSDK(cfg)
         seed = int(cfg["training"]["seeds"][0])
-        sdk.run_local_match(sdk.fresh_net("cop"), sdk.fresh_net("thief"), load_players(), seed, num_games=1)
+        sdk.run_local_match(
+            sdk.serving_net("cop"), sdk.serving_net("thief"), load_players(), seed, num_games=1
+        )
     finally:
         logger.removeHandler(handler)
     return handler.lines

@@ -393,6 +393,11 @@ paths:
   experiment_manifest: "results/figures/experiment_manifest.json"  # seeds/config-hash; by make_figures
   base_checkpoint_dir: "results/checkpoints/base"   # P4c BC-pretrained base encoders
   olora_bundle_dir: "results/checkpoints/olora"     # P4c OLoRA attach bundles {sha, A/B, head}
+  # TRAINED actor bundles served by every deliverable path (§3.5 match, CLI, F4 capture,
+  # localhost demo servers) AND by the cloud workers via MODEL_PATH. Tracked in-repo so a
+  # fresh clone reproduces the reported match without retraining. See src/sdk/_nets.py.
+  cop_model: "deploy/model/bonus_cop.pt"
+  thief_model: "deploy/model/bonus_thief.pt"
 
 # ============================================================================
 # LOGGING

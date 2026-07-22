@@ -21,6 +21,11 @@ class _FakeSDK:
     def fresh_net(self, role, n_agents=None):
         return f"net:{role}"
 
+    def serving_net(self, role, n_agents=None):
+        # The CLI plays with the TRAINED net (see tests/architecture/test_serving_nets.py);
+        # the label differs from fresh_net so a regression to untrained is visible here too.
+        return f"trained-net:{role}"
+
     def run_local_match(self, *args, **kwargs):
         return {"num_games": 6, "report": {"totals": {"cop": 20, "thief": 5}}}
 
