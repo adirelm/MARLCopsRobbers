@@ -33,6 +33,8 @@ class _StubPolicy:
 
 
 def _free_port() -> int:
+    # Standard ephemeral-port probe (bind 0, read, close). Between close and the
+    # agent's later bind there is a known-benign TOCTOU; _started() retries once.
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
@@ -42,6 +44,23 @@ def _rewire(cfg, key, cop_port, thief_port):
     spec = cfg["wire_match"]["groups"][key]
     spec["cop_url"] = f"http://127.0.0.1:{cop_port}"
     spec["thief_url"] = f"http://127.0.0.1:{thief_port}"
+
+
+def _started(cfg, keys, **kwargs):
+    """Pick fresh ports, point cfg at them, start the agents — retrying ONCE on a
+    bind failure (another process grabbed a probed port before our bind).
+    Returns ``({key: (cop_port, thief_port)}, agents)``."""
+
+    def bind_and_start():
+        ports = {key: (_free_port(), _free_port()) for key in keys}
+        for key, pair in ports.items():
+            _rewire(cfg, key, *pair)
+        return ports, wire_serve.start_group_agents(cfg, keys, **kwargs)
+
+    try:
+        return bind_and_start()
+    except OSError:  # the _free_port TOCTOU fired — re-pick ports once
+        return bind_and_start()
 
 
 def test_shipped_policy_is_the_advertised_lineup(cfg):
@@ -67,14 +86,9 @@ def test_local_group_keys_skip_remote_partner_urls(cfg):
 
 
 def test_start_group_agents_serve_split_roles_with_env_tokens(cfg, monkeypatch):
-    ports = {key: (_free_port(), _free_port()) for key in ("group_1", "group_2")}
-    for key, (cop_port, thief_port) in ports.items():
-        _rewire(cfg, key, cop_port, thief_port)
     monkeypatch.setenv("WIRE_GROUP_1_TOKEN", "tok-one")
     monkeypatch.setenv("WIRE_GROUP_2_TOKEN", "tok-two")
-    agents = wire_serve.start_group_agents(
-        cfg, ["group_1", "group_2"], policy_factory=lambda k, r: _StubPolicy()
-    )
+    ports, agents = _started(cfg, ["group_1", "group_2"], policy_factory=lambda k, r: _StubPolicy())
     try:
         for cop_port, thief_port in ports.values():
             for port in (cop_port, thief_port):
@@ -94,12 +108,10 @@ def test_start_group_agents_serve_split_roles_with_env_tokens(cfg, monkeypatch):
 
 
 def test_start_group_agents_default_factory_serves_the_shipped_lineup(cfg, monkeypatch):
-    ports = (_free_port(), _free_port())
-    _rewire(cfg, "group_1", *ports)
     monkeypatch.setenv("WIRE_GROUP_1_TOKEN", "tok-one")
-    agents = wire_serve.start_group_agents(cfg, ["group_1"])  # no factory -> shipped serving nets
+    ports, agents = _started(cfg, ["group_1"])  # no factory -> shipped serving nets
     try:
-        for port in ports:
+        for port in ports["group_1"]:
             assert httpx.get(f"http://127.0.0.1:{port}/health").json() == {"status": "ok"}
     finally:
         for agent in agents:
@@ -116,3 +128,17 @@ def test_start_group_agents_refuse_a_missing_token_and_clean_up(cfg, monkeypatch
         wire_serve.start_group_agents(cfg, ["group_1", "group_2"], policy_factory=lambda k, r: _StubPolicy())
     with pytest.raises(httpx.TransportError):  # group_1's already-started agents were closed again
         httpx.get(f"http://127.0.0.1:{ports['group_1'][0]}/health", timeout=0.5)
+
+
+def test_started_retries_once_when_a_probed_port_is_grabbed(cfg, monkeypatch):
+    calls: list[list[str]] = []
+
+    def flaky(cfg_, keys, **kwargs):
+        calls.append(list(keys))
+        if len(calls) == 1:
+            raise OSError("address already in use")  # simulated _free_port TOCTOU
+        return "agents-handle"
+
+    monkeypatch.setattr(wire_serve, "start_group_agents", flaky)
+    ports, agents = _started(cfg, ["group_1"])
+    assert agents == "agents-handle" and len(calls) == 2 and set(ports) == {"group_1"}

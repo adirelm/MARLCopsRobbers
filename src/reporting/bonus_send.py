@@ -52,16 +52,28 @@ def write_redacted_bonus(cfg: dict, report: dict) -> Path:
 
 
 def send_bonus_report(cfg: dict, report: dict, sender: object, gatekeeper: object = None) -> dict:
-    """Validate -> subject -> redact-copy -> idempotent gatekeeper send; return a result dict.
+    """Validate -> agreement gate -> subject -> redact-copy -> guarded send; return a result dict.
 
     Identical discipline to :func:`src.reporting.send.send_report`: the sentinel digest is
-    recorded inside the egress thunk (a deferred send can never double-email), and an
-    already-sent digest is a no-op — §9.3 allows exactly ONE valid bonus email per group.
+    recorded inside the egress thunk, an already-sent digest is a no-op, and a changed or
+    mid-send-crashed digest refuses — §9.3 allows exactly ONE valid bonus email per group.
+    The bonus uses its OWN sentinel scope (``gmail.sentinel`` + ``.bonus``) so the §3.5
+    report email and the §9 bonus email are each one-per-match guarded independently.
 
     Raises:
-        ValueError: If the bonus body fails :func:`validate_bonus` (nothing is sent).
+        ValueError: If the bonus body fails :func:`validate_bonus` (schema + §9 semantics
+            + Table-1 scores), OR ``mutual_agreement`` is not EXACTLY ``True`` — §9.3
+            forbids emailing before both groups byte-compared identical drafts. Nothing
+            is sent in either case.
     """
-    validate_bonus(report)
+    validate_bonus(report, scoring=cfg["game"]["scoring"])
+    if report["mutual_agreement"] is not True:
+        raise ValueError(
+            "§9.3: refusing to send the bonus report — mutual_agreement must be EXACTLY True, "
+            f"got {report['mutual_agreement']!r}. Flip it only after BOTH groups byte-compared "
+            "identical result drafts."
+        )
     subject = format_bonus_subject(cfg, report)
     redacted_path = str(write_redacted_bonus(cfg, report))
-    return gated_idempotent_send(cfg, report, sender, subject, redacted_path, gatekeeper)
+    sentinel = f"{cfg['gmail']['sentinel']}.bonus"  # own one-email-per-match scope (vs the §3.5 report)
+    return gated_idempotent_send(cfg, report, sender, subject, redacted_path, gatekeeper, sentinel=sentinel)

@@ -169,16 +169,18 @@ fix for those is not the same. The V3-§9.3 chart-variety pair exists to answer 
 (`results/figures/final_distribution.png`) keeps the seeds APART, F9
 (`results/figures/capture_heatmap.png`) keeps the *stages* apart. Both read the same
 `results/runs/history.jsonl` as F1/F2/F5/F6; "final" is each seed's mean over its **last 5 rounds**
-(`plots_extra.final_values_by_seed`, `_LAST_K = 5`) — the same window `aggregate.final_by_algorithm`
-pools, only un-pooled.
+(`aggregate.final_values_by_seed`, `last_k = 5`). The SEED is the independent unit everywhere:
+`aggregate.final_by_algorithm` takes its mean±SE ACROSS the 5 per-seed means (n = 5), never across
+the pooled 25 seed×round observations — rounds within a seed are autocorrelated, and pooling them
+would have narrowed QMIX's SE from the honest ±0.102 to a spurious ±0.047.
 
 ### F8 — per-seed final capture rate at the 4×4 two-cop focus stage
 
 | Algorithm | seed 7 | seed 17 | seed 37 | seed 71 | seed 107 | median | mean | F5 mean ± SE |
 |---|---|---|---|---|---|---|---|---|
-| IQL  | 0.788 | 0.812 | 0.812 | 0.852 | 0.814 | 0.812 | 0.816 | 0.816 ± 0.011 |
-| VDN  | 0.870 | 0.860 | 0.794 | 0.876 | 0.824 | 0.860 | 0.845 | 0.845 ± 0.013 |
-| QMIX | 0.816 | 0.736 | 0.694 | **0.232** | 0.660 | 0.694 | 0.628 | 0.628 ± 0.047 |
+| IQL  | 0.788 | 0.812 | 0.812 | 0.852 | 0.814 | 0.812 | 0.816 | 0.816 ± 0.010 |
+| VDN  | 0.870 | 0.860 | 0.794 | 0.876 | 0.824 | 0.860 | 0.845 | 0.845 ± 0.016 |
+| QMIX | 0.816 | 0.736 | 0.694 | **0.232** | 0.660 | 0.694 | 0.628 | 0.628 ± 0.102 |
 
 **Finding (honest, and unflattering to the arm we would rather defend).** QMIX's headline `0.63` is
 **not** a uniformly weak arm — it is **four seeds in 0.66–0.82 plus one collapsed seed 71 at 0.232**.
@@ -190,13 +192,16 @@ stated plainly:
 1. **The §7.2 ranking survives the outlier.** Even at 0.727, QMIX stays below IQL's *worst* seed
    (0.788) and VDN's worst (0.794). `VDN ≥ IQL > QMIX` at this 50-round budget is a real effect,
    not an artifact of one bad seed — we checked before claiming it.
-2. **But the defect is bimodality, not a lower plateau.** The right description of QMIX here is
-   "usually learns, occasionally stalls outright", which is exactly the R1 monotonic-mixer
-   instability and is invisible in a mean±SE. Reporting only F5 would have understated QMIX's
-   typical run *and* hidden its actual failure mode — both directions of error at once.
-3. **IQL and VDN are tight and unimodal** (ranges 0.788–0.852 and 0.794–0.876, SE ≈0.011/0.013).
-   VDN's box sits entirely above IQL's median, which is the evidence behind calling VDN "the most
-   consistent arm" rather than merely the highest-scoring one.
+2. **But the defect is one collapsed run (an outlier), not a lower plateau.** The right description
+   of QMIX here is "four of five seeds learn, one stalls outright", which is exactly the R1
+   monotonic-mixer instability and is invisible in a mean±SE. (Five observations are too few to
+   claim any distribution shape beyond "an outlier exists".) Reporting only F5 would have
+   understated QMIX's typical run *and* hidden its actual failure mode — both directions of error
+   at once.
+3. **IQL and VDN both learn on every seed** (ranges 0.788–0.852 and 0.794–0.876, seed-level SE
+   ≈0.010/0.016). Between them the honest split is: **VDN has the highest mean (0.845), IQL the
+   tightest spread** (per-seed SD ≈0.023 vs VDN's ≈0.035) — VDN is *not* the most consistent arm
+   on dispersion, it is the highest-scoring one; IQL is the most consistent.
 
 With 5 seeds a single outlier is 20 % of the sample, so this is a directional diagnosis, not a
 tight variance estimate; the actionable read is "re-run QMIX with more seeds / a longer budget
@@ -222,8 +227,8 @@ view radius — the same partial-observability cost F6 plots, here shown per-arm
 
 > Reproduce: `uv run python -m src.results.make_figures` (builders:
 > `src/results/plots_extra.py::plot_final_distribution` / `plot_capture_heatmap`); the per-seed
-> numbers above are `final_values_by_seed(load_runs("results/runs/history.jsonl"), "capture_rate",
-> algorithm, stage=2)` and the matrix rows are their per-stage means.
+> numbers above are `aggregate.final_values_by_seed(load_runs("results/runs/history.jsonl"),
+> "capture_rate", algorithm, stage=2)` and the matrix rows are their per-stage means.
 
 ## §12 Exploitability probe — why the greedy §3.5 match is 0–6 while the cop is a ~99% pursuer
 
@@ -231,40 +236,49 @@ The shipped match (`scripts/run_match.py`, seeds 7–12 on the 5×5 one-cop boar
 fixed by `run_local_match`'s `stage=(5,5,1)` default plus `config game.grid_size: 5`, not by the
 §3.5 report JSON, which carries no grid field) ends **Cop 30 – Thief 60**: the thief evades for
 all 25 moves in all six sub-games. Read alone, that looks like a failed cop. The head-to-head
-probe below shows the true picture is more interesting — and it was **adversarially verified**
-(5 independent verifiers + a cross-examining critic; harness proven bit-identical to the real
-MCP referee path on the match seeds, 300/300 ticks, before any number below was trusted).
+probe below shows the true picture is more interesting. The **committed evidence** for the table
+is [`results/matchup/block_1000.json`](../results/matchup/block_1000.json) +
+[`results/matchup/block_5000.json`](../results/matchup/block_5000.json), written by
+`scripts/eval_matchup.py --json-out` (second block via `--base-seed 5000`). During development
+the probe was additionally cross-checked adversarially — independent verification passes plus a
+cross-examining critic, including a move-for-move fidelity check of the harness against the real
+MCP referee path on the match seeds (300/300 ticks) — a process-level audit of that session,
+attributed here as such rather than claimed as an in-repo artifact.
 
-| Arm (60 sub-games/block, cop always greedy) | seeds 1000–1059 | fresh block 5000–5059 |
+| Arm (60 sub-games/block, cop always greedy) | seeds 1000–1059 (`block_1000.json`) | seeds 5000–5059 (`block_5000.json`) |
 |---|---|---|
 | cop vs scripted flee baseline | **59/60** | 59/60 |
-| cop vs uniform-random thief | **59/60** | 60/60 (and 120/120 at N=120, seeds 3000–3119) |
+| cop vs uniform-random thief | **59/60** | 60/60 |
 | cop vs OUR self-play thief (greedy, ε=0) | **8/60** | 8/60 |
 | cop vs OUR thief, ε=0.10 exploration noise | **26/60** | 25/60 |
 | cop vs OUR thief, ε=0.25 | **47/60** | 45/60 |
 
 The flee baseline, described accurately: uniform-random over legal moves **before** first
 opponent sighting, deterministic greedy distance-maximising **after**; it ignores its epsilon
-argument. Pooled over all blocks the cop catches a uniform-random thief **179/180 (99.4%)**.
+argument. Pooled over the two committed blocks the cop catches a uniform-random thief
+**119/120 (99.2%)**.
 
 **Finding 1 — the cop is a competent pursuer, barriers included.** 59/60 against the scripted
-flee policy (34 §3.3 barrier placements across the arm's 472 cop moves) and 99.4% pooled against
-a random walker. The 0–6 match is not general incompetence.
+flee policy (34 §3.3 barrier placements across the arm's 472 cop moves — both counts are in
+`block_1000.json`) and 99.2% pooled against a random walker. The 0–6 match is not general
+incompetence.
 
 **Finding 2 — against our own self-play thief at greedy evaluation the cop captures 8/60
-(~13%; 95% CI 8–21%, pooled over two independent 60-seed blocks that both landed on exactly
+(~13%; 95% CI 8–21%, pooled over the two committed 60-seed blocks, which both landed on exactly
 8/60).** The thief our self-play produced beats the cop our self-play produced, decisively,
 under the serving convention.
 
 **Finding 3 — but that advantage is a brittle DETERMINISTIC LOCK, not across-the-board thief
 superiority.** Injecting small exploration noise into the thief alone recovers captures
-monotonically in both seed blocks (8 → 26/25 → 47/45). At ε=0 both policies are bit-identically
+monotonically in both committed blocks (8 → 26/25 → 47/45). At ε=0 both policies are bit-identically
 reproducible across runs *and* across RNG seeds (the RNG is consumed every tick but provably
 inert on actions), so each start position replays one fixed greedy escape trajectory — **distinct
 per seed** (6 seeds → 6 distinct sequences, one of which is even captured), sharing a
 left/right-oscillation motif — that exploits *this specific cop's* deterministic greedy
-responses. On actual match seed 7, a single ε=0.10 deviation at tick 14 flips a 25-move evasion
-into a capture at move 15. No claim is made about any other cop: only this one was evaluated.
+responses. One tick-level illustration from the development probe (a session observation, not a
+committed artifact): on actual match seed 7, a single ε=0.10 deviation at tick 14 flipped a
+25-move evasion into a capture at move 15. No claim is made about any other cop: only this one
+was evaluated.
 
 **Interpretation (§7.2 non-stationarity, honestly reported).** This is the classic self-play
 pathology: alternating best-response converges to a co-adapted pair, and the frozen evaluation
@@ -276,9 +290,11 @@ the **serving/match** convention (`agent_runtime` plays `act(..., 0.0, ...)`); t
 capture rates elsewhere in this document are ε-annealed (1.0 → 0.05) rollout metrics — a
 different quantity, deliberately not compared against this table.
 
-> Reproduce: `uv run python scripts/eval_matchup.py` (~minutes, CPU; block shape from the
-> `matchup_eval` config; service: `src/services/matchup_eval.py` via `MarlSDK.run_matchup_eval`).
-> The in-repo script reproduces the seeds-1000 column above bit-for-bit.
+> Reproduce: `uv run python scripts/eval_matchup.py --json-out results/matchup/block_1000.json`
+> and `… --base-seed 5000 --json-out results/matchup/block_5000.json` (~minutes each, CPU; block
+> shape from the `matchup_eval` config; service: `src/services/matchup_eval.py` via
+> `MarlSDK.run_matchup_eval`). The committed JSONs above were produced by exactly those two
+> commands; each column of the table reproduces bit-for-bit.
 
 ## §13 Foreign-cop stress test — §9 bonus readiness (adversarially verified)
 
@@ -289,8 +305,10 @@ partial-obs pursuit cop, a barrier-placing pursuit cop (`src/services/foreign_co
 TDD tests), and two best-response **exploiter** cops trained locally against our frozen
 policies — and ran every cop against three thief candidates over 60-seed blocks, with a
 disjoint second block, cop-side ε=0.05 noise variants, and 10×6-game **sticky-switch** matches
-matching the real §9 semantics. A critic then independently re-drove **17/17 decisive cells —
-all reproduced exactly**, and re-derived the §9 scoring from the brief.
+matching the real §9 semantics. During development a critic pass then independently re-drove
+**17/17 decisive cells — all reproduced exactly** — and re-derived the §9 scoring from the
+brief; that audit's verdict is recorded in the committed report's `critic_verdict` block (the
+re-runs themselves were session work, not a separate artifact).
 
 | Cop \ Thief (captures/60, greedy) | shipped Adaptive | raw net | pure flee |
 |---|---|---|---|

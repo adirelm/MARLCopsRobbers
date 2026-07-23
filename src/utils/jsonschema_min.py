@@ -1,13 +1,16 @@
 """Minimal draft-2020-12 JSON-schema validator — no external dependency (T6.3).
 
 Supports the subset our committed schemas use: ``type`` / ``required`` / ``enum`` /
-``additionalProperties`` / ``properties`` / ``items`` / ``minItems`` / ``maxItems``.
+``additionalProperties`` / ``properties`` / ``items`` / ``minItems`` / ``maxItems`` /
+``minimum`` / ``maximum`` / ``pattern`` / ``minLength``.
 Raises :class:`ValueError` on the first violation. It is the SINGLE validator used
 by the §3.5 report build AND the sub-game schema tests (no pydantic runtime dep for
 the report, per the §3.5 contract).
 """
 
 from __future__ import annotations
+
+import re
 
 _TYPES = {
     "object": dict,
@@ -40,6 +43,20 @@ def _validate_dict(instance: dict, schema: dict) -> None:
             validate(instance[key], sub)
 
 
+def _validate_scalar(instance: object, schema: dict) -> None:
+    """Check ``minimum``/``maximum`` on numbers and ``pattern``/``minLength`` on strings."""
+    if isinstance(instance, (int, float)) and not isinstance(instance, bool):
+        if "minimum" in schema and instance < schema["minimum"]:
+            raise ValueError(f"{instance!r} < minimum {schema['minimum']}")
+        if "maximum" in schema and instance > schema["maximum"]:
+            raise ValueError(f"{instance!r} > maximum {schema['maximum']}")
+    if isinstance(instance, str):
+        if "pattern" in schema and re.search(schema["pattern"], instance) is None:
+            raise ValueError(f"{instance!r} does not match pattern {schema['pattern']!r}")
+        if "minLength" in schema and len(instance) < schema["minLength"]:
+            raise ValueError(f"{instance!r} shorter than minLength {schema['minLength']}")
+
+
 def _validate_list(instance: list, schema: dict) -> None:
     """Check ``minItems`` / ``maxItems`` + recurse into each item."""
     if len(instance) < schema.get("minItems", 0):
@@ -58,7 +75,7 @@ def validate(instance: object, schema: dict) -> None:
         schema: A draft-2020-12 schema (the supported keyword subset).
 
     Raises:
-        ValueError: On the first type/required/enum/extra-key/length violation.
+        ValueError: On the first type/required/enum/extra-key/length/bounds/pattern violation.
     """
     if "type" in schema and not _check_type(instance, schema["type"]):
         raise ValueError(f"type mismatch: expected {schema['type']}, got {type(instance).__name__}")
@@ -67,6 +84,7 @@ def validate(instance: object, schema: dict) -> None:
     for key in schema.get("required", []):
         if not isinstance(instance, dict) or key not in instance:
             raise ValueError(f"missing required key {key!r}")
+    _validate_scalar(instance, schema)
     if isinstance(instance, dict):
         _validate_dict(instance, schema)
     if isinstance(instance, list) and "items" in schema:

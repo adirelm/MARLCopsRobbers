@@ -1,11 +1,13 @@
 """Report send pipeline — subject, redaction, idempotency, gatekeeper egress (T9.3/9.5).
 
-The single send path for the §3.5 report: validate the body, format the subject from
-``gmail.subject_template``, write a role-only REDACTED copy (the tracked §7.3 evidence),
-then send EXACTLY once — the canonical report hash is recorded in ``gmail.sentinel`` only
-AFTER a successful send, so a retry / double-trigger never emails the lecturer twice.
-Egress is routed through the §5 ApiGatekeeper (``gmail`` channel). The recipient is
-unconditionally ``gmail.to`` (never inlined, never an env override).
+The single send path for the §3.5 report: validate the body (schema + §3.4 Table-1
+scores), format the subject from ``gmail.subject_template``, write a role-only REDACTED
+copy (the tracked §7.3 evidence), then send guarded three ways via ``sentinel.py``:
+an ``intent`` line BEFORE dialing SMTP (a crash mid-send blocks retries until the operator
+verifies the inbox), ``sent`` recorded only after the mail is committed (idempotent
+retries), and a one-email-per-match refusal of any DIFFERENT digest (``RESEND_APPROVED=1``
+overrides). Egress is routed through the §5 ApiGatekeeper (``gmail`` channel). The
+recipient is unconditionally ``gmail.to`` (never inlined, never an env override).
 
 Input: the loaded config (``_validate_config`` -> ValueError), the §3.5 report body, the
 INJECTED ``sender`` (real ``GmailMailer`` or a ``FakeEmailSender``), the build date and an
@@ -28,6 +30,7 @@ from zoneinfo import ZoneInfo
 
 from src.api.gatekeeper import DEFERRED, ApiGatekeeper
 from src.reporting.schema import validate
+from src.reporting.sentinel import LOCK, check_clear_to_send, mark_intent, mark_sent
 
 _REQUIRED_GMAIL_KEYS = ("to", "subject_template", "output_dir", "sentinel")
 
@@ -96,20 +99,6 @@ def report_hash(report: dict) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def already_sent(sentinel: str | Path, digest: str) -> bool:
-    """Return whether ``digest`` is already recorded in the sentinel file."""
-    path = Path(sentinel)
-    return path.exists() and digest in path.read_text(encoding="utf-8").split()
-
-
-def mark_sent(sentinel: str | Path, digest: str) -> None:
-    """Append ``digest`` to the sentinel (called ONLY after a successful send)."""
-    path = Path(sentinel)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(digest + "\n")
-
-
 def write_redacted(cfg: dict, report: dict) -> Path:
     """Write the role-only redacted copy under ``gmail.output_dir``; return its path."""
     out_dir = Path(cfg["gmail"]["output_dir"])
@@ -126,53 +115,66 @@ def build_date(cfg: dict) -> str:
 
 
 def send_report(cfg: dict, report: dict, sender: object, date_str: str, gatekeeper: object = None) -> dict:
-    """Validate -> subject -> redact-copy -> idempotent gatekeeper send; return a result dict.
+    """Validate -> subject -> redact-copy -> guarded gatekeeper send; return a result dict.
 
-    Sends EXACTLY once: a report whose hash is already in ``gmail.sentinel`` is a no-op
-    (``sent=False, reason=already_sent``). The sentinel is recorded INSIDE the egress
+    A report whose hash is already in ``gmail.sentinel`` is a no-op (``sent=False,
+    reason=already_sent``); a CHANGED report or a dangling mid-send ``intent`` refuses
+    (see :func:`gated_idempotent_send`). The sentinel is recorded INSIDE the egress
     thunk, so it is written iff/when the email actually goes out — immediately, OR when a
     deferred call later drains (the §5 gatekeeper queues, it does not cancel). That makes
     a deferred send impossible to turn into an untracked duplicate.
     """
     _validate_input(report, sender, date_str)
     _validate_config(cfg)
-    validate(report, expected_games=int(cfg["game"]["num_games"]))  # §3.5: exactly N at SEND
+    # §3.5: exactly N sub-games at SEND, each scored per the §3.4 Table-1 mapping
+    validate(report, expected_games=int(cfg["game"]["num_games"]), scoring=cfg["game"]["scoring"])
     subject = format_subject(cfg, report, date_str)
     redacted_path = str(write_redacted(cfg, report))
     return gated_idempotent_send(cfg, report, sender, subject, redacted_path, gatekeeper)
 
 
-def gated_idempotent_send(  # noqa: PLR0913 — cfg + body + sender + subject + path + gate are distinct
+def gated_idempotent_send(  # noqa: PLR0913 — cfg + body + sender + subject + path + gate + scope are distinct
     cfg: dict,
     report: dict,
     sender: object,
     subject: str,
     redacted_path: str,
     gatekeeper: object = None,
+    sentinel: str | None = None,
 ) -> dict:
-    """Send ``report`` EXACTLY once through the §5 gatekeeper; return the result dict.
+    """Send ``report`` at most once through the §5 gatekeeper; return the result dict.
 
-    The one place the never-double-email invariant lives — shared by the §3.5 report and
-    the §9 bonus report. The content-keyed sha256 digest is recorded in ``gmail.sentinel``
-    INSIDE the egress thunk, so it is written iff/when the mail actually goes out
-    (immediately, or when a deferred call later drains). Callers do their own schema
-    validation, subject formatting and redacted-copy write first.
+    The one place the send guards live — shared by the §3.5 report and the §9 bonus
+    report (which passes its OWN ``sentinel`` scope so each logical email is guarded
+    independently). Per attempt: ``check_clear_to_send`` no-ops an already-sent digest,
+    BLOCKS on a dangling ``intent`` (crashed mid-send — verify the inbox first) and
+    refuses a DIFFERENT digest (one email per match; ``RESEND_APPROVED=1`` overrides);
+    then ``intent`` is recorded BEFORE dialing SMTP and ``sent`` after — so it is
+    committed iff/when the mail actually goes out (immediately, or when a deferred call
+    later drains). Callers do their own validation/subject/redacted-copy first.
+
+    Raises:
+        RuntimeError: Dangling ``intent`` in the sentinel (delivery state unknown).
+        ValueError: A different report digest is already recorded (no resend approval).
     """
     digest = report_hash(report)
-    sentinel = cfg["gmail"]["sentinel"]
-    if already_sent(sentinel, digest):
-        return {"sent": False, "reason": "already_sent", "redacted_path": redacted_path}
+    sentinel = sentinel or cfg["gmail"]["sentinel"]
+    with LOCK:
+        if check_clear_to_send(sentinel, digest):
+            return {"sent": False, "reason": "already_sent", "redacted_path": redacted_path}
     body = json.dumps(report, indent=2, ensure_ascii=False)
     recipient = cfg["gmail"]["to"]
 
     def _send() -> str:
-        # Recheck INSIDE the thunk: if a previously-queued send for this same report
-        # already drained (gatekeeper drains queued calls before admitting new ones), the
-        # sentinel is now set — skip, so a retry-during-deferral can never double-email.
-        if already_sent(sentinel, digest):
-            return "already_sent"
+        # Recheck INSIDE the thunk (under the lock, atomically with the intent write):
+        # if a previously-queued send for this same report already drained, skip — a
+        # retry-during-deferral or a concurrent caller can never double-email.
+        with LOCK:
+            if check_clear_to_send(sentinel, digest):
+                return "already_sent"
+            mark_intent(sentinel, digest)  # written BEFORE dialing SMTP (crash guard)
         sender.send(subject, body, recipient)
-        mark_sent(sentinel, digest)  # email + sentinel committed together
+        mark_sent(sentinel, digest)  # the email is now committed
         return "sent"
 
     outcome = (gatekeeper or ApiGatekeeper()).execute("gmail", _send)

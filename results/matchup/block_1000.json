@@ -1,0 +1,82 @@
+[
+  {
+    "label": "cop vs scripted flee",
+    "thief_kind": "flee",
+    "captures": 59,
+    "games": 60,
+    "moves": 472,
+    "cop_actions": {
+      "LEFT": 200,
+      "UP": 72,
+      "RIGHT": 99,
+      "PLACE_BARRIER": 34,
+      "DOWN": 67
+    },
+    "thief_eps": 0.0,
+    "base_seed": 1000
+  },
+  {
+    "label": "cop vs uniform random",
+    "thief_kind": "random",
+    "captures": 59,
+    "games": 60,
+    "moves": 372,
+    "cop_actions": {
+      "LEFT": 101,
+      "UP": 50,
+      "RIGHT": 125,
+      "PLACE_BARRIER": 33,
+      "DOWN": 63
+    },
+    "thief_eps": 0.0,
+    "base_seed": 1000
+  },
+  {
+    "label": "cop vs OUR thief (eps=0.00)",
+    "thief_kind": "net",
+    "captures": 8,
+    "games": 60,
+    "moves": 1369,
+    "cop_actions": {
+      "LEFT": 558,
+      "UP": 123,
+      "RIGHT": 564,
+      "DOWN": 102,
+      "PLACE_BARRIER": 22
+    },
+    "thief_eps": 0.0,
+    "base_seed": 1000
+  },
+  {
+    "label": "cop vs OUR thief (eps=0.10)",
+    "thief_kind": "net",
+    "captures": 26,
+    "games": 60,
+    "moves": 1105,
+    "cop_actions": {
+      "LEFT": 426,
+      "UP": 122,
+      "RIGHT": 435,
+      "DOWN": 98,
+      "PLACE_BARRIER": 24
+    },
+    "thief_eps": 0.1,
+    "base_seed": 1000
+  },
+  {
+    "label": "cop vs OUR thief (eps=0.25)",
+    "thief_kind": "net",
+    "captures": 47,
+    "games": 60,
+    "moves": 775,
+    "cop_actions": {
+      "LEFT": 270,
+      "UP": 112,
+      "RIGHT": 271,
+      "DOWN": 93,
+      "PLACE_BARRIER": 29
+    },
+    "thief_eps": 0.25,
+    "base_seed": 1000
+  }
+]

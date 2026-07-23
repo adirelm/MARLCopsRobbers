@@ -15,9 +15,9 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-from src.results.aggregate import load_runs
+from src.results.aggregate import final_values_by_seed, load_runs
 from src.results.plots import plot_comparison, plot_scaling, plot_two_agent_panels
-from src.results.plots_extra import final_values_by_seed, plot_capture_heatmap, plot_final_distribution
+from src.results.plots_extra import plot_capture_heatmap, plot_final_distribution
 from src.utils.config_loader import load_config
 
 

@@ -12,6 +12,8 @@ from src.reporting import send as send_mod
 from src.reporting.mailer import FakeEmailSender
 from src.reporting.schema import validate
 from src.sdk.sdk import MarlSDK
+from tests.unit._send_fixtures import cfg_tmp as _cfg_tmp
+from tests.unit._send_fixtures import make_report as _report
 
 
 def test_validate_enforces_expected_game_count():
@@ -21,35 +23,6 @@ def test_validate_enforces_expected_game_count():
     validate(short)  # structural-only (no count) -> passes
     with pytest.raises(ValueError, match="exactly 6"):
         validate(short, expected_games=6)  # the send-path gate rejects a short report
-
-
-def _report() -> dict:
-    games = [
-        {
-            "id": i + 1,
-            "start": f"2026-06-17T18:0{i}:00.000+03:00",
-            "end": f"2026-06-17T18:0{i}:30.000+03:00",
-            "moves": 4,
-            "winner": "cop",
-            "scores": {"cop": 20, "thief": 5},
-        }
-        for i in range(6)
-    ]
-    return {
-        "group_name": "adrl-001",
-        "students": [{"role": "A", "full_name": "Pat Doe", "id": "000000000"}],
-        "github_repo": "https://github.com/example/marl",
-        "timezone": "Asia/Jerusalem",
-        "sub_games": games,
-        "totals": {"cop": 120, "thief": 30},
-    }
-
-
-def _cfg_tmp(cfg: dict, tmp_path: Path) -> dict:
-    cfg = json.loads(json.dumps(cfg))  # deep copy so we can redirect the sentinel/out dir
-    cfg["gmail"]["sentinel"] = str(tmp_path / ".report_sent")
-    cfg["gmail"]["output_dir"] = str(tmp_path / "reports")
-    return cfg
 
 
 def test_format_subject_has_no_pii_and_fills_totals(cfg):

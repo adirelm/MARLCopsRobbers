@@ -7,14 +7,14 @@ one-valid-email-per-group rule (§9.3) enforced by the sha256 sentinel.
 
 from __future__ import annotations
 
-from src.reporting.bonus import build_bonus_report
+from src.reporting.bonus import build_bonus_report, derive_bonus_claim, derive_totals_by_group
 from src.reporting.bonus_send import format_bonus_subject, redact_bonus, send_bonus_report
 from src.utils.config_loader import load_config
 
 _G1, _G2 = "adrl-001", "team-beta"
 
 
-def _report() -> dict:
+def _report(mutual_agreement: bool = True) -> dict:
     result = {
         "start": "2026-07-04T18:00:00+03:00",
         "end": "2026-07-04T18:02:00+03:00",
@@ -31,7 +31,7 @@ def _report() -> dict:
         ),
         timezone="Asia/Jerusalem",
         results=[result] * 6,
-        mutual_agreement=True,
+        mutual_agreement=mutual_agreement,
     )
 
 
@@ -89,4 +89,32 @@ def test_send_bonus_report_rejects_an_invalid_body(tmp_path):
         raise AssertionError("expected ValueError")
     except ValueError:
         pass
+    assert sender.sent == []
+
+
+def test_send_bonus_report_refuses_unless_mutual_agreement_is_exactly_true(tmp_path):
+    """§9.3: mutual_agreement=False (a schema-valid body!) must NEVER be emailed."""
+    cfg = _cfg(tmp_path)
+    sender = _Sender()
+    try:
+        send_bonus_report(cfg, _report(mutual_agreement=False), sender)
+        raise AssertionError("expected ValueError")
+    except ValueError as exc:
+        assert "mutual_agreement" in str(exc)
+    assert sender.sent == []  # nothing left the machine
+
+
+def test_send_bonus_report_rejects_non_table1_scores_at_send(tmp_path):
+    """The send path re-derives Table-1 scores from each winner — fraud never goes out."""
+    cfg = _cfg(tmp_path)
+    sender = _Sender()
+    report = _report()
+    report["sub_games"][0]["scores"] = {"cop": 0, "thief": 999}
+    totals = derive_totals_by_group(report["sub_games"], _G1, _G2)
+    report["totals_by_group"], report["bonus_claim"] = totals, derive_bonus_claim(totals)
+    try:
+        send_bonus_report(cfg, report, sender)
+        raise AssertionError("expected ValueError")
+    except ValueError as exc:
+        assert "Table-1" in str(exc)
     assert sender.sent == []

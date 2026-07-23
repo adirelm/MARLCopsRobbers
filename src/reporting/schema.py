@@ -103,18 +103,46 @@ def build_report(
     )
 
 
-def validate(report: dict, expected_games: int | None = None) -> None:
+def table1_scores(winner: str, scoring: dict) -> dict:
+    """Return the §3.4 Table-1 ``scores`` a sub-game with this ``winner`` MUST carry."""
+    if winner == "cop":
+        return {"cop": int(scoring["cop_win"]), "thief": int(scoring["thief_loss"])}
+    return {"cop": int(scoring["cop_loss"]), "thief": int(scoring["thief_win"])}
+
+
+def check_table1_scores(sub_games: list[dict], scoring: dict) -> None:
+    """Require every sub-game's scores to EQUAL the Table-1 mapping for its winner.
+
+    Scores are DERIVED from ``winner`` + ``game.scoring`` — a body carrying any other
+    per-game numbers (e.g. winner "cop" with ``{cop: 0, thief: 999}``) is fraudulent
+    even when its totals are internally consistent.
+
+    Raises:
+        ValueError: If any sub-game's scores differ from the winner's Table-1 row.
+    """
+    for game in sub_games:
+        expected = table1_scores(game["winner"], scoring)
+        actual = {"cop": int(game["scores"]["cop"]), "thief": int(game["scores"]["thief"])}
+        if actual != expected:
+            raise ValueError(
+                f"sub-game {game['id']}: scores {actual} != Table-1 row {expected} "
+                f"for winner {game['winner']!r}"
+            )
+
+
+def validate(report: dict, expected_games: int | None = None, scoring: dict | None = None) -> None:
     """Validate a report dict against the schema AND the §3.5 semantic invariants.
 
     After the JSON-schema pass, assert each ``totals[role]`` equals the sum of the
     per-sub-game scores (the §3.5 totals are DERIVED, never trusted). When
     ``expected_games`` is given, require EXACTLY that many sub-games — the §3.5 "a full
-    game = N sub-games" contract (FR-RPT-2). The SEND path passes ``game.num_games`` (6);
-    mid-pipeline self-checks omit it so a parameterized partial match still validates.
+    game = N sub-games" contract (FR-RPT-2). When ``scoring`` (``game.scoring``, Table 1)
+    is given, require every sub-game's scores to equal the winner's Table-1 row. The
+    SEND path passes both; mid-pipeline self-checks may omit them.
 
     Raises:
-        ValueError: On a schema violation, a totals inconsistency, OR a sub-game count
-            that differs from ``expected_games`` when it is supplied.
+        ValueError: On a schema violation, a totals inconsistency, a sub-game count that
+            differs from ``expected_games``, or scores that differ from Table 1.
     """
     _schema_validate(report, json.loads(_SCHEMA_PATH.read_text(encoding="utf-8")))
     sub_games = report["sub_games"]
@@ -124,3 +152,5 @@ def validate(report: dict, expected_games: int | None = None) -> None:
         expected = sum(int(g["scores"][role]) for g in sub_games)
         if report["totals"][role] != expected:
             raise ValueError(f"totals[{role!r}] {report['totals'][role]} != Σ sub-game scores {expected}")
+    if scoring is not None:
+        check_table1_scores(sub_games, scoring)

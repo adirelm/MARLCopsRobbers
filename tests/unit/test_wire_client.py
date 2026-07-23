@@ -6,6 +6,8 @@ are the defaults and carry their own tests) — no sockets, no monkeypatching.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from src.mcp.wire_client import VoidSubGame, WireClient
@@ -80,6 +82,30 @@ def test_non_json_reply_counts_as_fault():
 
     with pytest.raises(VoidSubGame):
         _client(post_fn).request_move({"tick": 0})
+
+
+def test_reply_landing_past_the_wall_clock_budget_is_a_timeout_fault():
+    # F5: httpx's scalar timeout is only PER-PHASE — a dribbled reply can land "successfully"
+    # long after the promised 10 s window. The client must enforce the WALL CLOCK itself.
+    calls = {"n": 0}
+
+    def slow_then_fast(url, token, payload, timeout):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            time.sleep(0.08)  # a valid 200 that lands past the budget
+        return FakeResp(200, {"action": "up"})
+
+    assert _client(slow_then_fast, timeout_s=0.05).request_move({"tick": 0}) == {"action": "up"}
+    assert calls["n"] == 2  # the late reply was discarded as a P8 timeout fault; the retry answered
+
+
+def test_every_reply_past_the_wall_clock_voids_the_sub_game():
+    def always_slow(url, token, payload, timeout):
+        time.sleep(0.03)
+        return FakeResp(200, {"action": "up"})
+
+    with pytest.raises(VoidSubGame, match="wall clock"):
+        _client(always_slow, timeout_s=0.01).request_move({"tick": 0})
 
 
 def test_on_event_hook_sees_request_then_response_with_latency():

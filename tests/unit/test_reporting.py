@@ -89,3 +89,33 @@ def test_validate_rejects_totals_not_equal_to_sum():
     body["totals"]["cop"] = 0
     with pytest.raises(ValueError, match="totals"):
         validate(body)
+
+
+_SCORING = {"cop_win": 20, "thief_win": 10, "cop_loss": 5, "thief_loss": 5}  # §3.4 Table 1
+
+
+def test_validate_with_scoring_rejects_scores_not_matching_table1():
+    """Winner-cop scores {cop:0, thief:999} with CONSISTENT totals are fraud -> rejected."""
+    validate(_body(), scoring=_SCORING)  # honest Table-1 scores pass
+    body = _body()
+    body["sub_games"][0]["scores"] = {"cop": 0, "thief": 999}  # winner stays "cop"
+    body["totals"] = {"cop": 5, "thief": 1009}  # totals made consistent with the fraud
+    validate(body)  # structural-only pass cannot see it...
+    with pytest.raises(ValueError, match="Table-1"):
+        validate(body, scoring=_SCORING)  # ...the send-path scoring gate does
+
+
+def test_schema_bounds_reject_out_of_range_id_moves_and_bad_timestamps():
+    """The tightened schema pins id to 1..6, moves to 1..25 and start/end to ISO-8601."""
+    body = _body()
+    body["sub_games"][0]["id"] = -7
+    with pytest.raises(ValueError, match="minimum"):
+        validate(body)
+    body = _body()
+    body["sub_games"][0]["moves"] = 26
+    with pytest.raises(ValueError, match="maximum"):
+        validate(body)
+    body = _body()
+    body["sub_games"][0]["start"] = "17/06/2026 18:00"
+    with pytest.raises(ValueError, match="pattern"):
+        validate(body)

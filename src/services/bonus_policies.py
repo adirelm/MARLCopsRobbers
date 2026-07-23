@@ -87,7 +87,10 @@ class AdaptiveThiefPolicy:
     The trained net's GRU hidden state is warm-carried from the sub-game start (the net
     is advanced every tick even while the flee policy is acting), so a mid-sub-game
     switch hands over a live recurrent state, not a cold one. ``switched`` is sticky
-    across ``reset()`` — one barrier sighting converts the whole remaining match.
+    across ``reset()`` — one barrier sighting converts the whole remaining match, and
+    that DELIBERATELY includes a voided attempt's sighting carrying into its same-seed
+    replay: the switch is match-level adaptation (README §9 lineup; ANALYSIS §12
+    sticky-switch battery), not per-attempt state.
     """
 
     def __init__(self, cfg: dict, net: object) -> None:

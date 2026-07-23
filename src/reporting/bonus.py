@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from src.reporting.schema import check_table1_scores
 from src.utils.jsonschema_min import validate as _schema_validate
 
 _SCHEMA_PATH = Path(__file__).resolve().parents[2] / "docs" / "schema" / "bonus.schema.json"
@@ -64,7 +65,14 @@ def build_bonus_report(  # noqa: PLR0913 — the §9.4 identity blocks are all d
 
     Raises:
         ValueError: If ``results`` is not exactly 6 sub-games.
+        TypeError: If ``mutual_agreement`` is not a real bool — truthy coercion is
+            forbidden (``bool("false")`` is True, which would fabricate a §9.3 agreement).
     """
+    if not isinstance(mutual_agreement, bool):
+        raise TypeError(
+            f"mutual_agreement must be a real bool, got {type(mutual_agreement).__name__} "
+            f"({mutual_agreement!r}) — never coerce (§9.3 agreement cannot be implied)"
+        )
     if len(results) != _GAMES:
         raise ValueError(f"§9.1 requires exactly {_GAMES} sub-games, got {len(results)}")
     group_1, group_2 = groups
@@ -96,22 +104,26 @@ def build_bonus_report(  # noqa: PLR0913 — the §9.4 identity blocks are all d
         "sub_games": sub_games,
         "totals_by_group": totals,
         "bonus_claim": derive_bonus_claim(totals),
-        "mutual_agreement": bool(mutual_agreement),
+        "mutual_agreement": mutual_agreement,
     }
 
 
-def validate_bonus(report: dict) -> None:
+def validate_bonus(report: dict, scoring: dict | None = None) -> None:
     """Validate a bonus body: schema shape + every §9 semantic invariant.
 
     Checks, beyond the JSON schema: the §9.1 role alternation (group_1 cop in 1-3,
     group_2 cop in 4-6, thief always the other group), that ``totals_by_group`` equals
     the re-derived per-role sums, and that ``bonus_claim`` equals the re-derived
-    §9.2 claim (10/7 or 5/5) — derived fields are never trusted (mirrors §3.5).
+    §9.2 claim (10/7 or 5/5) — derived fields are never trusted (mirrors §3.5). When
+    ``scoring`` (``game.scoring``, Table 1) is given, additionally require every
+    sub-game's scores to equal the winner's Table-1 row (the SEND path passes it).
 
     Raises:
         ValueError: On any schema violation or semantic inconsistency.
     """
     _schema_validate(report, json.loads(_SCHEMA_PATH.read_text(encoding="utf-8")))
+    if scoring is not None:
+        check_table1_scores(report["sub_games"], scoring)
     group_1 = report["groups"]["group_1"]
     group_2 = report["groups"]["group_2"]
     for game in report["sub_games"]:

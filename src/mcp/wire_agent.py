@@ -8,11 +8,15 @@ sub-game is replayed under the SAME ``session_id``) and ``POST /request_move``
 (rebuilds the exact env Observation + legality mask via :mod:`src.mcp.wire_obs`,
 advances the plugged-in ``act()``+``reset()`` policy — ``MarlSDK.build_policy``
 output, e.g. a :class:`RecurrentPolicy` whose hidden state moves one tick per
-move — and answers the brief's action string). A re-POSTed ``(session_id, tick)``
-returns the cached answer WITHOUT re-advancing the recurrent state; a lock
-serializes acting so a referee timeout-retry can never double-advance it. Acting
-is greedy (ε=0, decentralized execution — the ``AgentController`` convention).
-One server serves ONE role; ``make_wire_agent`` returns a started handle.
+move — and answers the brief's action string). A re-POSTed IDENTICAL
+``(session_id, tick)`` body returns the cached answer WITHOUT re-advancing the
+recurrent state; a DIFFERING body for a cached tick — a stale pre-void request a
+server thread finishes AFTER the void re-hello reset the session — recomputes and
+overwrites, so it can never poison the new run. A lock serializes acting so a
+referee timeout-retry can never double-advance z_t; the acting rng is reseeded on
+every hello so a void replay redraws the SAME stream. Acting is greedy (ε=0,
+decentralized execution — the ``AgentController`` convention). One server serves
+ONE role; ``make_wire_agent`` returns a started handle.
 """
 
 from __future__ import annotations
@@ -91,7 +95,8 @@ class WireAgentServer(ThreadingHTTPServer):
         self._sessions: dict[str, dict] = {}
         self._active: str | None = None
         self._lock = threading.Lock()  # a timeout re-POST must never double-advance z_t
-        self._rng = Random(0)  # greedy ε=0; act() requires an rng but never draws from it
+        self._rng = Random(0)  # reseeded per hello: stochastic policies (flee pre-contact,
+        #   conformance uniform-random) DO draw, and a void replay must redraw the same stream
 
     def start_sub_game(self, payload: dict) -> dict:
         """Reset ALL state for ``session_id`` — a void replay re-POSTs the SAME id."""
@@ -101,28 +106,31 @@ class WireAgentServer(ThreadingHTTPServer):
             wire = wire_obs.new_session(self.role, payload["grid"], payload["max_moves"], self.cfg)
             self._sessions[payload["session_id"]] = {"wire": wire, "cache": {}, "last_tick": -1}
             self._active = payload["session_id"]
+            self._rng = Random(0)  # FRESH deterministic stream: a void replay reproduces attempt 1
             self.policy.reset()
         return {"ok": True}
 
     def serve_move(self, payload: dict) -> dict:
-        """Answer one ``request_move`` tick, idempotently per ``(session_id, tick)``."""
+        """Answer one ``request_move`` tick, idempotently per ``(session_id, tick, exact body)``."""
         with self._lock:
             sid, tick = payload["session_id"], int(payload["tick"])
             session = self._sessions.get(sid)
             if session is None:
                 raise KeyError(f"unknown session {sid!r}: POST /new_sub_game first")
-            if tick in session["cache"]:
-                return session["cache"][tick]  # idempotent re-POST: do NOT re-advance z_t
+            body_key = json.dumps(payload, sort_keys=True)  # a genuine P8 retry re-POSTs THIS byte-body
+            cached = session["cache"].get(tick)
+            if cached is not None and cached["key"] == body_key:
+                return cached["body"]  # idempotent re-POST: do NOT re-advance z_t
             if sid != self._active:
                 raise RuntimeError(f"session {sid!r} is no longer active; only cached ticks replay")
-            if tick != session["last_tick"] + 1:
+            if cached is None and tick != session["last_tick"] + 1:
                 raise ValueError(f"tick {tick} breaks the 0-indexed sequence (last={session['last_tick']})")
             obs = wire_obs.build_observation(session["wire"], payload, self.cfg)
             mask = [bool(b) for b in wire_obs.build_mask(session["wire"], payload, self.cfg)]
             action = self.policy.act([obs], [mask], 0.0, self._rng)[0]
             body = {"action": _WIRE_ACTIONS[Action(int(action))]}
-            session["cache"][tick] = body
-            session["last_tick"] = tick
+            session["cache"][tick] = {"key": body_key, "body": body}
+            session["last_tick"] = max(session["last_tick"], tick)
             return body
 
 

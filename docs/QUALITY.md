@@ -5,10 +5,11 @@ characteristics, with a concrete A6 artifact for each (no prose-only claims).
 
 ## Functional Suitability
 The system trains CTDE QMIX/VDN/IQL pursuit policies and plays a 6-sub-game match over a
-dual-MCP contract, emailing the §3.5 report. Evidence: 683 tests (happy + error paths)
+dual-MCP contract, emailing the §3.5 report. Evidence: 835 tests (happy + error paths)
 at ≥85% coverage; the §3.5 report passes `report.schema.json` + the derived-totals
 invariants (`src/reporting/schema.py::validate`); F5 reports the IQL/VDN/QMIX comparison —
-VDN most consistent, QMIX least stable at the 50-round budget (reported faithfully, not idealized).
+VDN the highest mean, IQL the tightest cross-seed spread, QMIX least stable at the 50-round
+budget (reported faithfully, not idealized).
 
 ## Performance Efficiency
 Compute is governed at the single SDK entry: `apply_compute_limits` caps the torch thread
@@ -27,8 +28,11 @@ A Pygame god-view spectator with pause / next-sub-game / speed / reset / radius-
 `docs/UX.md`; `results/screenshots/grid_*.png`; `tests/integration/test_gui_render.py`.
 
 ## Reliability
-The report send is idempotent (sha256 sentinel written inside the egress thunk, so a
-deferred-then-drained send can never double-email); the API gatekeeper degrades to a FIFO
+The report send is guarded three ways (sha256 sentinel): an identical resend is a no-op, an
+`intent` line written BEFORE dialing SMTP blocks retries after a mid-send crash until the
+operator verifies the inbox and clears it, and a CHANGED report is refused unless
+`RESEND_APPROVED=1` — the precise guarantee is "at most one email per sentinel scope
+without explicit operator action", not an unconditional never; the API gatekeeper degrades to a FIFO
 queue instead of crashing on overflow; training runs are resumable (`done_runs`). Evidence:
 `src/reporting/send.py`; `src/api/gatekeeper.py`; `src/results/run_log.py`.
 

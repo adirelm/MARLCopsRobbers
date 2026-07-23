@@ -4,7 +4,9 @@ Works from exactly (JSONL log + §9.4 records + the P7 ``wire_match.seeds`` k/k+
 ANY divergence of the re-run :class:`CopsRobbersEnv` from the log/records raises
 :class:`ReplayMismatchError` loudly — a silently diverging replay is worthless as §9.3
 evidence. A void re-hello supersedes the session's earlier run; a P8 retry keeps the last
-valid reply. Rendering calls INTO the god-view GUI path headlessly
+valid reply; an ESCALATED pair (P7: spare seed after 3 consecutive voids) is resolved by
+spawn-matching s_k first, then the spares in order — mirror games must resolve to ONE seed.
+Rendering calls INTO the god-view GUI path headlessly
 (``src.gui.render.render_frame``; src/gui itself gains no imports).
 """
 
@@ -69,18 +71,31 @@ def _verify_tick(cfg: dict, sid: str, tick: int, sess: dict, state) -> None:
             )
 
 
+def _seeded_env(cfg: dict, sid: str, sess: dict, gid: int) -> tuple[CopsRobbersEnv, int]:
+    """Return the env + seed whose spawns match BOTH logged hellos: s_k, else a spare in order.
+
+    A legitimately ESCALATED pair (P7: 3 consecutive voids) replayed under the next unused
+    spare seed, so s_k is tried first, then every spare; the accepted seed goes in the summary.
+    """
+    seeds, grid = [int(s) for s in cfg["wire_match"]["seeds"]], int(cfg["game"]["grid_size"])
+    pairs = int(cfg["game"]["num_games"]) // 2
+    for seed in (seeds[(gid - 1) % pairs], *seeds[pairs:]):
+        env = CopsRobbersEnv(cfg, h=grid, w=grid, num_cops=1)
+        env.reset(seed=seed)
+        state = env.state()
+        spawn_of = {"cop": tuple(state.cop_pos[0]), "thief": tuple(state.thief_pos)}
+        if all(sess["spawns"].get(role) == spawn_of[role] for role in _ROLES):
+            return env, seed
+    raise ReplayMismatchError(
+        f"{sid}: logged spawns {sess['spawns']} match neither s_k nor any spare seed "
+        f"in {seeds} — wrong seed schedule or tampered log"
+    )
+
+
 def replay_sub_game(cfg: dict, sid: str, sess: dict, record: dict, totals: dict) -> tuple[list, dict]:
-    """Re-run one logged sub-game from its P7 seed; every tick verified vs the log."""
-    gid, grid = gid_of(sid), int(cfg["game"]["grid_size"])
-    seed = int(cfg["wire_match"]["seeds"][(gid - 1) % (int(cfg["game"]["num_games"]) // 2)])
-    env = CopsRobbersEnv(cfg, h=grid, w=grid, num_cops=1)
-    env.reset(seed=seed)
-    for role, pos in (("cop", env.state().cop_pos[0]), ("thief", env.state().thief_pos)):
-        if sess["spawns"].get(role) != tuple(pos):
-            raise ReplayMismatchError(
-                f"{sid} {role}: logged spawn {sess['spawns'].get(role)} != env spawn {tuple(pos)} "
-                f"under seed {seed} — wrong seed schedule or tampered log"
-            )
+    """Re-run one logged sub-game from its P7 (possibly escalated) seed; every tick verified."""
+    gid = gid_of(sid)
+    env, seed = _seeded_env(cfg, sid, sess, gid)
     frames, terminated, info = [_frame(cfg, env, gid, totals, None, None)], False, {}
     for tick, pair in enumerate(ordered_actions(sid, sess)):
         if terminated:
@@ -111,6 +126,12 @@ def replay_match(cfg: dict, log_path: str | Path, records_path: str | Path) -> l
         replays.append({**summary, "frames": frames})
         for role in _ROLES:
             totals[role] += int(summary["scores"][role])
+    seed_of, pairs = {g["gid"]: g["seed"] for g in replays}, int(cfg["game"]["num_games"]) // 2
+    for k in range(1, pairs + 1):  # §9.1 mirror consistency: k and k+pairs must share ONE seed
+        if {k, k + pairs} <= set(seed_of) and seed_of[k] != seed_of[k + pairs]:
+            raise ReplayMismatchError(
+                f"mirror pair {k}/{k + pairs} resolved to seeds {seed_of[k]} != {seed_of[k + pairs]}"
+            )
     return replays
 
 

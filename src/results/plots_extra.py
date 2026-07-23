@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import math
 import statistics
-from collections import defaultdict
 from pathlib import Path
 
 import matplotlib
@@ -21,9 +20,10 @@ matplotlib.use("Agg")  # headless backend — must precede pyplot import
 
 import matplotlib.pyplot as plt
 
+from src.results.aggregate import final_values_by_seed
+
 _DPI = 300  # V3 §9.3 "high resolution" — print quality, matches plots.py
 _FIGSIZE = (7.0, 4.5)
-_LAST_K = 5
 _CMAP = "viridis"
 _ANNOT_FONTSIZE = 9
 _SEED_COLOR = "#1f77b4"
@@ -43,26 +43,6 @@ def _save(fig: object, out_path: str | Path) -> Path:
 def _algorithms(records: list[dict]) -> list[str]:
     """Sorted distinct algorithm names present in the records."""
     return sorted({rec["algorithm"] for rec in records})
-
-
-def final_values_by_seed(
-    records: list[dict], metric: str, algorithm: str, stage: int, last_k: int = _LAST_K
-) -> list[float]:
-    """ONE final value per seed: the mean of ``metric`` over that seed's last ``last_k`` rounds.
-
-    ``aggregate.final_by_algorithm`` pools every seed's final rounds into a single mean±SE;
-    the box plot instead needs the seeds kept APART, so this reduces each seed to one number.
-    Returns ``[]`` when the ``(algorithm, stage)`` combination is absent (caller skips it).
-    """
-    by_seed: dict[int, list[tuple[int, float]]] = defaultdict(list)
-    for rec in records:
-        if rec["algorithm"] == algorithm and rec["stage"] == stage:
-            by_seed[rec["seed"]].append((rec["round"], rec[metric]))
-    values = []
-    for rounds in by_seed.values():
-        rounds.sort()
-        values.append(statistics.fmean(v for _, v in rounds[-last_k:]))
-    return values
 
 
 def plot_final_distribution(records: list[dict], metric: str, stage: int, out_path: str | Path) -> Path:

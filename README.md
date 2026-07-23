@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (683 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (835 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (683 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (835 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -134,7 +134,7 @@ Figures F1–F9 + GUI + MCP-comms screenshots appear inline in §7.3.
 Reported plainly — the brief grades honest analysis over a polished narrative:
 
 - **QMIX under-converges at the 50-round budget.** At 4×4 it is the *least* stable arm
-  (0.63 ± 0.05 < VDN 0.84, IQL 0.82) — the documented monotonic-mixer instability (R1). It is
+  (0.63 ± 0.10 < VDN 0.84, IQL 0.82) — the documented monotonic-mixer instability (R1). It is
   not a bug (3×3 ≈ 0.92; the math is verified) but a real "more expressive ⇒ harder to train"
   effect. *Would do differently:* more seeds + a longer budget, and Weighted-QMIX/QPLEX `[9,10]`
   to lift the IGM-monotonicity ceiling.
@@ -203,8 +203,8 @@ the joint max over the centrally-mixed value removes the marginalization. CTDE t
 branch) differs (5 seeds, mean±SE). The expressive QMIX mixer is the **least stable at this budget**.
 At 3×3 all three converge close (IQL = VDN = **0.95**, QMIX **0.92**); but at the harder **4×4
 two-cop** stage QMIX's monotonic hypernetwork **destabilizes** — its F1 curve oscillates and settles at
-**0.63 ± 0.05**, *below* the simpler **VDN (0.84, the most consistent)** and **IQL (0.82, a strong
-baseline)**. This is the studied non-convergence phenomenon (risk R1) and a well-known MARL result:
+**0.63 ± 0.10**, *below* the simpler **VDN (0.84, the highest mean)** and **IQL (0.82, the tightest
+cross-seed spread)**. This is the studied non-convergence phenomenon (risk R1) and a well-known MARL result:
 QMIX is strictly **more expressive** than VDN/IQL but **harder to train**, so at a bounded 50-round
 budget the simpler decompositions win. Honoring the replay warmup (the audit fix) confirmed this is a
 genuine QMIX training-stability effect, **not** an early-buffer artifact. CTDE improves the
@@ -271,23 +271,26 @@ headline 45-run matrix, so they are logged separately at the 4×4 focus stage).*
 
 ![F5 baseline comparison](results/figures/baseline_comparison.png)
 *F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers; "final" = mean over each seed's
-LAST 5 rounds, `aggregate.final_by_algorithm`, which is why it differs from the F1 endpoint): VDN most consistent (0.84), IQL a
-strong baseline (0.82); the more expressive QMIX is the least stable at this 50-round budget (0.63±0.05).*
+LAST 5 rounds, `aggregate.final_by_algorithm`, which is why it differs from the F1 endpoint; the SE
+unit is the SEED — mean±SE over the 5 per-seed means): VDN the highest mean (0.84), IQL the tightest
+spread (0.82); the more expressive QMIX is the least stable at this 50-round budget (0.63±0.10).*
 
 ![F8 per-seed final distribution](results/figures/final_distribution.png)
 *F8 — **the seed population behind F5's error bars**: a BOX of the per-seed final capture rate at
 4×4 (one number per seed = its own last-5-round mean; individual seeds overlaid, red diamond = mean).
 It SHOWS what F5's SE whisker hides, and the honest reading is unflattering to QMIX: its
-`0.63±0.05` is **not** a uniformly mediocre arm, it is **four seeds at 0.66–0.82 plus one collapsed
+`0.63±0.10` is **not** a uniformly mediocre arm, it is **four seeds at 0.66–0.82 plus one collapsed
 seed 71 at 0.232** — a genuine 1.5×IQR outlier (matplotlib flags it as a flier below the 0.546
 fence). QMIX's MEDIAN is 0.694 and its outlier-excluded mean is 0.727, so a single failed run drags
-the headline mean down ~0.10; the remaining four seeds still sit below IQL's worst seed (0.788). Two
+the headline mean down ~0.10; that outlier-excluded MEAN still sits below IQL's worst seed (0.788),
+though QMIX's best single seed (0.816) does not. Two
 things follow. (a) The §7.2 `VDN ≥ IQL > QMIX` finding survives — it is not an artifact of one bad
-seed. (b) The real QMIX defect is **bimodality, not a lower plateau**: most runs learn, one stalls
-outright — exactly the R1 monotonic-mixer instability, and a distribution a mean±SE cannot express.
-IQL (0.788–0.852) and VDN (0.794–0.876) are tight and unimodal by contrast; VDN's box sits entirely
-above IQL's median, which is why we call it the most consistent arm rather than merely the highest.
-Per-seed table: [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §11.*
+seed. (b) The real QMIX defect is **one collapsed run (an outlier), not a lower plateau**: four of
+five seeds learn, one stalls outright — exactly the R1 monotonic-mixer instability, and a failure
+mode a mean±SE cannot express (5 seeds are too few to claim a distribution shape beyond that).
+IQL (0.788–0.852) and VDN (0.794–0.876) both learn on every seed; between them **VDN has the highest
+mean and IQL the tightest spread** (per-seed SD ≈0.023 vs VDN's ≈0.035) — each is "best" on a
+different axis. Per-seed table: [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §11.*
 
 ![F9 capture heatmap](results/figures/capture_heatmap.png)
 *F9 — mean final capture rate as a MATRIX, algorithm × curriculum stage (annotated cells + colorbar;
@@ -342,13 +345,16 @@ body is committed at
 `adrl-001-thief.onrender.com/mcp` (RS256 JWT required).*
 
 **Why does the shipped match end 0–6 for the cop?** Not incompetence — the same serving cop
-captures a scripted flee baseline 59/60 and a uniform-random thief 179/180 pooled (99.4%),
-barriers included. The self-play thief wins the greedy replay via **per-start deterministic
-escape trajectories** (distinct per seed, sharing a left/right-oscillation motif) that exploit
-this specific cop's deterministic greedy responses — inject ε=0.10 exploration noise into the
-thief and captures recover 8/60 → 26/60 (ε=0.25 → 47/60). The full adversarially-verified
-probe, its confidence intervals, and the self-play co-adaptation reading are in
-[`docs/ANALYSIS.md`](docs/ANALYSIS.md) §12; reproduce with `uv run python scripts/eval_matchup.py`.
+captures a scripted flee baseline 59/60 (both blocks) and a uniform-random thief 119/120 pooled
+(99.2%), barriers included (committed evidence:
+[`results/matchup/block_1000.json`](results/matchup/block_1000.json) +
+[`block_5000.json`](results/matchup/block_5000.json)). The self-play thief wins the greedy replay
+via **per-start deterministic escape trajectories** (distinct per seed, sharing a
+left/right-oscillation motif) that exploit this specific cop's deterministic greedy responses —
+inject ε=0.10 exploration noise into the thief and captures recover 8/60 → 26/60 (ε=0.25 → 47/60).
+The full probe, its confidence intervals, and the self-play co-adaptation reading are in
+[`docs/ANALYSIS.md`](docs/ANALYSIS.md) §12; reproduce with `uv run python scripts/eval_matchup.py`
+(`--base-seed 5000 --json-out …` regenerates the second block).
 
 ![Cloud auth matrix](results/figures/cloud_auth.png)
 *Cloud auth (§5.3 "token-based auth that can be blocked/revoked") verified live against both public
@@ -444,8 +450,9 @@ derivation ([`src/reporting/bonus.py`](src/reporting/bonus.py)), the PDF-exact s
 dual-block redaction + one-valid-email idempotent send
 ([`src/reporting/bonus_send.py`](src/reporting/bonus_send.py)),
 [`docs/schema/bonus.schema.json`](docs/schema/bonus.schema.json), the partner-identity template
-(`players.partner.example.yaml` → git-ignored `players.partner.local.yaml`; the loader is
-part of the remaining match-day work), and the pre-game rules agreement + neutral
+(`players.partner.example.yaml` → git-ignored `players.partner.local.yaml`; loaded by
+`wire_referee.build_draft_report`, which falls back to the example template until the
+partner file exists), and the pre-game rules agreement + neutral
 wire protocol ([`docs/interfaces/intergroup_mcp.md`](docs/interfaces/intergroup_mcp.md)).
 Per §9.3, this section will record — once the match is played and both groups agree —
 the opponent group's name, the final `totals_by_group`, our `bonus_claim`, and
@@ -455,8 +462,12 @@ screenshots of the bonus match.
 [`results/bonus/selection_report.json`](results/bonus/selection_report.json)):** cop =
 the seed-7 QMIX net ([`deploy/model/bonus_cop.pt`](deploy/model/bonus_cop.pt), 59/60
 captures vs a partial-obs fleeing evader, healthy barrier use); thief = the local-obs
-greedy-flee policy (0/180 captures conceded to any barrier-less chaser in our evals),
+greedy-flee policy (0/120 captures conceded to EACH barrier-less chaser in the stress
+battery — the pursuit cop and the perfect-information BFS oracle, 0/240 pooled over their
+two disjoint greedy 60-seed blocks,
+[`results/bonus/stress_report.json`](results/bonus/stress_report.json)),
 with the seed-23 net ([`deploy/model/bonus_thief.pt`](deploy/model/bonus_thief.pt)) as
-the contingency against a barrier-placing opponent cop. Selection matters: ~1 in 6
-training seeds converges to a degenerate barrier-spammer (0% capture) — cross-eval
+the contingency against a barrier-placing opponent cop. Selection matters: 2 of the 10
+tournament seeds (1 in 5) converge to a degenerate 0-capture policy
+([`selection_report.json`](results/bonus/selection_report.json) round 1) — cross-eval
 selection is what turns the trained cop into the match asset.

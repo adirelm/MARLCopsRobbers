@@ -373,6 +373,9 @@ wire_agent:
 
 # ============================================================================
 # CLOUD (BRIEF §5.3 stage 2; §6 step 8; §8 FastMCP + Prefect Horizon runbook)
+# DEPLOY RECORD — NO key in this block is read by code (config_loader only
+# requires the section to exist); the live wiring is deploy/render.yaml + the
+# Render dashboard.
 # Inference-only actor nets deployed (mixer/replay/global-state NEVER deployed —
 # decentralized execution; ADR-D6-3). Public URLs are bare strings here; the
 # Prefect deploy credential (PREFECT_API_KEY) lives in .env / the cloud secret

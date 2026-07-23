@@ -10,4 +10,5 @@ __all__ = [
     "players",
     "schema",
     "send",
+    "sentinel",
 ]

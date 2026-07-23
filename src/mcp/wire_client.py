@@ -4,13 +4,13 @@ The transport half of ``docs/interfaces/partner_agent_brief.md``. Raw egress goe
 ``src.api.http_client`` — the single sanctioned httpx wrapper (V3 §5 egress boundary; this
 module never imports httpx). The token-bucket gatekeeper is deliberately NOT in this path:
 its DEFERRED sentinel cannot honor the brief's synchronous 10 s per-move window, and the
-match's ~2 req/s is already the configured ``peer_mcp`` sustained rate. A timeout, network
-fault, non-2xx status, or non-JSON reply triggers exactly ONE re-POST of the IDENTICAL
-body (safe by the brief's ``(session_id, tick)`` idempotency rule), then
-:class:`VoidSubGame` — the §3.7 technical void the referee's :class:`SeedSchedule`
-consumes. ``GET /health`` needs no auth on the partner side; sending the header is
-harmless. Every request/response/error is emitted to the ``on_event`` hook so the referee
-can write the per-request JSONL log — the match's shareable fairness artifact.
+match's ~2 req/s is already the configured ``peer_mcp`` sustained rate. A timeout (WALL
+CLOCK around each attempt — httpx's scalar timeout is only per-phase), network fault,
+non-2xx status, or non-JSON reply triggers exactly ONE re-POST of the IDENTICAL body
+(safe by the brief's ``(session_id, tick)`` idempotency rule), then :class:`VoidSubGame`
+— the §3.7 technical void the referee's :class:`SeedSchedule` consumes. Every
+request/response/error is emitted to the ``on_event`` hook so the referee can write the
+per-request JSONL log — the match's shareable fairness artifact.
 """
 
 from __future__ import annotations
@@ -49,7 +49,8 @@ class WireClient:
         Args:
             base_url: Partner endpoint base URL (paths are appended to it).
             token: Bearer token VALUE (resolved from the env var config NAMES).
-            timeout_s: Per-request budget in seconds (``wire_match.timeout_s``).
+            timeout_s: Per-attempt WALL-CLOCK budget in seconds (``wire_match.timeout_s``);
+                httpx's scalar timeout is only per-phase, so a late-landing reply still faults.
             retries: Re-POSTs after a fault (``wire_match.retries``; the brief fixes 1).
             label: Log label for the JSONL url-role field, e.g. ``group_2-cop``.
             on_event: Optional hook receiving request/response/error event dicts.
@@ -57,8 +58,7 @@ class WireClient:
                 defaults to the sanctioned ``bearer_post`` (tests inject fakes).
             get_fn: GET egress callable ``(url, token, timeout) -> response``.
         """
-        self._base = base_url.rstrip("/")
-        self._token = token
+        self._base, self._token = base_url.rstrip("/"), token
         self._timeout_s = float(timeout_s)
         self._retries = int(retries)
         self._label = label
@@ -67,7 +67,7 @@ class WireClient:
         self._get_fn = get_fn
 
     def health(self) -> bool:
-        """GET ``/health``; True iff the endpoint answers ``status: ok`` (never raises)."""
+        """GET ``/health`` (partner-side needs no auth; the header is harmless); True iff ``status: ok``."""
         try:
             resp = self._get_fn(self._base + "/health", self._token, self._timeout_s)
             return bool(resp.is_success) and resp.json().get("status") == "ok"
@@ -101,6 +101,8 @@ class WireClient:
             started = time.monotonic()
             try:
                 resp = self._post_fn(url, self._token, payload, self._timeout_s)
+                if (elapsed := time.monotonic() - started) > self._timeout_s:
+                    raise TimeoutError(f"wall clock {elapsed:.3f}s > {self._timeout_s}s budget")
                 if not resp.is_success:
                     raise RuntimeError(f"HTTP {resp.status_code}")
                 body = resp.json()

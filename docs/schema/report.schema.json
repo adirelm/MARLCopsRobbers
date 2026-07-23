@@ -32,10 +32,10 @@
         "additionalProperties": false,
         "required": ["id", "start", "end", "moves", "winner", "scores"],
         "properties": {
-          "id": { "type": "integer" },
-          "start": { "type": "string" },
-          "end": { "type": "string" },
-          "moves": { "type": "integer" },
+          "id": { "type": "integer", "minimum": 1, "maximum": 6 },
+          "start": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$" },
+          "end": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$" },
+          "moves": { "type": "integer", "minimum": 1, "maximum": 25 },
           "winner": { "type": "string", "enum": ["cop", "thief"] },
           "scores": {
             "type": "object",

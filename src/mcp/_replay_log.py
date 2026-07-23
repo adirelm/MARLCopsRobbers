@@ -30,7 +30,9 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
     Returns ``{sid: {"spawns": {role: pos}, "actions": {tick: {role: str}},
     "states": {tick: {role: {"your_pos": pos, "barriers_left": int}}}}``. A void
     re-hello supersedes the session's earlier run (spawns, actions AND states are
-    wiped); a P8 retry re-POSTs an identical body, so overwriting is harmless.
+    wiped) — but an IDENTICAL re-hello (same role, same pos) with NO moves recorded
+    since is a P8 TRANSPORT RETRY of the hello itself: an idempotent no-op that must
+    NOT wipe the other role's spawn.
     """
     sessions: dict[str, dict] = {}
     pending: dict[str, tuple[str, int, str]] = {}
@@ -43,9 +45,11 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
             payload = entry["payload"]
             sess = sessions.setdefault(payload["session_id"], {"spawns": {}, "actions": {}, "states": {}})
             if entry["url"].endswith("/new_sub_game"):
-                if payload["your_role"] in sess["spawns"]:  # void re-hello: last run wins
+                role, pos = payload["your_role"], tuple(payload["your_pos"])
+                retry = sess["spawns"].get(role) == pos and not sess["actions"] and not sess["states"]
+                if role in sess["spawns"] and not retry:  # void re-hello: last run wins
                     sess["spawns"], sess["actions"], sess["states"] = {}, {}, {}
-                sess["spawns"][payload["your_role"]] = tuple(payload["your_pos"])
+                sess["spawns"][role] = pos
             else:
                 tick, role = int(payload["tick"]), label.rsplit("-", 1)[1]
                 sess["states"].setdefault(tick, {})[role] = {

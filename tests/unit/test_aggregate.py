@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from src.results.aggregate import curve, final_by_algorithm, final_by_grid, load_runs
+from src.results.aggregate import curve, final_by_algorithm, final_by_grid, final_values_by_seed, load_runs
 
 
 def _rec(algo, seed, stage, grid, rnd, cap, loss=0.1):  # noqa: PLR0913 — one kwarg per record field
@@ -56,3 +56,19 @@ def test_final_by_grid_has_per_grid_points():
     by_grid = final_by_grid(_records(), "capture_rate", "qmix", last_k=2)
     assert set(by_grid) == {2, 5}
     assert by_grid[2][0] == pytest.approx(0.9)
+
+
+def test_load_runs_collapses_double_appended_lines(tmp_path):
+    """A byte-identical repeated append must NOT count twice (it would narrow every SE band)."""
+    path = tmp_path / "h.jsonl"
+    body = "\n".join(json.dumps(r) for r in _records()) + "\n"
+    path.write_text(body + body, encoding="utf-8")  # the whole log appended twice
+    assert len(load_runs(path)) == len(_records())
+
+
+def test_final_se_unit_is_the_seed_not_the_pooled_round():
+    """SE over 2 per-seed means (0.4, 0.6) is 0.1 — NOT the pooled-6-rounds ~0.045."""
+    stats = final_by_algorithm(_records(), "capture_rate", 3, last_k=3)
+    assert stats["qmix"][0] == pytest.approx(0.5)  # the mean is unchanged by the fix
+    assert stats["qmix"][1] == pytest.approx(0.1)  # stdev([0.4, 0.6]) / sqrt(2)
+    assert final_values_by_seed(_records(), "capture_rate", "qmix", 3, last_k=3) == pytest.approx([0.4, 0.6])

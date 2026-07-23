@@ -68,9 +68,14 @@ results/**/*.pth
 !deploy/model/*.pt
 results/history/
 results/_tmp/
-# report send-state + the un-redacted (PII-bearing) report copies
+# report send-state + the un-redacted (PII-bearing) report copies.
+# *.real.json is ignored GLOBALLY, not just under results/reports/ — a stray
+# un-redacted copy anywhere in the tree must never be committable. The tracked
+# rehearsal placeholder (results/reports/bonus_draft.rehearsal.placeholder.json)
+# does not match: it is *.placeholder.json. Pinned by
+# tests/architecture/test_gitignore_pii.py.
 results/.report_sent
-results/reports/*.real.json
+*.real.json
 
 # Cloud / vendored
 vendor/

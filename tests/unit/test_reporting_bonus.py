@@ -7,9 +7,17 @@ and the §9.2 bonus_claim (10/7 win-lose, 5/5 tie) are the semantic invariants.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
-from src.reporting.bonus import build_bonus_report, validate_bonus
+from src.reporting.bonus import (
+    build_bonus_report,
+    derive_bonus_claim,
+    derive_totals_by_group,
+    validate_bonus,
+)
 
 _G1, _G2 = "adrl-001", "team-beta"
 _STUDENTS_1 = [{"role": "A", "full_name": "Placeholder One", "id": "12345"}]
@@ -100,3 +108,48 @@ def test_validate_bonus_requires_six_games_and_schema_shape():
     del report["mutual_agreement"]
     with pytest.raises(ValueError):
         validate_bonus(report)
+
+
+def test_build_bonus_report_rejects_non_bool_mutual_agreement():
+    """A truthy NON-bool ('false'!) must never be coerced into a §9.3 agreement claim."""
+    with pytest.raises(TypeError, match="mutual_agreement"):
+        _report(["cop"] * 6, mutual_agreement="false")  # bool('false') is True — refuse the coercion
+    with pytest.raises(TypeError, match="mutual_agreement"):
+        _report(["cop"] * 6, mutual_agreement=1)
+
+
+_SCORING = {"cop_win": 20, "thief_win": 10, "cop_loss": 5, "thief_loss": 5}  # §3.4 Table 1
+
+
+def test_validate_bonus_rejects_scores_not_matching_table1():
+    """With `scoring`, a winner-cop sub-game carrying non-Table-1 scores is fraud -> raises."""
+    report = _report(["cop"] * 6)
+    validate_bonus(report, scoring=_SCORING)  # honest Table-1 scores pass
+    report["sub_games"][0]["scores"] = {"cop": 0, "thief": 999}
+    totals = derive_totals_by_group(report["sub_games"], _G1, _G2)  # keep totals/claim consistent
+    report["totals_by_group"], report["bonus_claim"] = totals, derive_bonus_claim(totals)
+    validate_bonus(report)  # without scoring the fraud is invisible (draft-stage structural check)
+    with pytest.raises(ValueError, match="Table-1"):
+        validate_bonus(report, scoring=_SCORING)
+
+
+def test_bonus_schema_bounds_reject_out_of_range_moves_and_bad_timestamps():
+    """The tightened schema rejects moves outside 1..25 and non-ISO-8601 start/end."""
+    report = _report(["cop"] * 6)
+    report["sub_games"][0]["moves"] = 0
+    with pytest.raises(ValueError, match="minimum"):
+        validate_bonus(report)
+    report = _report(["cop"] * 6)
+    report["sub_games"][0]["start"] = "not-a-timestamp"
+    with pytest.raises(ValueError, match="pattern"):
+        validate_bonus(report)
+
+
+def test_committed_rehearsal_draft_still_validates_after_schema_tightening():
+    """F5 regression: the tracked §9.4 rehearsal placeholder passes the tightened schema."""
+    path = (
+        Path(__file__).resolve().parents[2] / "results" / "reports" / "bonus_draft.rehearsal.placeholder.json"
+    )
+    if not path.exists():
+        pytest.skip("rehearsal placeholder artifact not present")  # never assert untracked artifacts
+    validate_bonus(json.loads(path.read_text(encoding="utf-8")))

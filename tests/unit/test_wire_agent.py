@@ -38,11 +38,11 @@ def _new(role="cop", sid="sg-0"):
     return {"session_id": sid, "grid": [5, 5], "your_role": role, "your_pos": [2, 0], "max_moves": 25}
 
 
-def _move(tick, sid="sg-0", opponent=None, barriers=(), left=5):
+def _move(tick, sid="sg-0", opponent=None, barriers=(), left=5, pos=(2, 2)):  # noqa: PLR0913 — payload fields
     return {
         "session_id": sid,
         "tick": tick,
-        "your_pos": [2, 2],
+        "your_pos": list(pos),
         "opponent_pos": opponent,
         "barriers": [list(b) for b in barriers],
         "barriers_left": left,
