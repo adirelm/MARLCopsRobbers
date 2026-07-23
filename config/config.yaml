@@ -350,6 +350,9 @@ wire_match:
   rehearsal:                      # local dress rehearsal: scripts/serve_wire_agents.py serves the
     host: "127.0.0.1"             #   groups whose URLs point at THIS host. Ports live in the group
                                   #   URLs below (single source — one single-role server per URL).
+    records: "results/reports/bonus_draft.rehearsal.placeholder.json"  # the COMMITTED rehearsal
+                                  #   sub-game records; the replay tool falls back here whenever
+                                  #   the git-ignored real draft (draft_report above) is absent
   groups:                         # endpoint scaffolding — URLs default to the local dress
     group_1:                      #   rehearsal and are replaced by the partner's real base URLs
       name: "adrl-001"            #   on match day. token_env holds the .env VAR NAME, not a value.
@@ -427,6 +430,8 @@ gmail:
 gui:
   screenshot_sizes: [2, 3, 4, 5]  # §7.3(c) capture matrix (2x2/3x3/4x4/5x5)
   screenshot_dir: "results/screenshots"
+  bonus_screenshot_dir: "results/screenshots/bonus"  # §9.3 wire-match replay evidence
+                                  # (scripts/replay_wire_match.py: t00/mid/final PNG per sub-game)
 
 # ============================================================================
 # PATHS / RESULTS (BRIEF §7.3 figures; D10 reproducibility manifest)
