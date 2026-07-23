@@ -52,6 +52,14 @@ README §7.1 names this proxy explicitly as a modeling limitation — see §3.
 
 > **Footnote (R13):** ex06/BRIEF "eq 2" ≡ L10 "eq 4" (IQL target); BRIEF `[2]` (VDN) ≡ L10 `[7]`.
 
+> **Known limitation (accepted) — the eq-7 state `s` collapses cop identity.** `encode_state`
+> lays ALL cops onto one shared binary plane of the 77-float mixer state, so swapping
+> `cop_0`/`cop_1` — or two co-located cops vs one — encode identically on the 2-cop 4×4 stage
+> (the per-agent nets keep slot one-hot identity; only the hypernetwork's `s` is coarse).
+> Disambiguating (per-cop or count planes) would change the QMIX hypernetwork's input width and
+> invalidate the shipped trained artifacts (`deploy/model/*.pt`), so it is documented rather
+> than fixed; per-cop planes are the v-next state encoding.
+
 ---
 
 ## 3. The general-sum POSG caveat (eq 3 — required honesty, README §7.1)

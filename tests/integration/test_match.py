@@ -28,8 +28,21 @@ _PLAYERS = {
 }
 
 
-def test_full_local_match_assembles_validated_report(cfg):
+class _AdmitAllGate:
+    """Admit-all egress double for the in-memory match: a direct ``Client(server)`` makes NO
+    HTTP egress, so the real peer_mcp token bucket must not gate a 25-tick sub-game here.
+    Rate limiting is proven in ``test_gatekeeper.py`` / ``test_egress_via_gatekeeper.py``."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        pass
+
+    def execute(self, channel: str, call: object) -> object:
+        return call()
+
+
+def test_full_local_match_assembles_validated_report(cfg, monkeypatch):
     """A full match over MCP yields a validated §3.5 report (totals == Σ) + one dry-run send."""
+    monkeypatch.setattr("src.mcp.clients.ApiGatekeeper", _AdmitAllGate)
     torch.manual_seed(SEED)
     cop = RecurrentQNet(cfg, "cop", 2)
     thief = RecurrentQNet(cfg, "thief", 1)
@@ -41,8 +54,9 @@ def test_full_local_match_assembles_validated_report(cfg):
     assert out["ack"]["dry_run"] is True  # exactly one dry-run report send
 
 
-def test_match_runs_with_prewarm_ping_disabled(cfg):
+def test_match_runs_with_prewarm_ping_disabled(cfg, monkeypatch):
     """mcp.client.prewarm_ping=false skips the warm-up health pings; the match still runs."""
+    monkeypatch.setattr("src.mcp.clients.ApiGatekeeper", _AdmitAllGate)
     c = copy.deepcopy(cfg)
     c["mcp"]["client"]["prewarm_ping"] = False
     cop, thief = RecurrentQNet(c, "cop", 2), RecurrentQNet(c, "thief", 1)

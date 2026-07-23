@@ -22,8 +22,13 @@ def _line(direction: str, label: str, **fields) -> str:
     return json.dumps({"direction": direction, "label": label, **fields})
 
 
-def synth_session(cfg: dict, sid: str, seed: int) -> tuple[list[str], dict]:
-    """Play one full scripted sub-game under ``seed``; return (jsonl lines, §9.4 record)."""
+def synth_session(cfg: dict, sid: str, seed: int, result_event: bool = False) -> tuple[list[str], dict]:
+    """Play one full scripted sub-game under ``seed``; return (jsonl lines, §9.4 record).
+
+    With ``result_event`` the referee's ``result`` JSONL event (carrying the EXACT
+    ``seed`` + ``session_id``, like :meth:`WireReferee.play_match` logs) is appended —
+    the replay's PRIMARY seed source; without it the log mimics a pre-seed-event log.
+    """
     grid, gid = int(cfg["game"]["grid_size"]), int(sid.rsplit("-", 1)[1]) + 1
     env = CopsRobbersEnv(cfg, h=grid, w=grid, num_cops=1)
     _obs, info = env.reset(seed=seed)
@@ -62,14 +67,20 @@ def synth_session(cfg: dict, sid: str, seed: int) -> tuple[list[str], dict]:
         "winner": info["winner"],
         "scores": {k: int(v) for k, v in info["scores"].items()},
     }
+    if result_event:  # the referee's shape: {"direction": "result", "sub_game": {...full record...}}
+        lines.append(
+            json.dumps({"direction": "result", "sub_game": {**record, "seed": int(seed), "session_id": sid}})
+        )
     return lines, record
 
 
-def write_match(tmp_path, cfg: dict, games: list[tuple[str, int]]) -> tuple[object, object]:
+def write_match(
+    tmp_path, cfg: dict, games: list[tuple[str, int]], result_events: bool = False
+) -> tuple[object, object]:
     """Write a synthetic (log.jsonl, records.json) for ``[(sid, seed), ...]``; return paths."""
     lines, records = [], []
     for sid, seed in games:
-        game_lines, record = synth_session(cfg, sid, seed)
+        game_lines, record = synth_session(cfg, sid, seed, result_event=result_events)
         lines += game_lines
         records.append(record)
     log = tmp_path / "wire_log_synth.jsonl"

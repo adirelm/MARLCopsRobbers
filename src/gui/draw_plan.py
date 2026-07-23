@@ -2,9 +2,10 @@
 
 Turn a :class:`SpectatorFrame` (+ :class:`GridView`) into an ordered list of draw
 OPS — board (back-to-front: background, checkerboard, barriers, optional
-view-radius overlay, thief, cop, capture flash) and HUD (sub-game / move / scores /
-last action / winner). The thin pygame executor (``src/gui/render.py``) just runs
-the ops, so WHICH cells/tokens/colours/text are drawn is testable headless.
+view-radius overlay for EVERY cop, thief, cops, capture flash on the CAPTURING cop)
+and HUD (sub-game / move / scores / last action / winner). The thin pygame executor
+(``src/gui/render.py``) just runs the ops, so WHICH cells/tokens/colours/text are
+drawn is testable headless.
 """
 
 from __future__ import annotations
@@ -26,11 +27,17 @@ _CMD_SHORT = {
 }
 
 
-def _help_line() -> str:
-    """The persistent HUD help/legend line — DERIVED from the real key bindings (never drifts)."""
+def _help_line(supported_commands=None) -> str:
+    """The persistent HUD help/legend line — DERIVED from the real key bindings (never drifts).
+
+    ``supported_commands`` (a set, or ``None`` for all) drops keys the current frame
+    source cannot honestly execute — e.g. 'n next' when the client has no
+    ``next_sub_game`` — so the HUD never advertises a command that silently no-ops.
+    """
     keys_by_cmd: dict[str, list[str]] = {}
     for key, cmd in bindings().items():
-        keys_by_cmd.setdefault(cmd, []).append(key)
+        if supported_commands is None or cmd in supported_commands:
+            keys_by_cmd.setdefault(cmd, []).append(key)
     parts = ["/".join(sorted(keys)) + " " + _CMD_SHORT[cmd] for cmd, keys in sorted(keys_by_cmd.items())]
     return "Keys  " + "  ".join(parts)
 
@@ -59,19 +66,20 @@ def build_board_plan(frame: SpectatorFrame, view: GridView, show_radius: bool = 
         {"kind": "fill", "rect": view.cell_rect(bc, br), "color": palette.BARRIER}
         for br, bc in frame.barriers
     ]
-    if show_radius:  # the cop's Manhattan view disk (radius = frame.view_radius), clipped to the grid
-        cr, cc = frame.cop_positions[0]
+    if show_radius:  # EVERY cop's Manhattan view disk (radius = frame.view_radius), clipped to the grid
         ops += [
             {"kind": "rect", "rect": view.cell_rect(c, r), "color": palette.VIEW_RADIUS}
             for r in range(rows)
             for c in range(cols)
-            if abs(r - cr) + abs(c - cc) <= frame.view_radius
+            if any(abs(r - cr) + abs(c - cc) <= frame.view_radius for cr, cc in frame.cop_positions)
         ]
     tr, tc = frame.thief_position
     ops.append(_token(view.cell_rect(tc, tr), palette.THIEF))
     ops += [_token(view.cell_rect(cc, cr), palette.COP) for cr, cc in frame.cop_positions]
     if frame.winner == "cop":
-        cr, cc = frame.cop_positions[0]
+        # Flash the CAPTURING cop — the one nearest the thief (same-cell capture: distance
+        # 0; swap capture: distance 1) — not blindly cop 0 (wave-2 finding G6).
+        cr, cc = min(frame.cop_positions, key=lambda pos: abs(pos[0] - tr) + abs(pos[1] - tc))
         ops.append({"kind": "rect", "rect": view.cell_rect(cc, cr), "color": palette.CAPTURE_FLASH})
     return ops
 
@@ -85,8 +93,12 @@ def hud_height(frame: SpectatorFrame) -> int:
     return 8 + len(build_hud_plan(frame)) * (palette.FONT_PX + 4) + 2
 
 
-def build_hud_plan(frame: SpectatorFrame) -> list[dict]:
-    """Return the HUD text ops (sub-game / move / scores / totals / last / winner / help)."""
+def build_hud_plan(frame: SpectatorFrame, supported_commands=None) -> list[dict]:
+    """Return the HUD text ops (sub-game / move / scores / totals / last / winner / help).
+
+    ``supported_commands`` filters the help line per frame-source capability (see
+    :func:`_help_line`); the line COUNT never changes, so ``hud_height`` is unaffected.
+    """
     lines = [
         f"Sub-game {frame.sub_game}/{frame.num_games}",
         f"Move {frame.move}/{frame.max_moves}",
@@ -97,7 +109,7 @@ def build_hud_plan(frame: SpectatorFrame) -> list[dict]:
         lines.append("Last  " + "  ".join(f"{k}:{v}" for k, v in frame.last_action.items()))
     if frame.winner:
         lines.append(f"WINNER: {frame.winner.upper()}")
-    lines.append(_help_line())  # persistent key-bindings help (§10.2 Nielsen 6 + 10)
+    lines.append(_help_line(supported_commands))  # persistent key-bindings help (§10.2 Nielsen 6 + 10)
     lines.append("Legend  cop=blue  thief=red  barrier=grey")  # token legend (own line — fits 720px)
     return [
         {"kind": "text", "pos": (8, 8 + i * (palette.FONT_PX + 4)), "text": t, "color": palette.TEXT}

@@ -33,10 +33,14 @@ file, generate it at deploy time and never track it: `uv export --no-dev > /tmp/
 
 ```bash
 # Generate a keypair (private mints client tokens; public verifies on the servers).
-# NOTE: fastmcp 3.x wraps private_key in a pydantic SecretStr — unwrap when writing:
-uv run python -c "from fastmcp.server.auth.providers.jwt import RSAKeyPair; \
-kp=RSAKeyPair.generate(); open('/tmp/mcp_priv.pem','w').write(kp.private_key.get_secret_value()); \
-open('/tmp/mcp_pub.pem','w').write(kp.public_key); print('wrote /tmp/mcp_{priv,pub}.pem')"
+# NOTE: fastmcp 3.x wraps private_key in a pydantic SecretStr — unwrap when writing.
+# The private key is written 0600 (owner-only) and lives OUTSIDE the synced repo (/tmp,
+# never tracked — *.pem is git-ignored); rotate it if it is ever the live cloud key.
+uv run python -c "import os; from fastmcp.server.auth.providers.jwt import RSAKeyPair; \
+kp=RSAKeyPair.generate(); \
+fd=os.open('/tmp/mcp_priv.pem', os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0o600); \
+os.write(fd, kp.private_key.get_secret_value().encode()); os.close(fd); \
+open('/tmp/mcp_pub.pem','w').write(kp.public_key); print('wrote /tmp/mcp_{priv,pub}.pem (priv 0600)')"
 ```
 
 Each server (cop / thief) needs, in its cloud env (NEVER tracked — see `.env-example`):
@@ -68,7 +72,11 @@ uv run python -c "import asyncio; from fastmcp import Client; from fastmcp.clien
 print(asyncio.run(Client('https://adrl-001-cop.fastmcp.app/mcp', auth=BearerAuth('<token>')).__aenter__()))"
 ```
 
-Mint a client token from the private key (the minter):
+Mint a client token from the private key (the minter). The verifier REQUIRES both a numeric
+`exp` and a string `jti` on every accepted token (`RevocableJWTVerifier` — no un-expiring or
+un-revocable credential), so mint with both: `expires_in_seconds` sets `exp`, `additional_claims`
+carries `jti`. The token is printed to stdout for the demo only — it is a short-lived bearer
+secret, so do not paste it into shared logs or tracked files.
 
 ```bash
 # (private_key is a pydantic SecretStr in fastmcp 3.x — wrap the PEM on load)
@@ -76,7 +84,7 @@ uv run python -c "from pydantic import SecretStr; \
 from fastmcp.server.auth.providers.jwt import RSAKeyPair; \
 kp=RSAKeyPair(private_key=SecretStr(open('/tmp/mcp_priv.pem').read()), public_key=open('/tmp/mcp_pub.pem').read()); \
 print(kp.create_token(subject='marl-cop', issuer='adrl-001-mcp-auth', audience='marl-cop', \
-scopes=['game:write'], additional_claims={'jti':'cop-001'}))"
+scopes=['game:write'], expires_in_seconds=3600, additional_claims={'jti':'cop-001'}))"
 ```
 
 > **Pre-flight (verified locally, 2026-07-22):** the full cloud stack was smoke-proven on this

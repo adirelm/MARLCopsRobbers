@@ -16,7 +16,7 @@ import logging
 from fastmcp import Client
 from fastmcp.client.auth import BearerAuth
 
-from src.api.gatekeeper import ApiGatekeeper
+from src.api.gatekeeper import DEFERRED, ApiGatekeeper
 
 _log = logging.getLogger("marl.mcp.client")
 
@@ -73,7 +73,11 @@ class AgentClient:
         for attempt in range(1, self._max_retries + 1):
             try:
                 # §5: admit through the peer_mcp channel BEFORE the outbound call leaves.
-                self._gate.execute("peer_mcp", lambda: None)
+                # A DEFERRED admission (backpressure) MUST hard-fault: a deferred synchronous
+                # peer call is a fault (mirrors the wire-match stance) — never let the real
+                # outbound call fire ungoverned after the gate declined to admit it now.
+                if self._gate.execute("peer_mcp", lambda: None) is DEFERRED:
+                    raise RuntimeError("peer_mcp call deferred by rate limiter")
                 call = self._client.call_tool(tool, args)
                 # wrap in the configured timeout so a hung call fails fast (then retries) vs blocking
                 result = await (asyncio.wait_for(call, self._timeout_s) if self._timeout_s else call)

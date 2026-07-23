@@ -16,24 +16,25 @@ def test_focus_stage_prefers_most_covered_then_largest():
     assert _focus_stage(records) == 2  # stage 2 (3 arms) beats stage 3 (1 arm)
 
 
-def _write_runs(path: Path) -> None:
+def _write_runs(path: Path, with_returns: bool = False) -> None:
     records = []
     for algo in ("qmix", "vdn", "iql"):
         for seed in (7, 17, 37):
             for stage, grid in [(0, 2), (3, 5)]:
                 for rnd in range(5):
-                    records.append(
-                        {
-                            "algorithm": algo,
-                            "seed": seed,
-                            "stage": stage,
-                            "grid": grid,
-                            "round": rnd,
-                            "role": "cop" if rnd % 2 == 0 else "thief",
-                            "loss": 0.5 / (rnd + 1),
-                            "capture_rate": 0.3 + 0.1 * rnd,
-                        }
-                    )
+                    record = {
+                        "algorithm": algo,
+                        "seed": seed,
+                        "stage": stage,
+                        "grid": grid,
+                        "round": rnd,
+                        "role": "cop" if rnd % 2 == 0 else "thief",
+                        "loss": 0.5 / (rnd + 1),
+                        "capture_rate": 0.3 + 0.1 * rnd,
+                    }
+                    if with_returns:  # a FRESH reproduction logs returns in history.jsonl
+                        record.update({"cop_return": 0.1 * rnd, "thief_return": -0.05 * rnd})
+                    records.append(record)
     path.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
 
 
@@ -64,3 +65,24 @@ def test_make_figures_raises_without_runs(tmp_path, cfg):
     cfg = _cfg_tmp(cfg, tmp_path)
     with pytest.raises(SystemExit):
         main(cfg)
+
+
+def test_f1b_falls_back_to_history_returns_on_a_fresh_run(tmp_path, cfg):
+    """codex W2 R2: with no returns_history.jsonl, a FRESH run's history.jsonl
+    (which carries the return columns) must still produce F1b."""
+    cfg = _cfg_tmp(cfg, tmp_path)
+    (tmp_path / "runs").mkdir()
+    _write_runs(tmp_path / "runs" / "history.jsonl", with_returns=True)
+    names = {Path(p).name for p in main(cfg)}
+    assert "return_curves.png" in names
+
+
+def test_f1b_skipped_not_faked_without_return_columns(tmp_path, cfg):
+    """codex W2 R2: return-less records are EXCLUDED (no flat-zero fabrication) and
+    an existing-but-EMPTY returns_history.jsonl must not crash the run."""
+    cfg = _cfg_tmp(cfg, tmp_path)
+    (tmp_path / "runs").mkdir()
+    _write_runs(tmp_path / "runs" / "history.jsonl", with_returns=False)
+    (tmp_path / "runs" / "returns_history.jsonl").write_text("", encoding="utf-8")
+    names = {Path(p).name for p in main(cfg)}
+    assert "return_curves.png" not in names  # skipped, never a fabricated 0.0 curve

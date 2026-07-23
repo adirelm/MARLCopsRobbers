@@ -109,3 +109,36 @@ def test_hud_plan_omits_last_and_winner_on_opening_frame():
     texts = [op["text"] for op in build_hud_plan(_frame(last_action=None, winner=None))]
     assert not any("Last" in t for t in texts)
     assert not any("WINNER" in t for t in texts)
+
+
+def test_capture_flash_marks_the_capturing_cop_not_cop_zero():
+    """With two cops, the flash lands on the cop AT the thief — not blindly cop 0 (wave-2 G6)."""
+    view = GridView(640, 480, 5, 5)
+    frame = _frame(cop_positions=((1, 1), (3, 3)), thief_position=(3, 3), winner="cop")
+    flash = next(op for op in build_board_plan(frame, view) if op["color"] == palette.CAPTURE_FLASH)
+    assert flash["rect"] == view.cell_rect(3, 3)  # the capturing cop's cell (col=3, row=3)
+    swap = _frame(cop_positions=((0, 0), (2, 3)), thief_position=(3, 3), winner="cop")
+    flash = next(op for op in build_board_plan(swap, view) if op["color"] == palette.CAPTURE_FLASH)
+    assert flash["rect"] == view.cell_rect(3, 2)  # swap capture: the adjacent cop, not cop 0
+
+
+def test_view_radius_overlay_covers_every_cop():
+    """The overlay is the UNION of all cops' Manhattan disks, not cop 0's alone (wave-2 G6).
+
+    Cops at (0,0) and (4,4) with radius 1 on 5x5: two disjoint 3-cell corner disks -> 6 cells.
+    """
+    frame = _frame(cop_positions=((0, 0), (4, 4)), view_radius=1)
+    plan = build_board_plan(frame, GridView(640, 480, 5, 5), show_radius=True)
+    marked = {op["rect"] for op in plan if op.get("color") == palette.VIEW_RADIUS}
+    assert len(marked) == 6
+
+
+def test_help_line_drops_commands_the_frame_source_cannot_do():
+    """The HUD 'n next' hint disappears when next_sub_game is unsupported (wave-2 G5)."""
+    all_texts = [op["text"] for op in build_hud_plan(_frame())]
+    assert "next" in all_texts[-2]  # default (None) advertises the full binding set
+    limited = frozenset({"toggle_pause", "reset", "toggle_view_radius", "quit", "speed_up", "slow_down"})
+    texts = [op["text"] for op in build_hud_plan(_frame(), limited)]
+    assert "next" not in texts[-2]  # the honest HUD for a client without next_sub_game
+    assert "pause" in texts[-2] and "quit" in texts[-2]
+    assert len(texts) == len(all_texts)  # line COUNT unchanged -> hud_height stays valid

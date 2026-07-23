@@ -10,17 +10,19 @@ advances the plugged-in ``act()``+``reset()`` policy — ``MarlSDK.build_policy`
 output, e.g. a :class:`RecurrentPolicy` whose hidden state moves one tick per
 move — and answers the brief's action string). A re-POSTed IDENTICAL
 ``(session_id, tick)`` body returns the cached answer WITHOUT re-advancing the
-recurrent state; a DIFFERING body for a cached tick — a stale pre-void request a
-server thread finishes AFTER the void re-hello reset the session — recomputes and
-overwrites, so it can never poison the new run. A lock serializes acting so a
-referee timeout-retry can never double-advance z_t; the acting rng is reseeded on
-every hello so a void replay redraws the SAME stream. Acting is greedy (ε=0,
+recurrent state. A DIFFERING body is honored ONLY for the newest answered tick —
+the stale-pre-void race (a server thread finishing a dead request AFTER the void
+re-hello): the pre-advance snapshot (policy + rng, deep-copied before every fresh
+``act``) is RESTORED first so the genuine recompute sees the state it would have
+had; a novel body for an OLDER tick is a 409. A lock serializes acting; the rng
+reseeds per hello (a void replay redraws the SAME stream). Acting is greedy (ε=0,
 decentralized execution — the ``AgentController`` convention). One server serves
 ONE role; ``make_wire_agent`` returns a started handle.
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -125,6 +127,11 @@ class WireAgentServer(ThreadingHTTPServer):
                 raise RuntimeError(f"session {sid!r} is no longer active; only cached ticks replay")
             if cached is None and tick != session["last_tick"] + 1:
                 raise ValueError(f"tick {tick} breaks the 0-indexed sequence (last={session['last_tick']})")
+            if cached is not None:
+                if tick != session["last_tick"]:  # novel body for an OLDER tick -> 409
+                    raise RuntimeError(f"tick {tick} is sealed; only the newest tick may recompute")
+                self.policy, self._rng = session["snap"]  # rewind the stale pre-void advance of z_t
+            session["snap"] = (copy.deepcopy(self.policy), copy.deepcopy(self._rng))  # pre-advance state
             obs = wire_obs.build_observation(session["wire"], payload, self.cfg)
             mask = [bool(b) for b in wire_obs.build_mask(session["wire"], payload, self.cfg)]
             action = self.policy.act([obs], [mask], 0.0, self._rng)[0]

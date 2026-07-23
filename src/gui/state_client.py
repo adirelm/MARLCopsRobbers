@@ -53,12 +53,28 @@ class ReplayStateClient:
         self._index = min(self._index + 1, len(self._frames) - 1)
         return self._frames[self._index]
 
+    def next_sub_game(self) -> SpectatorFrame:
+        """Seek to the first recorded frame of the NEXT sub-game (clamped at the last frame).
+
+        The replay-native meaning of the 'n' key: jump forward to where the recording's
+        ``sub_game`` counter changes — never silently rewind the whole match.
+        """
+        current = self._frames[self._index].sub_game
+        for index in range(self._index + 1, len(self._frames)):
+            if self._frames[index].sub_game != current:
+                self._index = index
+                return self._frames[index]
+        self._index = len(self._frames) - 1
+        return self._frames[self._index]
+
 
 class HttpStateClient:
     """Stage-2 cloud frame source — an injected transport fetches the next frame.
 
     The ``fetch`` callable (SSE/poll wrapper) returns the current frame; injecting
     it keeps this client transport-agnostic and testable without a live server.
+    DELIBERATELY exposes no ``next_sub_game``: a cloud SPECTATOR cannot command the
+    remote match, so the GUI drops the 'n' key hint and treats it as a no-op.
     """
 
     def __init__(self, fetch: Callable[[bool], SpectatorFrame]) -> None:

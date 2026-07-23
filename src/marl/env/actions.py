@@ -2,7 +2,10 @@
 
 `Action` pins the joint move indices (UP..STAY); `DELTAS` maps each to a grid
 step; `action_mask` returns the boolean legality vector the policy samples over.
-Barrier placement is cop-only and budgeted; STAY is config-gated OFF by default.
+Barrier placement is cop-only, budgeted, and only legal while the cop's CURRENT
+cell is not already a barrier (mask agrees with the transition — codex W2 M1).
+STAY is a reserved enum value that is NOT wired end-to-end (net heads and replay
+masks are ``a_cop``-wide), so ``enable_stay: true`` fails LOUDLY (codex W2 M3).
 All tunable bounds (action count, barrier budget, toggles) are read from config —
 nothing is hardcoded here (CLAUDE.md §4).
 """
@@ -21,7 +24,8 @@ class Action(IntEnum):
     """Joint discrete action set; integer values are pinned and frozen.
 
     Move indices UP..RIGHT are contiguous 0..3, PLACE_BARRIER is 4, and STAY is
-    a reserved 5 that is config-gated OFF (excluded from the mask by default).
+    a reserved 5 that is NOT wired end-to-end: ``enable_stay: true`` makes
+    ``action_mask`` raise loudly rather than emit a mask no net head can consume.
     """
 
     UP = 0
@@ -49,15 +53,15 @@ _MOVES: tuple[Action, ...] = (Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT)
 def action_mask(state: GlobalState, role: str, cfg: dict, idx: int = 0) -> np.ndarray:
     """Return the boolean legality mask over the cop action set.
 
-    Indices 0..3 are the directional moves and index 4 is PLACE_BARRIER. STAY
-    (index 5) is included only when ``env.actions.enable_stay`` is True (the mask
-    length grows to ``a_cop + 1`` in that case). For ``role == "thief"`` the mask
-    is still length ``a_cop`` (PLACE_BARRIER at index 4 is forced False); it only
-    becomes ``a_cop + 1`` when STAY is enabled. The mask is NEVER all-False over
-    its move indices: a boxed-in actor falls back to all-True over the four move
-    indices (transition no-ops any blocked move to a stay), REGARDLESS of whether
-    PLACE is legal — a boxed-in cop with budget still gets the move no-op, not a
-    forced self-cell PLACE.
+    Indices 0..3 are the directional moves and index 4 is PLACE_BARRIER, which is
+    legal only while barrier budget remains AND the cop's current cell is not
+    already a barrier — exactly the conditions the transition honors, so a
+    mask-legal PLACE can never silently degrade to a free stay (codex W2 M1).
+    For ``role == "thief"`` PLACE_BARRIER at index 4 is forced False. The mask is
+    NEVER all-False over its move indices: a boxed-in actor falls back to
+    all-True over the four move indices (transition no-ops any blocked move to a
+    stay), REGARDLESS of whether PLACE is legal — a boxed-in cop with budget
+    still gets the move no-op, not a forced self-cell PLACE.
 
     Args:
         state: The current global state (provides positions, barriers, budget).
@@ -66,18 +70,27 @@ def action_mask(state: GlobalState, role: str, cfg: dict, idx: int = 0) -> np.nd
         idx: Which cop to mask when there are multiple cops (default 0).
 
     Returns:
-        A boolean ``np.ndarray`` of length ``env.actions.a_cop`` (plus one if
-        STAY is enabled), True at every legal action index.
+        A boolean ``np.ndarray`` of length ``env.actions.a_cop``, True at every
+        legal action index.
 
     Raises:
-        ValueError: If ``role`` is not ``"cop"`` or ``"thief"``, or if ``idx``
-            is out of range for ``state.cop_pos`` on the cop branch.
+        ValueError: If ``role`` is not ``"cop"`` or ``"thief"``, if ``idx`` is
+            out of range for ``state.cop_pos`` on the cop branch, or if
+            ``env.actions.enable_stay`` is True — STAY is not wired end-to-end
+            (net heads, replay masks and the shipped trained artifacts are all
+            ``a_cop``-wide), so the toggle fails loudly instead of training a
+            policy that can never select the action it exposes (codex W2 M3).
     """
     if role not in ("cop", "thief"):
         raise ValueError(f"unknown role {role!r} (expected 'cop' or 'thief')")
     actions_cfg = cfg["env"]["actions"]
-    length = actions_cfg["a_cop"] + (1 if actions_cfg["enable_stay"] else 0)
-    mask = np.zeros(length, dtype=np.bool_)
+    if actions_cfg["enable_stay"]:
+        raise ValueError(
+            "env.actions.enable_stay is not wired end-to-end: network heads, replay "
+            "masks and the shipped trained artifacts are fixed at a_cop widths, so a "
+            "STAY-widened mask can never be consumed. Keep enable_stay: false."
+        )
+    mask = np.zeros(actions_cfg["a_cop"], dtype=np.bool_)
 
     if role == "cop":
         if not 0 <= idx < len(state.cop_pos):
@@ -93,10 +106,11 @@ def action_mask(state: GlobalState, role: str, cfg: dict, idx: int = 0) -> np.nd
 
     if role == "cop":
         budget_left = state.barriers_used < cfg["game"]["max_barriers"]
-        mask[int(Action.PLACE_BARRIER)] = actions_cfg["enable_barrier"] and budget_left
-
-    if actions_cfg["enable_stay"]:
-        mask[int(Action.STAY)] = True
+        # The transition also refuses to place on a cell that is ALREADY a barrier
+        # (the cop stands on its own placement after placing) — mirror that here so
+        # the mask never advertises a PLACE that would resolve to a free stay.
+        cell_placeable = pos not in state.barriers
+        mask[int(Action.PLACE_BARRIER)] = actions_cfg["enable_barrier"] and budget_left and cell_placeable
 
     moves_legal = mask[:n_moves].any()
     if not moves_legal:

@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (835 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (870 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (835 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (870 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -306,7 +306,10 @@ degenerate 1-cop rungs — and the row-wise decay left→right is the same parti
 board-size cost F6 plots. Full matrix: [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §11.*
 
 ![F6 scaling](results/figures/scaling.png)
-*F6 — capture rate vs grid size: capture falls as the board grows + view radius tightens (partial observability bites).*
+*F6 — capture rate across the curriculum stages. Honest caveat: the stages vary board size AND
+team size together (`num_cops_by_stage = [1, 1, 2, 1]` — the 4×4 point is a 2-cop team), so this
+is a curriculum-stage curve, NOT an isolated board-size scaling experiment. Within that caveat,
+capture falls as the board grows and the view radius tightens (partial observability bites).*
 
 ![F2 loss curves](results/figures/loss_curves.png)
 *F2 — §7.3b the two NETWORKS' TD-losses at 4×4 (mean±SE): left the cop net (QMIX/VDN/IQL), right the
@@ -391,7 +394,7 @@ notebook — LaTeX equations, the six plotted figures, citations, committed **ex
 | **F5** | IQL vs VDN vs QMIX final capture rate at 4×4, the 2-cop stage (bar + SE whiskers) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
 | **F8** | V3-§9.3 BOX family — per-seed final capture rate at 4×4, one box per arm (median / IQR / fliers + the individual seed points F5's SE hides) | `python -m src.results.make_figures` | `results/figures/final_distribution.png` |
 | **F9** | V3-§9.3 HEATMAP family — mean final capture rate matrix, algorithm × curriculum stage (annotated cells + colorbar) | `python -m src.results.make_figures` | `results/figures/capture_heatmap.png` |
-| **F6** | Scale effect — capture-rate vs grid size | `python -m src.results.make_figures` | `results/figures/scaling.png` |
+| **F6** | Capture rate across curriculum stages (board size AND team size vary — the 4×4 stage is 2-cop, so NOT an isolated grid-size effect) | `python -m src.results.make_figures` | `results/figures/scaling.png` |
 | **Sens.** | V3-§9 sensitivity — final capture vs the 4×4 view radius, all else pinned | `scripts/sensitivity_sweep.py` | `results/figures/sensitivity_view_radius.png` |
 | **F7** | Minimax-Q equilibrium baseline (L11 §5 bonus): game-value + capture-rate convergence on the 3×3 zero-sum pursuit | `scripts/plot_minimax_q.py` (slow; per-step maximin LP) | `results/figures/minimax_q.png` |
 

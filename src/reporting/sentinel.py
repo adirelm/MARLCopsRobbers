@@ -2,11 +2,13 @@
 
 Line format: ``intent <sha256>`` is appended immediately BEFORE dialing SMTP and
 ``sent <sha256>`` after the mail is committed; legacy bare-digest lines still count
-as sent (backward compatible). Two guards live here beyond plain idempotency:
+as sent (backward compatible). Three guards live here beyond plain idempotency:
 a DANGLING intent (no matching ``sent``) blocks every further send on that sentinel
-until the operator verifies the recipient inbox and deletes the line manually, and a
+until the operator verifies the recipient inbox and deletes the line manually, a
 NEW digest next to an already-recorded one is refused — one email per match — unless
-the operator consciously sets ``RESEND_APPROVED=1`` for a corrected resend.
+the operator consciously sets ``RESEND_APPROVED=1`` for a corrected resend, and
+``send_lock`` (:mod:`src.reporting.send_lock` — thread lock + ``<sentinel>.lock``
+O_CREAT|O_EXCL file) makes the check->intent window atomic across THREADS AND PROCESSES.
 """
 
 from __future__ import annotations
@@ -15,8 +17,9 @@ import os
 import threading
 from pathlib import Path
 
-# Serializes the check->intent critical section across threads in this process; the
-# intent line itself is the (pragmatic, single-operator) cross-process/crash guard.
+# Serializes the check->intent critical section across threads in this process;
+# `send_lock` (src/reporting/send_lock.py) layers a `<sentinel>.lock` file on top
+# so two PROCESSES can never both pass the check before either records intent.
 LOCK = threading.Lock()
 
 _TAGGED = 2  # a tagged record line is exactly "sent <digest>" / "intent <digest>"

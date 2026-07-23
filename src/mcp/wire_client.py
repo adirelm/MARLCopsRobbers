@@ -4,21 +4,26 @@ The transport half of ``docs/interfaces/partner_agent_brief.md``. Raw egress goe
 ``src.api.http_client`` — the single sanctioned httpx wrapper (V3 §5 egress boundary; this
 module never imports httpx). The token-bucket gatekeeper is deliberately NOT in this path:
 its DEFERRED sentinel cannot honor the brief's synchronous 10 s per-move window, and the
-match's ~2 req/s is already the configured ``peer_mcp`` sustained rate. A timeout (WALL
-CLOCK around each attempt — httpx's scalar timeout is only per-phase), network fault,
-non-2xx status, or non-JSON reply triggers exactly ONE re-POST of the IDENTICAL body
-(safe by the brief's ``(session_id, tick)`` idempotency rule), then :class:`VoidSubGame`
-— the §3.7 technical void the referee's :class:`SeedSchedule` consumes. Every
+match's ~2 req/s is already the configured ``peer_mcp`` sustained rate. Each POST runs on
+a daemon worker joined at the WALL-CLOCK budget — httpx's scalar timeout is only
+per-phase, so a peer dribbling bytes inside every read window could otherwise hang the
+referee unboundedly; an expired worker is abandoned and its boxed result discarded. A
+timeout, network fault, non-2xx status, or non-JSON reply triggers exactly ONE re-POST of
+the IDENTICAL body (safe by the brief's ``(session_id, tick)`` idempotency rule), then
+:class:`VoidSubGame` — the §3.7 technical void the referee's
+:class:`~src.mcp.wire_schedule.SeedSchedule` (re-exported here) consumes. Every
 request/response/error is emitted to the ``on_event`` hook so the referee can write the
 per-request JSONL log — the match's shareable fairness artifact.
 """
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 
 from src.api.http_client import bearer_get, bearer_post
+from src.mcp.wire_schedule import SeedSchedule  # noqa: F401 — public re-export (import surface kept)
 
 
 class VoidSubGame(Exception):  # noqa: N818 — named for the §3.7 OUTCOME (a void), not an error kind
@@ -87,6 +92,31 @@ class WireClient:
         if self._on_event is not None:
             self._on_event(event)
 
+    def _bounded_post(self, url: str, payload: dict) -> object:
+        """Run one blocking POST on a daemon worker; enforce the wall clock via ``join``.
+
+        On expiry the worker is abandoned (daemon — it may finish later, but its result
+        lands only in the discarded local ``box``, so it can corrupt nothing) and
+        ``TimeoutError`` is raised IMMEDIATELY, keeping P8's 10 s promise even against a
+        dribbling peer that feeds bytes inside every per-phase httpx read window.
+        """
+        box: dict[str, object] = {}
+
+        def _run() -> None:
+            try:
+                box["resp"] = self._post_fn(url, self._token, payload, self._timeout_s)
+            except Exception as exc:  # boxed: re-raised below on the caller thread
+                box["exc"] = exc
+
+        worker = threading.Thread(target=_run, daemon=True)
+        worker.start()
+        worker.join(self._timeout_s)
+        if worker.is_alive():
+            raise TimeoutError(f"wall clock budget {self._timeout_s}s expired mid-attempt")
+        if "exc" in box:
+            raise box["exc"]  # type: ignore[misc] — always an Exception when present
+        return box["resp"]
+
     def _post(self, path: str, payload: dict) -> dict:
         """POST ``payload``; ONE idempotent re-POST of the SAME body on a fault, then void.
 
@@ -100,8 +130,8 @@ class WireClient:
             self._emit({"direction": "request", **base, "payload": payload})
             started = time.monotonic()
             try:
-                resp = self._post_fn(url, self._token, payload, self._timeout_s)
-                if (elapsed := time.monotonic() - started) > self._timeout_s:
+                resp = self._bounded_post(url, payload)
+                if (elapsed := time.monotonic() - started) > self._timeout_s:  # second line of defence
                     raise TimeoutError(f"wall clock {elapsed:.3f}s > {self._timeout_s}s budget")
                 if not resp.is_success:
                     raise RuntimeError(f"HTTP {resp.status_code}")
@@ -113,65 +143,3 @@ class WireClient:
             self._emit({"direction": "response", **base, "response": body, "latency_ms": _ms(started)})
             return body
         raise VoidSubGame(f"{self._label} {path}: fault after {self._retries + 1} attempt(s): {last!r}")
-
-
-class SeedSchedule:
-    """P7 seed schedule + the agreed void amendment — the consumer of :class:`VoidSubGame`.
-
-    Kept beside the client so the P8 fault pair lives together: the client RAISES the
-    void, this schedule decides what it means for the match. Amendment (agreed before
-    implementation): a void replays the SAME sub-game with the SAME seed; only after
-    ``max_void_replays`` CONSECUTIVE voids of one sub-game does the next unused spare
-    seed replace s_k for the whole pair k/k+3, replaying the base game if already played.
-    """
-
-    def __init__(self, seeds: list, num_games: int, max_void_replays: int) -> None:
-        """Freeze the agreed ORDERED list: first ``num_games/2`` = pair seeds, rest = spares."""
-        if len(seeds) < num_games:
-            raise ValueError(f"P7 requires >= {num_games} jointly agreed seeds, got {len(seeds)}")
-        self._pairs = num_games // 2  # §9.1: ids 1..3 mirror 4..6 -> one seed per pair
-        self._seeds = [int(s) for s in seeds]
-        self._pair_seed = {k: self._seeds[k] for k in range(self._pairs)}
-        self._spare = self._pairs
-        self._pending = list(range(1, num_games + 1))
-        self._done: set[int] = set()
-        self._voids = 0
-        self._max_voids = int(max_void_replays)
-
-    def next_game(self) -> tuple[int, int] | None:
-        """Return ``(game_id, seed)`` for the next sub-game, or None when the match is done."""
-        if not self._pending:
-            return None
-        return self._pending[0], self._pair_seed[(self._pending[0] - 1) % self._pairs]
-
-    def record_result(self, game_id: int) -> None:
-        """Mark ``game_id`` validly completed; the consecutive-void counter resets."""
-        self._pending.remove(game_id)
-        self._done.add(game_id)
-        self._voids = 0
-
-    def record_void(self, game_id: int) -> list[int]:
-        """Register one technical void; return the ids whose completed records became stale.
-
-        Below the threshold: replay the SAME sub-game, SAME seed (empty list). At the
-        threshold: the next spare seed replaces s_k for the pair k/k+3, and an
-        already-played base game is re-queued FIRST (and returned as stale).
-
-        Raises:
-            RuntimeError: When escalation is required but every spare seed is used up.
-        """
-        self._voids += 1
-        if self._voids < self._max_voids:
-            return []
-        if self._spare >= len(self._seeds):
-            raise RuntimeError(f"P7 spare seeds exhausted while voiding sub-game {game_id}")
-        pair = (game_id - 1) % self._pairs
-        self._pair_seed[pair] = self._seeds[self._spare]
-        self._spare += 1
-        self._voids = 0
-        base = pair + 1
-        if base != game_id and base in self._done:
-            self._done.discard(base)
-            self._pending.insert(0, base)
-            return [base]
-        return []

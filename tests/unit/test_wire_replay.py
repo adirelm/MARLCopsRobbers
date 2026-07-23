@@ -69,10 +69,11 @@ def test_tampered_action_raises_loudly(cfg):
 
 def test_wrong_seed_schedule_fails_spawn_verification(cfg):
     log, records_path = rehearsal_paths()
-    # a WHOLLY wrong schedule: the true seed appears neither as s_k nor as any spare
+    # a WHOLLY wrong schedule: the true seed appears neither as s_k nor as any spare —
+    # the referee-recorded seed (result event) is rejected against it before any spawn try
     cfg["wire_match"]["seeds"] = [s + 1 for s in cfg["wire_match"]["seeds"]]
     sess = parse_wire_log(log)["sg-0"]
-    with pytest.raises(ReplayMismatchError, match="spawn"):
+    with pytest.raises(ReplayMismatchError, match="neither s_k nor"):
         replay_sub_game(cfg, "sg-0", sess, _first_record(records_path), dict(_ZERO))
 
 

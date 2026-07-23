@@ -28,8 +28,10 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
     """Parse the JSONL log into per-session spawns + per-tick actions AND ground truth.
 
     Returns ``{sid: {"spawns": {role: pos}, "actions": {tick: {role: str}},
-    "states": {tick: {role: {"your_pos": pos, "barriers_left": int}}}}``. A void
-    re-hello supersedes the session's earlier run (spawns, actions AND states are
+    "states": {tick: {role: {"your_pos": pos, "barriers_left": int}}}}`` plus, when the
+    referee logged a ``result`` event for the session, ``"seed"`` — the EXACT seed the
+    completed run was played under (last result wins, matching the last-hello-wins run).
+    A void re-hello supersedes the session's earlier run (spawns, actions AND states are
     wiped) — but an IDENTICAL re-hello (same role, same pos) with NO moves recorded
     since is a P8 TRANSPORT RETRY of the hello itself: an idempotent no-op that must
     NOT wipe the other role's spawn.
@@ -61,6 +63,10 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
             sid, tick, role = pending.pop(label)
             if isinstance(reply := entry.get("response"), dict) and isinstance(reply.get("action"), str):
                 sessions[sid]["actions"].setdefault(tick, {})[role] = reply["action"]
+        elif direction == "result" and isinstance(sub := entry.get("sub_game"), dict):
+            if "session_id" in sub and "seed" in sub:  # the referee's EXACT per-run seed (last wins)
+                sess = sessions.setdefault(sub["session_id"], {"spawns": {}, "actions": {}, "states": {}})
+                sess["seed"] = int(sub["seed"])
     return sessions
 
 

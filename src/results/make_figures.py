@@ -1,7 +1,8 @@
 """make_figures — regenerate F1/F2/F5/F6 from ``results/runs/`` + pin a manifest (T10.1/2).
 
 ``uv run python -m src.results.make_figures``. Reads the append-only run log, writes the
-PLOTTED figures (F1 learning curves, F2 loss, F5 IQL/VDN/QMIX comparison, F6 scaling, plus
+PLOTTED figures (F1 learning curves, F2 loss, F5 IQL/VDN/QMIX comparison, F6 curriculum
+stages — board size AND team size vary together, plus
 the §9.3 BOX final-distribution and HEATMAP capture matrix) to ``results/figures/``, and pins
 ``experiment_manifest.json`` (run count, algorithms, stages, seeds, config hash) so figure
 drift is detectable (R8). F3 (GUI screenshots) + F4 (MCP comms) are captured artifacts, NOT
@@ -50,13 +51,22 @@ def _return_curves(cfg: dict, fig_dir: Path) -> list[str]:
     """F1b (§7.3a literal): BOTH agents' CUMULATIVE EPISODIC RETURN vs self-play round.
 
     §7.3(a) asks for "convergence of the cumulative reward" — the measured episodic return,
-    not a proxy. Those fields post-date the headline matrix, so they live in their own
-    append-only log; the figure is skipped (not faked) when that log is absent.
+    not a proxy. The dedicated ``returns_history.jsonl`` (fields post-date the headline
+    matrix) is preferred; a FRESH reproduction writes returns straight into ``history.jsonl``,
+    so that is the fallback (codex W2 R2). Either way only records that actually CARRY the
+    return columns are plotted — a record without them is EXCLUDED, never faked as 0.0 —
+    and the figure is skipped entirely when no record qualifies.
     """
-    path = Path(cfg["paths"]["runs_dir"]) / "returns_history.jsonl"
-    if not path.exists():
+    runs_dir = Path(cfg["paths"]["runs_dir"])
+
+    def _with_returns(recs: list[dict]) -> list[dict]:
+        return [r for r in recs if "cop_return" in r and "thief_return" in r]
+
+    records = _with_returns(load_runs(runs_dir / "returns_history.jsonl"))
+    if not records:
+        records = _with_returns(load_runs(runs_dir / "history.jsonl"))
+    if not records:
         return []
-    records = load_runs(path)
     stage = _focus_stage(records)
     grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
     return [

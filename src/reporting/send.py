@@ -30,6 +30,7 @@ from zoneinfo import ZoneInfo
 
 from src.api.gatekeeper import DEFERRED, ApiGatekeeper
 from src.reporting.schema import validate
+from src.reporting.send_lock import send_lock
 from src.reporting.sentinel import LOCK, check_clear_to_send, mark_intent, mark_sent
 
 _REQUIRED_GMAIL_KEYS = ("to", "subject_template", "output_dir", "sentinel")
@@ -145,13 +146,13 @@ def gated_idempotent_send(  # noqa: PLR0913 — cfg + body + sender + subject + 
     """Send ``report`` at most once through the §5 gatekeeper; return the result dict.
 
     The one place the send guards live — shared by the §3.5 report and the §9 bonus
-    report (which passes its OWN ``sentinel`` scope so each logical email is guarded
-    independently). Per attempt: ``check_clear_to_send`` no-ops an already-sent digest,
-    BLOCKS on a dangling ``intent`` (crashed mid-send — verify the inbox first) and
-    refuses a DIFFERENT digest (one email per match; ``RESEND_APPROVED=1`` overrides);
-    then ``intent`` is recorded BEFORE dialing SMTP and ``sent`` after — so it is
-    committed iff/when the mail actually goes out (immediately, or when a deferred call
-    later drains). Callers do their own validation/subject/redacted-copy first.
+    report (which passes its OWN ``sentinel`` scope). Per attempt: ``check_clear_to_send``
+    no-ops an already-sent digest, BLOCKS on a dangling ``intent`` (crashed mid-send —
+    verify the inbox first) and refuses a DIFFERENT digest (one email per match;
+    ``RESEND_APPROVED=1`` overrides); then ``intent`` is recorded BEFORE dialing SMTP and
+    ``sent`` after, with the check->intent window under ``send_lock`` (thread lock +
+    ``<sentinel>.lock`` file — two PROCESSES can never both pass the gate, immediately
+    or when a deferred call later drains). Callers do their own validation first.
 
     Raises:
         RuntimeError: Dangling ``intent`` in the sentinel (delivery state unknown).
@@ -166,10 +167,10 @@ def gated_idempotent_send(  # noqa: PLR0913 — cfg + body + sender + subject + 
     recipient = cfg["gmail"]["to"]
 
     def _send() -> str:
-        # Recheck INSIDE the thunk (under the lock, atomically with the intent write):
-        # if a previously-queued send for this same report already drained, skip — a
-        # retry-during-deferral or a concurrent caller can never double-email.
-        with LOCK:
+        # Recheck INSIDE the thunk (under the send lock — thread lock + <sentinel>.lock
+        # file — atomically with the intent write): a previously-queued drain, a
+        # concurrent caller, or a SECOND PROCESS can never double-email (wave-2 SENT).
+        with send_lock(sentinel):
             if check_clear_to_send(sentinel, digest):
                 return "already_sent"
             mark_intent(sentinel, digest)  # written BEFORE dialing SMTP (crash guard)

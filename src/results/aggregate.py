@@ -2,8 +2,9 @@
 
 Pure reduction over the append-only run log: group the per-round records and compute the
 cross-seed mean±SE of a metric per round (F1 capture curve, F2 loss curve), the
-final-rounds mean±SE per method at a stage (F5 comparison), and per grid size (F6
-scaling). The round schedule is deterministic, so round ``r`` is the SAME role across
+final-rounds mean±SE per method at a stage (F5 comparison), and per curriculum stage
+(F6 — the stages vary board size AND team size together, not board size alone).
+The round schedule is deterministic, so round ``r`` is the SAME role across
 every seed — the cross-seed mean at a round is clean. The independent unit for EVERY
 final statistic is the SEED: each seed is first reduced to one number (its last-``k``-round
 mean) and the SE is taken across seeds — pooling the raw rounds would treat autocorrelated
@@ -13,28 +14,40 @@ within-seed values as independent and understate the SE. Stdlib ``statistics`` o
 from __future__ import annotations
 
 import json
+import logging
 import statistics
 from collections import defaultdict
 from pathlib import Path
 
+_LOG = logging.getLogger(__name__)
+# The semantic identity of one logged round (role is round-determined by the schedule).
+_RUN_KEY = ("algorithm", "seed", "stage", "round")
+
 
 def load_runs(path: str | Path) -> list[dict]:
-    """Load every JSON line from the run log (missing/empty → ``[]``).
+    """Load every JSON line from the run log (missing/empty → ``[]``), de-duplicated.
 
-    Byte-identical duplicate lines are collapsed (order-preserving): the log is
-    append-only and resume-guarded (``run_log.done_runs``), so a repeated identical
-    record can only be a double append — which would silently narrow every SE band.
+    Records are de-duplicated by the SEMANTIC run key ``(algorithm, seed, stage,
+    round)`` keeping the LAST record (a crashed-then-resumed combo re-appends its
+    full history, so the last append is authoritative) and WARNING when the dropped
+    duplicate carried different values — a silent double append would double-weight
+    that seed in every curve and narrow every SE band (codex W2 R1). Records without
+    the full run key fall back to byte-identity de-dup (order-preserving).
     """
     path = Path(path)
     if not path.exists():
         return []
-    seen: set[str] = set()
-    records = []
+    records: dict[object, dict] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip() and line not in seen:
-            seen.add(line)
-            records.append(json.loads(line))
-    return records
+        if not line.strip():
+            continue
+        rec = json.loads(line)
+        key: object = tuple(rec[k] for k in _RUN_KEY) if all(k in rec for k in _RUN_KEY) else line
+        previous = records.get(key)
+        if previous is not None and previous != rec:
+            _LOG.warning("%s: conflicting duplicate for run key %s — keeping the LAST record", path.name, key)
+        records[key] = rec
+    return list(records.values())
 
 
 def _mean_se(values: list[float]) -> tuple[float, float]:
@@ -92,7 +105,12 @@ def final_by_algorithm(records: list[dict], metric: str, stage: int, last_k: int
 
 
 def final_by_grid(records: list[dict], metric: str, algorithm: str, last_k: int = 5) -> dict:
-    """Final cross-SEED mean±SE per grid size for one algorithm (F6 scaling)."""
+    """Final cross-SEED mean±SE per CURRICULUM-STAGE grid for one algorithm (F6).
+
+    Keys are the stage grid sizes, but the curriculum stages vary board size AND
+    team size together (the 4x4 stage trains a 2-cop team, codex W2 R3) — this is
+    a curriculum-stage curve, NOT an isolated board-size scaling experiment.
+    """
     stages = sorted({r["stage"] for r in records if r["algorithm"] == algorithm})
     out = {}
     for stage in stages:

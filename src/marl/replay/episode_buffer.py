@@ -17,6 +17,7 @@ from __future__ import annotations
 import numpy as np
 
 from src.marl.data.schemas import SourceTag
+from src.marl.replay._episode_guard import validate_step_semantics
 
 
 class CentralizedReplayBuffer:
@@ -93,11 +94,13 @@ class CentralizedReplayBuffer:
             source_tag: Provenance label stored alongside this episode.
 
         Raises:
-            ValueError: If any per-agent field's agent axis != ``n_agents`` or
-                ``active`` is mis-shaped (see :meth:`_validate_agent_axes`); the
-                producer widens a k-cop episode to N (no silent broadcast).
+            ValueError: On an agent-axis/``active`` shape mismatch (the producer
+                widens a k-cop episode to N — no silent broadcast) or invalid
+                step semantics (``filled`` not a non-empty prefix / ``done`` off
+                the last real step; see :mod:`._episode_guard`, codex W2 M5).
         """
         self._validate_agent_axes(episode)
+        validate_step_semantics(episode, self._t_max)
         active = np.asarray(episode["active"], dtype=bool)
         i = self._cursor
         self._zero_slot(i)

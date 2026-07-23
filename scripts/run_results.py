@@ -29,7 +29,9 @@ def main(
     stages = stages if stages is not None else list(range(len(cfg["env"]["curriculum"]["stages"])))
     seeds = [int(s) for s in cfg["training"]["seeds"]]
     out = Path(cfg["paths"]["runs_dir"]) / "history.jsonl"
-    done = done_runs(out)
+    # A combo is resumable-DONE only with its FULL round count logged (codex W2 R1):
+    # a crash mid-append re-runs the combo; load_runs keeps the LAST record per round.
+    done = done_runs(out, required_rounds=int(cfg["selfplay"]["rounds"]))
     sdk = MarlSDK(cfg)
     # STAGE-OUTER: a stage completes across all algorithms before the next (slower) stage,
     # so the F5 3-way comparison + F6 scaling are plottable from partial runs (5x5 trickles last).

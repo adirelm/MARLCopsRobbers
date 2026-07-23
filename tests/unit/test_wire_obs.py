@@ -117,6 +117,8 @@ def test_new_session_rejects_narrow_wire_masking(cfg):
 def test_build_observation_rejects_unreachable_out_of_view_stand_in(cfg):
     wide = deepcopy(cfg)
     wide["env"]["view_radius_by_grid"][5] = 4  # whole-board view: no out-of-view cell
+    wide["env"]["view_radius_max"] = 4  # keep the footprint consistent — a radius above
+    # view_radius_max now fails loudly instead of silently truncating (codex W2 M4)
     wide["mcp"]["observation"]["view_radius"] = 4
     session = wire_obs.new_session("cop", (5, 5), cfg["game"]["max_moves"], wide)
     payload = {"tick": 0, "your_pos": [2, 2], "opponent_pos": None, "barriers": [], "barriers_left": 5}

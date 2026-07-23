@@ -23,6 +23,15 @@ from src.mcp.thief_server import make_thief_server
 SEED = 7
 
 
+class _AdmitAll:
+    """An admit-all egress double: in-memory tests perform NO HTTP egress, so the real
+    token bucket (peer_mcp burst) must not gate them — rate limiting is proven in
+    ``test_gatekeeper.py`` / ``test_egress_via_gatekeeper.py``, not here."""
+
+    def execute(self, channel: str, call: object) -> object:
+        return call()
+
+
 def test_play_match_raises_if_it_cannot_reach_num_games():
     """A match that can't assemble N valid sub-games RAISES (never emits a short §3.5 report)."""
 
@@ -49,7 +58,11 @@ def test_referee_plays_a_full_sub_game_to_a_winner(cfg):
 
     async def _run():
         ref = Referee(cfg, 5, 5, num_cops=1)
-        async with AgentClient(Client(cop_srv)) as cop, AgentClient(Client(thief_srv)) as thief:
+        gate = _AdmitAll()
+        async with (
+            AgentClient(Client(cop_srv), gatekeeper=gate) as cop,
+            AgentClient(Client(thief_srv), gatekeeper=gate) as thief,
+        ):
             return await ref.play_sub_game(cop, thief, seed=SEED)
 
     result = asyncio.run(_run())
@@ -64,7 +77,11 @@ def test_match_runner_plays_n_valid_sub_games_with_totals(cfg):
 
     async def _run():
         runner = MatchRunner(Referee(cfg, 5, 5, num_cops=1), num_games=2, base_seed=SEED)
-        async with AgentClient(Client(cop_srv)) as cop, AgentClient(Client(thief_srv)) as thief:
+        gate = _AdmitAll()
+        async with (
+            AgentClient(Client(cop_srv), gatekeeper=gate) as cop,
+            AgentClient(Client(thief_srv), gatekeeper=gate) as thief,
+        ):
             return await runner.play_match(cop, thief)
 
     match = asyncio.run(_run())

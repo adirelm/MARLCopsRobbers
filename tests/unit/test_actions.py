@@ -138,16 +138,31 @@ def test_two_cop_idx_selects_position(cfg, make_state):
     assert m1[int(Action.UP)]
 
 
-def test_enable_stay_adds_stay_index(cfg, make_state):
-    # Deep-copy the real config so the toggle never leaks across tests.
-    stay_cfg = copy.deepcopy(cfg)
+def test_enable_stay_raises_loudly(cfg, make_state):
+    # codex W2 M3: STAY is NOT wired end-to-end (net heads + replay masks stay
+    # a_cop-wide), so the toggle must fail LOUDLY, never emit a 6-wide mask.
+    stay_cfg = copy.deepcopy(cfg)  # deep copy: the toggle never leaks across tests
     stay_cfg["env"]["actions"]["enable_stay"] = True
     state = make_state(cop_pos=(2, 2), thief_pos=(0, 0))
-    mask = action_mask(state, "cop", stay_cfg, idx=0)
-    # Length grows to a_cop + 1, and STAY is True for a free cop.
-    assert mask.shape == (stay_cfg["env"]["actions"]["a_cop"] + 1,)
-    assert mask.shape == (6,)
-    assert mask[int(Action.STAY)]
+    with pytest.raises(ValueError, match="enable_stay"):
+        action_mask(state, "cop", stay_cfg, idx=0)
+
+
+def test_place_masked_on_own_barrier_cell(cfg, make_state):
+    # codex W2 M1: after placing, the cop stands ON its own barrier; the transition
+    # refuses a second placement there, so the mask must agree (else a "legal"
+    # PLACE silently degrades to a free stay and pollutes stored next_legal_mask).
+    state = make_state(cop_pos=(2, 2), thief_pos=(0, 0), barriers=[(2, 2)], barriers_used=1)
+    mask = action_mask(state, "cop", cfg, idx=0)
+    assert not mask[int(Action.PLACE_BARRIER)]
+    assert mask[: len(_MOVE_IDXS)].any()  # the moves stay available
+
+
+def test_place_legal_again_after_moving_off_the_barrier(cfg, make_state):
+    # Same budget state, but the cop has stepped OFF its barrier -> PLACE is legal.
+    state = make_state(cop_pos=(2, 3), thief_pos=(0, 0), barriers=[(2, 2)], barriers_used=1)
+    mask = action_mask(state, "cop", cfg, idx=0)
+    assert mask[int(Action.PLACE_BARRIER)]
 
 
 def test_boxed_in_cop_with_budget_moves_all_true(cfg, make_state):

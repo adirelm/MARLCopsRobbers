@@ -3,8 +3,9 @@
 Each function reads the aggregated run records and writes ONE PNG. Styling literals
 (dpi / fontsize / alpha / figsize) are LOCAL to this rendering module (CLAUDE.md §4). F1,
 F1b and F2 are two-panel per-AGENT mean±SE curves with a shaded SE band per algorithm; F5
-is a final-capture bar with SE whiskers; F6 is capture rate vs grid size. All regenerate
-deterministically from ``results/runs/`` via :mod:`src.results.make_figures`.
+is a final-capture bar with SE whiskers; F6 is capture rate across curriculum stages (board
+size AND team size vary together). All regenerate deterministically from ``results/runs/``
+via :mod:`src.results.make_figures`.
 """
 
 from __future__ import annotations
@@ -94,7 +95,12 @@ def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str 
 
 
 def plot_scaling(records: list[dict], metric: str, out_path: str | Path) -> Path:
-    """F6: final capture rate vs grid size, one line per algorithm."""
+    """F6: final capture rate across curriculum stages, one line per algorithm.
+
+    Honest labeling (codex W2 R3): the curriculum stages vary board size AND team
+    size together (the 4x4 stage trains a 2-cop team), so this is a per-stage
+    curve, NOT an isolated board-size scaling experiment.
+    """
     fig, ax = plt.subplots(figsize=_FIGSIZE)
     for algorithm in _algorithms(records):
         by_grid = final_by_grid(records, metric, algorithm)
@@ -107,9 +113,9 @@ def plot_scaling(records: list[dict], metric: str, out_path: str | Path) -> Path
             capsize=4,
             label=algorithm.upper(),
         )
-    ax.set_xlabel("grid size (cells per side)")
+    ax.set_xlabel("curriculum stage grid size (cells per side; the 4x4 stage trains 2 cops)")
     ax.set_ylabel("final capture rate")
-    ax.set_title("Scale effect — capture rate vs grid size")
+    ax.set_title("Capture rate across curriculum stages (board size AND team size vary)")
     ax.set_xticks(grids)  # integer parameter — no fractional ticks
     ax.legend()
     return _save(fig, out_path)

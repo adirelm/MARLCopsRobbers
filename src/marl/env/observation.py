@@ -45,16 +45,31 @@ def view_radius(h: int, w: int, cfg: dict) -> int:
     Args:
         h: Board rows.
         w: Board columns.
-        cfg: The loaded config (reads ``env.view_radius_by_grid``).
+        cfg: The loaded config (reads ``env.view_radius_by_grid`` and
+            ``env.view_radius_max``).
 
     Returns:
         The non-negative integer view radius.
+
+    Raises:
+        ValueError: If the effective radius exceeds ``env.view_radius_max`` —
+            the encoder footprint is FIXED at ``2 * view_radius_max + 1``, so a
+            larger radius would silently drop in-view cells from the egocentric
+            window instead of observing them (codex W2 M4). The configured
+            2x2..5x5 curriculum radii (0/1/1/2) all fit the footprint.
     """
     size = min(h, w)
     by_grid = cfg["env"]["view_radius_by_grid"]
-    if size in by_grid:
-        return int(by_grid[size])
-    return max(0, math.ceil(size / 2) - 1)
+    radius = int(by_grid[size]) if size in by_grid else max(0, math.ceil(size / 2) - 1)
+    radius_max = int(cfg["env"]["view_radius_max"])
+    if radius > radius_max:
+        raise ValueError(
+            f"effective view radius {radius} for a {h}x{w} board exceeds env.view_radius_max "
+            f"{radius_max}: the fixed {2 * radius_max + 1}x{2 * radius_max + 1} egocentric "
+            "footprint would silently truncate in-view cells — add an env.view_radius_by_grid "
+            "entry <= view_radius_max for this board (or raise view_radius_max end-to-end)."
+        )
+    return radius
 
 
 def _norm(value: int, span: int) -> float:

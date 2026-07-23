@@ -48,8 +48,19 @@ def test_append_and_done_runs_roundtrip(tmp_path, cfg):
     append_records(out, history_records(cfg, "qmix", 7, 0, _history()))
     append_records(out, history_records(cfg, "iql", 17, 3, _history()))
     out.write_text(out.read_text(encoding="utf-8") + "\n", encoding="utf-8")  # a blank line is skipped
-    assert done_runs(out) == {("qmix", 7, 0), ("iql", 17, 3)}
-    assert done_runs(tmp_path / "nope.jsonl") == set()
+    assert done_runs(out, required_rounds=2) == {("qmix", 7, 0), ("iql", 17, 3)}
+    assert done_runs(tmp_path / "nope.jsonl", required_rounds=1) == set()
+
+
+def test_done_runs_requires_the_full_round_count(tmp_path, cfg):
+    """codex W2 R1: a combo crashed after ONE round must NOT be declared complete."""
+    out = tmp_path / "history.jsonl"
+    append_records(out, history_records(cfg, "qmix", 7, 0, _history()[:1]))  # 1 of 2 rounds
+    append_records(out, history_records(cfg, "iql", 17, 3, _history()))  # full 2 rounds
+    assert done_runs(out, required_rounds=2) == {("iql", 17, 3)}
+    # A re-appended duplicate round is counted once (DISTINCT rounds, not lines).
+    append_records(out, history_records(cfg, "qmix", 7, 0, _history()[:1]))
+    assert done_runs(out, required_rounds=2) == {("iql", 17, 3)}
 
 
 def test_run_and_log_uses_sdk_and_appends(tmp_path, cfg):
@@ -64,9 +75,11 @@ def test_run_and_log_uses_sdk_and_appends(tmp_path, cfg):
     assert len(out.read_text(encoding="utf-8").splitlines()) == 2
 
 
-def test_history_records_default_returns_for_legacy_histories(cfg):
-    """A pre-§7.3(a) history (no return fields) logs 0.0 rather than raising KeyError."""
+def test_history_records_omit_absent_returns_never_fabricate_zero(cfg):
+    """codex W2 R2: a pre-§7.3(a) history (no return fields) must log records WITHOUT
+    the return keys — a 0.0 default would fabricate flat-zero return curves."""
     legacy = [{"round": 0, "role": "cop", "loss": 0.1, "capture_rate": 0.9}]
     record = history_records(cfg, "vdn", 7, 0, legacy)[0]
-    assert record["cop_return"] == 0.0
-    assert record["thief_return"] == 0.0
+    assert "cop_return" not in record
+    assert "thief_return" not in record
+    assert record["capture_rate"] == 0.9  # the always-present metrics still land

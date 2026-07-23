@@ -1,9 +1,11 @@
 """§9.3 replay seed resolution — a legitimately ESCALATED match must replay (P7 amendment).
 
-After 3 consecutive voids the next unused spare seed replaces s_k for the pair k/k+3, so
-the log's final runs were played under a SPARE seed. Spawn verification therefore tries
-s_k first and then every configured spare in order; the accepted seed is reported in the
-summary, mirror games must resolve to ONE seed, and no-match still raises loudly.
+PRIMARY seed source: the referee's logged ``result`` event (exact seed + session_id),
+spawn-verified as the tamper cross-check; distinct seeds CAN collide on spawns (505 and
+1073 both give cop=(2,0)/thief=(4,2) on the 5x5 board), so spawn-matching alone can pick
+a decoy. FALLBACK for logs predating seed events: s_k then every configured spare in
+order. The accepted seed is reported in the summary, mirror games must resolve to ONE
+seed, no spare may serve two pairs, and no-match still raises loudly.
 All logs here are synthetic FULL games driven through the real env (_synthetic_wire).
 """
 
@@ -45,4 +47,42 @@ def test_mirror_pair_resolving_to_different_seeds_raises(cfg, tmp_path):
     # an impossible escalation history (the spare replaces the seed for the WHOLE pair)
     log, records = write_match(tmp_path, cfg, [("sg-0", 101), ("sg-3", 404)])
     with pytest.raises(ReplayMismatchError, match="mirror pair"):
+        replay_match(cfg, log, records)
+
+
+def test_recorded_seed_beats_a_colliding_decoy_spare(cfg, tmp_path):
+    # seeds 1073 and 505 COLLIDE on spawns (cop=(2,0), thief=(4,2)); the decoy sits FIRST
+    # in the spare order, so spawn-matching alone silently mis-replays under 1073 ...
+    cfg["wire_match"]["seeds"] = [101, 202, 303, 1073, 505, 606]
+    games = [("sg-0", 505), ("sg-3", 505)]
+    log, records = write_match(tmp_path, cfg, games)
+    assert [g["seed"] for g in replay_match(cfg, log, records)] == [1073, 1073]  # the ambiguity trap
+    # ... but with the referee's result events the RECORDED seed wins, spawn-verified:
+    log, records = write_match(tmp_path, cfg, games, result_events=True)
+    assert [g["seed"] for g in replay_match(cfg, log, records)] == [505, 505]
+
+
+def test_recorded_seed_outside_the_schedule_raises(cfg, tmp_path):
+    cfg["wire_match"]["seeds"] = [101, 202, 303, 404, 606, 707]  # 505 is NOT in the schedule
+    log, records = write_match(tmp_path, cfg, [("sg-0", 505)], result_events=True)
+    with pytest.raises(ReplayMismatchError, match="recorded result seed"):
+        replay_match(cfg, log, records)
+
+
+def test_recorded_seed_whose_spawns_mismatch_raises(cfg, tmp_path):
+    cfg["wire_match"]["seeds"] = list(_SEEDS)
+    log, records = write_match(tmp_path, cfg, [("sg-0", 505)], result_events=True)
+    tampered = log.read_text(encoding="utf-8").replace('"seed": 505', '"seed": 404')
+    log.write_text(tampered, encoding="utf-8")  # the result event now LIES about the seed
+    with pytest.raises(ReplayMismatchError, match="recorded seed 404"):
+        replay_match(cfg, log, records)
+
+
+def test_one_spare_serving_two_pairs_raises(cfg, tmp_path):
+    cfg["wire_match"]["seeds"] = list(_SEEDS)
+    # pairs 1/4 AND 2/5 all "escalated" onto spare 404 — each mirror pair agrees internally,
+    # but SeedSchedule consumes every spare at most ONCE, so this schedule is impossible
+    games = [("sg-0", 404), ("sg-3", 404), ("sg-1", 404), ("sg-4", 404)]
+    log, records = write_match(tmp_path, cfg, games)
+    with pytest.raises(ReplayMismatchError, match="spare seed 404"):
         replay_match(cfg, log, records)

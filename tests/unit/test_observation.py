@@ -16,6 +16,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+import pytest
 
 from src.marl.env.observation import (
     VisibilityMemory,
@@ -45,9 +46,19 @@ def test_view_radius_uses_config_override(cfg):
 
 
 def test_view_radius_auto_fallback_when_no_override(cfg):
-    # A 7x7 grid has no by-grid entry -> auto = max(0, ceil(min(h,w)/2)-1).
-    assert 7 not in cfg["env"]["view_radius_by_grid"]
-    assert view_radius(7, 7, cfg) == max(0, math.ceil(7 / 2) - 1)
+    # A 6x6 grid has no by-grid entry -> auto = max(0, ceil(min(h,w)/2)-1) = 2,
+    # which still fits the view_radius_max=2 encoder footprint.
+    assert 6 not in cfg["env"]["view_radius_by_grid"]
+    assert view_radius(6, 6, cfg) == max(0, math.ceil(6 / 2) - 1)
+
+
+def test_view_radius_beyond_footprint_raises_loudly(cfg):
+    # codex W2 M4: a 7x7 auto radius (3) exceeds view_radius_max (2); the fixed
+    # 5x5 egocentric footprint would silently DROP in-view cells, so it must
+    # raise instead of silently truncating the observation.
+    assert math.ceil(7 / 2) - 1 > cfg["env"]["view_radius_max"]
+    with pytest.raises(ValueError, match="view_radius_max"):
+        view_radius(7, 7, cfg)
 
 
 def test_opponent_in_view_predicate():

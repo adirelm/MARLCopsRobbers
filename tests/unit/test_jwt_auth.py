@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 
+import jwt
 import pytest
 from fastmcp.server.auth import StaticTokenVerifier
 from fastmcp.server.auth.providers.jwt import RSAKeyPair
@@ -26,6 +28,20 @@ def _mint(keypair, cfg, role, jti="jti-1"):
     )
 
 
+def _mint_raw(keypair, cfg, role, claims):
+    """Sign an arbitrary claim-set with the keypair (bypasses create_token's exp/jti defaults)."""
+    auth = cfg["mcp"]["auth"]
+    base = {
+        "sub": f"marl-{role}",
+        "iss": auth["issuer"],
+        "aud": auth[f"{role}_audience"],
+        "scope": " ".join(auth["required_scopes"]),
+        "iat": int(time.time()),
+    }
+    base.update(claims)
+    return jwt.encode(base, keypair.private_key.get_secret_value(), algorithm="RS256")
+
+
 def test_jwt_verifier_accepts_a_valid_token(cfg, monkeypatch):
     keypair = RSAKeyPair.generate()
     monkeypatch.setenv("MCP_PUBLIC_KEY", keypair.public_key)
@@ -40,6 +56,30 @@ def test_jwt_verifier_rejects_revoked_jti(cfg, monkeypatch):
     verifier = build_jwt_verifier(cfg, "cop")
     assert asyncio.run(verifier.verify_token(_mint(keypair, cfg, "cop", jti="bad-jti"))) is None
     assert asyncio.run(verifier.verify_token(_mint(keypair, cfg, "cop", jti="ok"))) is not None
+
+
+def test_jwt_verifier_rejects_a_token_without_exp(cfg, monkeypatch):
+    """A signed token carrying a jti but NO exp is permanently valid at the base layer -> reject."""
+    keypair = RSAKeyPair.generate()
+    monkeypatch.setenv("MCP_PUBLIC_KEY", keypair.public_key)
+    token = _mint_raw(keypair, cfg, "cop", {"jti": "no-exp"})  # jti present, exp absent
+    assert asyncio.run(build_jwt_verifier(cfg, "cop").verify_token(token)) is None
+
+
+def test_jwt_verifier_rejects_a_token_without_jti(cfg, monkeypatch):
+    """A signed token with an exp but NO jti can never be deny-listed -> reject."""
+    keypair = RSAKeyPair.generate()
+    monkeypatch.setenv("MCP_PUBLIC_KEY", keypair.public_key)
+    token = _mint_raw(keypair, cfg, "cop", {"exp": int(time.time()) + 3600})  # exp present, jti absent
+    assert asyncio.run(build_jwt_verifier(cfg, "cop").verify_token(token)) is None
+
+
+def test_jwt_verifier_accepts_a_token_with_both_exp_and_jti(cfg, monkeypatch):
+    """The positive control: a bounded, revocable token (exp + string jti) authenticates."""
+    keypair = RSAKeyPair.generate()
+    monkeypatch.setenv("MCP_PUBLIC_KEY", keypair.public_key)
+    token = _mint_raw(keypair, cfg, "cop", {"exp": int(time.time()) + 3600, "jti": "ok-1"})
+    assert asyncio.run(build_jwt_verifier(cfg, "cop").verify_token(token)) is not None
 
 
 def test_jwt_verifier_rejects_wrong_audience(cfg, monkeypatch):

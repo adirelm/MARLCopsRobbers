@@ -109,3 +109,40 @@ def test_peer_mcp_calls_are_admitted_through_the_gatekeeper():
 
     asyncio.run(_run())
     assert gate.channels == ["peer_mcp", "peer_mcp"]
+
+
+def test_peer_mcp_deferred_admission_hard_faults_without_egress():
+    """A DEFERRED admission (backpressure) MUST hard-fault, never fire the real call (V3 §5).
+
+    The pre-fix bug: the gate admitted a no-op thunk while the actual outbound call fired
+    regardless — decorative under backpressure. Now a deferred peer-MCP admission raises and
+    the underlying client's `call_tool` is never reached (zero ungoverned egress).
+    """
+    from src.api.gatekeeper import DEFERRED  # noqa: PLC0415 — local to the deferred-path assertion
+
+    class _DeferGate:
+        def execute(self, channel, call):
+            return DEFERRED  # simulate a full/empty bucket: queue it, do NOT run the thunk
+
+    class _CountingClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return None
+
+        async def call_tool(self, tool, args):
+            self.calls += 1  # unreachable on the deferred path — asserted below
+
+    client = _CountingClient()
+
+    async def _run():
+        async with AgentClient(client, max_retries=1, gatekeeper=_DeferGate()) as agent:
+            await agent.health()
+
+    with pytest.raises(RuntimeError, match="deferred by rate limiter"):
+        asyncio.run(_run())
+    assert client.calls == 0  # the outbound call NEVER fired despite the gate being invoked

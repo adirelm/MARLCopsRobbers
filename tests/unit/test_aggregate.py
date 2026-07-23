@@ -66,6 +66,20 @@ def test_load_runs_collapses_double_appended_lines(tmp_path):
     assert len(load_runs(path)) == len(_records())
 
 
+def test_load_runs_keeps_last_on_conflicting_run_key_and_warns(tmp_path, caplog):
+    """codex W2 R1: duplicate (algorithm, seed, stage, round) with DIFFERENT values must
+    not double-weight the seed — the LAST record wins and the conflict is logged."""
+    path = tmp_path / "h.jsonl"
+    first, last = _rec("qmix", 7, 0, 2, 0, 0.5), _rec("qmix", 7, 0, 2, 0, 0.9)
+    path.write_text(json.dumps(first) + "\n" + json.dumps(last) + "\n", encoding="utf-8")
+    with caplog.at_level("WARNING", logger="src.results.aggregate"):
+        records = load_runs(path)
+    assert records == [last]  # single-weight; a crashed-then-resumed rerun is authoritative
+    assert any("conflicting duplicate" in message for message in caplog.messages)
+    _, mean, _ = curve(records, "capture_rate", "qmix", 0)
+    assert mean == [0.9]  # curves see ONE record per key, never a 0.5/0.9 double-weight
+
+
 def test_final_se_unit_is_the_seed_not_the_pooled_round():
     """SE over 2 per-seed means (0.4, 0.6) is 0.1 — NOT the pooled-6-rounds ~0.045."""
     stats = final_by_algorithm(_records(), "capture_rate", 3, last_k=3)

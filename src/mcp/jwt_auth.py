@@ -16,7 +16,7 @@ from fastmcp.server.auth.providers.jwt import JWTVerifier
 
 
 class RevocableJWTVerifier(JWTVerifier):
-    """A ``JWTVerifier`` plus a ``jti`` deny-list (revocation the base lacks)."""
+    """A ``JWTVerifier`` plus a mandatory ``exp``+``jti`` guard and a ``jti`` deny-list."""
 
     def __init__(self, *args: object, revoked_jtis: tuple[str, ...] = (), **kwargs: object) -> None:
         """Build the RS256 verifier and capture the revoked-``jti`` deny-set."""
@@ -24,9 +24,23 @@ class RevocableJWTVerifier(JWTVerifier):
         self._revoked = frozenset(revoked_jtis)
 
     async def verify_token(self, token: str) -> object:
-        """Verify RS256 / exp / aud / scope, then reject a revoked ``jti`` (``None`` ⇒ 401)."""
+        """Verify RS256 / aud / scope, REQUIRE a string ``jti`` + numeric ``exp``, then deny-list ``jti``.
+
+        The base verifier treats ``exp`` and ``jti`` as OPTIONAL: a token with no ``exp`` is
+        permanently valid and one with no ``jti`` can never be deny-listed. Both are therefore
+        mandatory here — any accepted token MUST carry a non-empty string ``jti`` and a numeric
+        ``exp`` (``None`` ⇒ 401), so every credential is bounded in time and revocable.
+        """
         access = await super().verify_token(token)
-        if access is not None and access.claims.get("jti") in self._revoked:
+        if access is None:
+            return None
+        jti = access.claims.get("jti")
+        exp = access.claims.get("exp")
+        if not isinstance(jti, str) or not jti:
+            return None
+        if isinstance(exp, bool) or not isinstance(exp, (int, float)):
+            return None
+        if jti in self._revoked:
             return None
         return access
 
