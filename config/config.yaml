@@ -372,31 +372,29 @@ wire_agent:
   host: "127.0.0.1"
 
 # ============================================================================
-# CLOUD (BRIEF §5.3 stage 2; §6 step 8; §8 FastMCP + Prefect Horizon runbook)
+# CLOUD (BRIEF §5.3 stage 2; §6 step 8) — LIVE on RENDER since 2026-07-22.
 # DEPLOY RECORD — NO key in this block is read by code (config_loader only
 # requires the section to exist); the live wiring is deploy/render.yaml + the
 # Render dashboard.
 # Inference-only actor nets deployed (mixer/replay/global-state NEVER deployed —
-# decentralized execution; ADR-D6-3). Public URLs are bare strings here; the
-# Prefect deploy credential (PREFECT_API_KEY) lives in .env / the cloud secret
-# store, never tracked. Filled-in URLs are placeholders until Stage-2 deploy.
+# decentralized execution; ADR-D6-3). Public URLs are bare strings here.
 # ============================================================================
 cloud:
-  platform: "render"              # LIVE Stage-2 host (2026-07-22). Horizon/FastMCP Cloud
-                                  #   was tried first but its FREE tier forces platform OAuth
-                                  #   in front of the app -> breaks §5.3 public access AND
-                                  #   collides with our in-app RS256 JWT (see deploy/render.yaml).
+  platform: "render"              # LIVE Stage-2 host (2026-07-22). FastMCP Cloud / Prefect
+                                  #   Horizon was evaluated first but its FREE tier forces
+                                  #   platform OAuth in front of the app -> breaks §5.3 public
+                                  #   access AND collides with our in-app RS256 JWT; Render
+                                  #   serves publicly with our token as the only gate. See
+                                  #   deploy/render.yaml + deploy/runbook.md "Why Render".
   cop_url: "https://adrl-001-cop.onrender.com/mcp"      # LIVE (RS256 JWT required)
   thief_url: "https://adrl-001-thief.onrender.com/mcp"  # LIVE (RS256 JWT required)
-  fallback_platform: "prefect_horizon"  # (NOT read by code — this block is the deploy record;
-                                  #  the live wiring is deploy/render.yaml + the Render dashboard)
   workers: 1                      # SINGLE worker per server: the server-side GRU hidden
                                   #   state z_t (BRIEF eq 8) is in-process, so >1 worker would
                                   #   split z_t across processes. The free single-instance tier
                                   #   already provides exactly one worker; client-carried-
                                   #   hidden-state is the fallback if a tier ever scales out.
-  # Egress rate limits live in config/rate_limits.json (single source; also carries
-  #   prefect_deploy + overflow/max_queue) — NOT duplicated here (§5 ApiGatekeeper).
+  # Egress rate limits live in config/rate_limits.json (single source: peer_mcp + gmail
+  #   channels + overflow/max_queue) — NOT duplicated here (§5 ApiGatekeeper).
 
 # ============================================================================
 # GMAIL REPORT (BRIEF §3.5 / §5.5; §6 step 9). Cop sends exactly ONE email after

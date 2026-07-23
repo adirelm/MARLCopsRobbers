@@ -421,7 +421,7 @@ The full P×I register with mitigation + fallback per owner-phase is in
 | ID | Risk | P×I | Mitigation → Fallback |
 |---|---|---|---|
 | R1 | MARL non-convergence on tiny grids (the studied effect) | H×H | 2×2-first curriculum, 5 seeds, shaping, VDN arm → heuristic-thief warm start; report instability honestly |
-| R2 | Cloud deploy / Prefect quota fails | M×H | localhost F4 is canonical (cloud is upside, ADR-0012) → submit local proof + smoke |
+| R2 | Cloud deploy (Render) cold-start / free-tier limit | M×H | localhost F4 is canonical (cloud is upside, ADR-0012) → submit local proof + smoke |
 | R3 | Gmail single mandatory send fails | M×H | `smtp_smoke.py` pre-flight + idempotent sentinel + OAuth drop-in → never block on send |
 | R5 | PII leak into the tracked repo | M×H | git-ignored cover sheet + CI deny-list grep + placeholders → never assert the PII artifact in a test |
 | R6 | Google Drive deletes `.git` mid-session | M×H | push often + a `/tmp` clone → restore `.git` |

@@ -48,7 +48,7 @@ is marked a coordination dependency, off the A6 critical path.
 **Cost-budget envelope (human-decided):** the full training envelope is **~100k episodes**
 (5000 episodes/stage × 4 curriculum stages × 5 seeds, per PRD FR-COST-1) and is **local-only**
 (§5.2); cloud is used only for the demo match (a 6-sub-game match is <500 requests, well inside
-Prefect Horizon free tier); tear down public services after the grading proof is captured to save
+the Render free tier); tear down public services after the grading proof is captured to save
 compute minutes. **Defer-order (if behind schedule):** drop in order **P8 cloud → OLoRA ablation
 arm → P-bonus** (see R2 / R12 / R16 / P-bonus) — the localhost match + QMIX/VDN/IQL comparison
 stay on the critical path.
@@ -69,8 +69,8 @@ stay on the critical path.
                                          │ HTTPS (JWT)      │ git push-to-deploy
                                          ▼                  ▼
                               ┌────────────────┐   ┌──────────────────────┐
-                              │ Prefect Horizon │   │  GitHub (shared repo, │
-                              │ (FastMCP Cloud) │   │  read collab: rmisegal)│
+                              │     Render      │   │  GitHub (shared repo, │
+                              │  (2 web svcs)   │   │  read collab: rmisegal)│
                               └────────────────┘   └──────────────────────┘
 ```
 
@@ -127,7 +127,7 @@ DATA PLANE (src/marl/data/, src/marl/nets/)              selfplay(best-response)
                                                           agent_runtime(private AgentController)
 EGRESS GOVERNANCE (src/api/, §5 REQUIRED — ADR-0009)      cop_server  thief_server  clients
   ApiGatekeeper.execute(call) + .get_queue_status()        (per-channel token-bucket: peer_mcp/gmail/
-  FIFO overflow queue (no crash on burst), logs all calls   prefect_deploy from config/rate_limits.json)
+  FIFO overflow queue (no crash on burst), logs all calls   from config/rate_limits.json)
   http_client(bearer)  ── ALL outbound egress routes here
                                                           GUI (src/gui/)  REPORTING (src/reporting/)
 RESULTS (src/results/)                                     app transform grid_view hud score_view   schema collector players
@@ -142,7 +142,7 @@ RESULTS (src/results/)                                     app transform grid_vi
 - **Algorithm seam** across IQL/VDN/QMIX: one shared `RecurrentQNet` + one buffer; VDN/QMIX swap only
   the Mixer ABC, while **IQL additionally drops the mixer + global state** and uses an independent
   per-agent target (`IqlLearner._compute_target`, eq 4) — the seam is mixer-OR-learner-branch, not mixer-only.
-- **Egress via gatekeeper:** no module calls `httpx`/Gmail/Prefect outside `src/api/` + `src/reporting/mailer.py`; ALL peer-MCP, Gmail, and Prefect-deploy egress routes through `ApiGatekeeper.execute()`.
+- **Egress via gatekeeper:** no module calls `httpx`/Gmail/Prefect outside `src/api/` + `src/reporting/mailer.py`; ALL peer-MCP and Gmail egress routes through `ApiGatekeeper.execute()`.
 - **Spectator purity:** GUI never imports referee/agent/MCP internals; `SpectatorFrame` frozen;
   `referee.build_local_obs` Manhattan-masks beyond `view_radius` (encodes the §2.1 Dec-POMDP invariant).
 
@@ -176,7 +176,7 @@ Assignment6-MARLCopsRobbers/
 ├── config/
 │   ├── config.yaml                 # ALL numeric params (single source of truth, §4 below)
 │   ├── config.schema.yaml          # typed schema; loader _validate→ValueError
-│   └── rate_limits.json            # §5 gatekeeper limits {peer_mcp, gmail, prefect_deploy} (versioned)
+│   └── rate_limits.json            # §5 gatekeeper limits {peer_mcp, gmail} (versioned)
 ├── players.example.yaml            # repo-root placeholder role A — SOLO (tracked, NO real PII; PRD §1.3)
 ├── src/
 │   ├── __init__.py                 # __version__ = "1.0.0"
@@ -231,7 +231,7 @@ Assignment6-MARLCopsRobbers/
 │   │   └── referee.py              # MatchRunner = THE ENVIRONMENT: ground-truth s, observe()=O(s,i), apply() ~145
 │   ├── api/
 │   │   ├── gatekeeper.py           # ApiGatekeeper.execute(call)+get_queue_status(): per-channel  ~120
-│   │   │                           #   token-bucket (peer_mcp/gmail/prefect_deploy) + FIFO overflow
+│   │   │                           #   token-bucket (peer_mcp/gmail) + FIFO overflow
 │   │   │                           #   queue (no crash on burst) + call log (§5, ADR-0009)
 │   │   └── http_client.py          # bearer-auth HTTP wrapper (timeout/retry/backoff)         ~90
 │   ├── mcp/
@@ -294,7 +294,7 @@ Assignment6-MARLCopsRobbers/
 │   ├── unit/                       # env, reward, mixer, olora, gatekeeper, report-builder, config
 │   ├── integration/               # full 6-sub-game localhost match (dry-run Gmail); train smoke
 │   └── architecture/               # V3 GATE TESTS (§2.3 seams)
-├── deploy/                         # NO requirements.txt (uv-only gate); Horizon/Render read
+├── deploy/                         # NO requirements.txt (uv-only gate); Render reads
 │   │                               #   pyproject.toml + uv.lock — deps generated on demand via `uv export`
 │   ├── render.yaml                 # fallback host blueprint (two web services; `uv sync --frozen` build cmd)
 │   ├── runbook.md                  # ordered, copy-pasteable cloud runbook (incl. the `uv export` step)
@@ -408,11 +408,10 @@ mcp:                           # was nested cop/thief/cloud blocks — now flat,
     cop_audience: "marl-cop"
     thief_audience: "marl-thief"
     required_scopes: ["game:write"]
-cloud:                         # was `mcp.cloud` — now top-level `cloud:`
-  platform: prefect_horizon
-  cop_url: ""                  # e.g. https://adrl-001-cop.fastmcp.app/mcp (set at deploy)
-  thief_url: ""                # e.g. https://adrl-001-thief.fastmcp.app/mcp (set at deploy)
-  fallback_platform: render
+cloud:                         # was `mcp.cloud` — now top-level `cloud:` (LIVE on Render)
+  platform: render             # Render chosen over FastMCP Cloud/Prefect Horizon (OAuth clash)
+  cop_url: "https://adrl-001-cop.onrender.com/mcp"
+  thief_url: "https://adrl-001-thief.onrender.com/mcp"
   rate_limits: { peer_mcp_per_minute: 120, peer_mcp_burst: 10, gmail_per_minute: 5, gmail_burst: 1 }
 gmail:                         # was `report:` + `email:` — now unified under `gmail:`
   to: "rmisegal+marl@gmail.com"
@@ -431,9 +430,9 @@ logging:     { level: "INFO" }
 
 `config/rate_limits.json` (versioned, git-tracked, no secrets) →
 `{ "version":"1.0.0", "limits": { "peer_mcp":{"per_minute":120,"burst":10},
-"gmail":{"per_minute":5,"burst":1}, "prefect_deploy":{"per_minute":30,"burst":5} },
+"gmail":{"per_minute":5,"burst":1} },
 "overflow_policy":"fifo_queue", "on_overflow":"enqueue", "max_queue":256, "log_all_calls":true }`
-`.env-example` (names only): `COP_MCP_TOKEN= THIEF_MCP_TOKEN= REFEREE_MCP_TOKEN= PEER_MCP_TOKEN= MCP_PUBLIC_KEY= MCP_PRIVATE_KEY= REVOKED_TOKEN_JTIS= PREFECT_API_KEY= GMAIL_SENDER= GMAIL_APP_PASSWORD=`
+`.env-example` (names only): `COP_MCP_TOKEN= THIEF_MCP_TOKEN= REFEREE_MCP_TOKEN= PEER_MCP_TOKEN= MCP_PUBLIC_KEY= MCP_PRIVATE_KEY= REVOKED_TOKEN_JTIS= GMAIL_SENDER= GMAIL_APP_PASSWORD=`
 Secrets/PII NEVER in `config.yaml`: transport secrets + RSA keys → `.env`; real names/ids +
 GitHub owner slug → git-ignored `players.local.yaml` (placeholders in repo-root `players.example.yaml`).
 
@@ -524,10 +523,10 @@ human sign-off before the corresponding code lands.
 | **0006** | Adversarial boundary (POSG) | Value decomposition applies ONLY within the cooperative Cop team; Thief is a separate adversarial Double-DQN folded into `T(s'|s,ā)`; NO mixer over {cop,thief} | Opposed rewards violate `∂Q_tot/∂Q_thief≥0`; full game is POSG (NEXP^NP, eq 3). Both planning legs independently confirmed; load-bearing. |
 | **0007** | Cop-team size & mixer non-triviality | Graded 5×5 match = literal 1-cop-vs-1-thief (degenerates gracefully); `num_cops≥2` runs ONLY on the 4×4 train scenario, which supplies a genuinely 2-input (non-trivial) mixer for non-vacuous decomposition | Faithful to BRIEF §3 while giving §7.2 real credit-assignment evidence; N=1 'trivial decomposition' is itself the rubric-required IGM-limit discussion. **Scope decision → human sign-off.** |
 | **0008** | Shared net + swappable mixer/learner seam | One `RecurrentQNet` (GRU) + one centralized episode buffer; VDN/QMIX vary ONLY the Mixer ABC, while IQL additionally **drops the mixer + global state** and overrides `_compute_target` (independent per-agent target, eq 4) — the variation point is mixer-OR-learner-branch, NOT mixer-only | DRY + single-entry; keeps the algorithm comparison apples-to-apples (IQL = a ~15-line `_compute_target` diff the §7.2 write-up quotes; there is no `iql_mixer.py` identity module). |
-| **0009** | §5 External-API governance REQUIRED | Add `src/api/gatekeeper.py` — one `ApiGatekeeper` with `execute(call)` + `get_queue_status()`, per-channel token-bucket (peer_mcp / gmail / prefect_deploy) from versioned `config/rate_limits.json`, a FIFO overflow queue (no crash on burst), call logging; ALL peer-MCP + Gmail + Prefect egress routes through it | §5 was N/A in A1–A5 (no runtime external calls); A6 makes real HTTP + Gmail + cloud-deploy calls → §5 flips N/A→REQUIRED. Enforced by `test_egress_via_gatekeeper`. |
+| **0009** | §5 External-API governance REQUIRED | Add `src/api/gatekeeper.py` — one `ApiGatekeeper` with `execute(call)` + `get_queue_status()`, per-channel token-bucket (peer_mcp / gmail) from versioned `config/rate_limits.json`, a FIFO overflow queue (no crash on burst), call logging; ALL peer-MCP + Gmail egress routes through it | §5 was N/A in A1–A5 (no runtime external calls); A6 makes real HTTP (peer-MCP) + Gmail calls → §5 flips N/A→REQUIRED. Enforced by `test_egress_via_gatekeeper`. |
 | **0010** | OLoRA scope & init | Pre-trained model = locally BC-cloned per-role encoder; OLoRA = paper-exact QR on the **pretrained** weight `W0` (eq 10-11, function-preserving rebase), wraps **encoder Linears only**, `rank=4` (assert ≤min(m,n)//2), `scale=8`; default OFF for from-scratch 5×5, ON for curriculum transfer | Only honest reading of §5.2 "pre-trained models + OLoRA (QR on pretrained weight matrices)" satisfying "training MUST be local"; reject QR-of-random-matrix (that is orthonormal-LoRA, not OLoRA) — the rejection is §7.2 grade evidence. |
 | **0011** | Referee-mediated dual-MCP topology, process isolation, per-session GRU state | 3 OS processes: 2 peer FastMCP servers + 1 neutral referee = THE ENVIRONMENT (CTDE global-state holder), NOT a third player; real cop↔thief HTTP `reveal_location` each tick (evidence-only); each agent server keeps **server-side per-sub-game GRU hidden state** `z_t` (keyed by session id, reset on `new_sub_game`) — agent servers are NOT `FASTMCP_STATELESS_HTTP` | Both planning legs converged; removes cop-as-self-referee conflict the §9 `mutual_agreement` exposes; makes train-global/exec-local literal in code. Processes (not threads) avoid FastMCP-async/Pygame/torch deadlock. The recurrent policy (eq 8) MUST carry `z_t` across the ~25 `request_move` ticks, so stateless HTTP is rejected for the agent servers (session-state holds it server-side; same contract localhost==cloud). Server-side `z_t` therefore requires a **single worker** (`cloud.workers: 1`); the free single-instance tier already provides this, and **client-carried hidden state** is the documented fallback if the host ever scales beyond one worker. |
-| **0012** | Cloud platform & auth | Primary host = **Prefect Horizon / FastMCP Cloud** (push-to-deploy, `*.fastmcp.app/mcp`); Render free-tier fallback (pre-tested); auth = app-level **revocable Bearer JWT** (RS256) inside FastMCP, NOT Horizon OAuth; revoke via jti deny-list (primary) + key rotation (hard lever) | §8.3 names this infra; identical auth gate runs on localhost AND cloud (never rewritten); §5.3 demands a revocable token + screenshottable 401. Inference-only deploy (actor nets; mixer/replay/`s` stay local). |
+| **0012** | Cloud platform & auth | Live host = **Render** (`*.onrender.com/mcp`, deploy/render.yaml). *Original* plan was Prefect Horizon / FastMCP Cloud, REVERSED 2026-07-22: their free tier forces platform OAuth in front of the app, breaking §5.3 public access and colliding with our in-app JWT. Auth (unchanged by the flip) = app-level **revocable Bearer JWT** (RS256) inside FastMCP, NOT any platform OAuth; revoke via jti deny-list (primary) + key rotation (hard lever) | §8.3 names this infra; identical auth gate runs on localhost AND cloud (never rewritten); §5.3 demands a revocable token + screenshottable 401. Inference-only deploy (actor nets; mixer/replay/`s` stay local). |
 | **0013** | Gmail mechanism & PII boundary | smtplib + STARTTLS + Gmail **App-Password** (default) behind an `EmailSender` Protocol (OAuth `GmailApiSender` drop-in fallback); real names/ids ONLY in the git-ignored repo-root `players.local.yaml`, injected at send time; only role-only redacted JSON committed | Autonomous no-human-in-the-loop Cop (§3.5) can't do OAuth's interactive consent; App-Password is one revocable `.env` secret vs a tracked `token.json` hazard; §5.5 explicitly blesses it. PII deny-list is a hard gate. |
 | **0014** | GUI = Pygame god-view spectator | Pygame (over Tkinter/Streamlit); strict read-only god-view fed by referee ground truth via frozen `SpectatorFrame`; dual read path (in-proc Stage-1 default, HTTP `/spectator` SSE Stage-2, separate spectator token); render literals local in `palette.py` | True real-time loop + clean headless `SDL_VIDEODRIVER=dummy` capture for §7.3c; reuses A5's proven ≤150-LOC module split; spectator never affects partial observability (hard test). |
 
@@ -566,9 +565,9 @@ artifacts (as built): results/figures/mcp_comms_local.png + mcp_comms_http.png; 
 ### 7.2 Stage 2 — cloud (incremental upside; localhost logs remain canonical F4)
 
 ```
-GitHub main ──push-to-deploy──▶  Prefect Horizon / FastMCP Cloud   (single worker — cloud.workers: 1)
-   (commit ONE actor-only ──┐     ├─ entrypoint src/mcp/cop_server.py:mcp   → https://adrl-001-cop.fastmcp.app/mcp
-    inference checkpoint:    │     └─ entrypoint src/mcp/thief_server.py:mcp → https://adrl-001-thief.fastmcp.app/mcp
+GitHub main ──Blueprint deploy──▶  Render   (single worker — cloud.workers: 1)
+   (commit ONE actor-only ──┐     ├─ entrypoint src/mcp/cloud_cop.py:mcp   → https://adrl-001-cop.onrender.com/mcp
+    inference checkpoint:    │     └─ entrypoint src/mcp/cloud_thief.py:mcp → https://adrl-001-thief.onrender.com/mcp
     GRU+MLP state_dict +     │     env: MCP_PUBLIC_KEY, issuer, audience, REVOKED_TOKEN_JTIS,
     shape sidecar, sub-MB,   │          MODEL_PATH = deploy/model/cop_actor.pt (Stage-2; actor weights ONLY —
     under deploy/model/)  ───┘          NO mixer / NO critic / NO replay / NO global state)
@@ -583,7 +582,7 @@ GitHub main ──push-to-deploy──▶  Prefect Horizon / FastMCP Cloud   (si
         │  (jti deny-list = a CUSTOM verifier wrapper around FastMCP's JWTVerifier, which itself
         │   validates only sig/exp/aud/scopes — the per-jti revocation check is ours, not built in)
         │  cop(cloud) ⇄ thief(cloud)  request_move / reveal_location  (SAME tool contract as Stage 1)
-        │     → SAME trace_id appears in BOTH servers' Horizon logs (§7.3d cloud proof)
+        │     → SAME trace_id appears in BOTH servers' Render logs (§7.3d cloud proof)
         ▼
    cloud_match.py ── 6 sub-games over the two public URLs → emits §3.5 JSON body (does NOT send)
 

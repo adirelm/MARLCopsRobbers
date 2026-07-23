@@ -11,7 +11,7 @@ delta is the auth verifier (static → RS256 JWT).
 > and the auth matrix — see README §7.3d (F4c + cloud_auth) and the "What actually
 > happened" section at the end of this file.
 >
-> **Why Render, not Prefect Horizon** (Stage 3 below is kept for reference): Horizon's
+> **Why Render, not FastMCP Cloud / Prefect Horizon:** Horizon's
 > FREE tier forces its own platform OAuth *in front of* the app. That breaks §5.3's
 > public-access requirement AND collides with our in-app RS256 JWT (a single
 > `Authorization` header cannot satisfy two bearer layers); disabling it is a paid
@@ -21,7 +21,7 @@ delta is the auth verifier (static → RS256 JWT).
 ## Stage 1 — local uv deps (T8.0)
 
 ```bash
-uv sync --group mcp --group cloud          # fastmcp + httpx + pyjwt + prefect
+uv sync --group mcp                         # fastmcp + httpx + pyjwt (base project deps)
 uv run python -c 'import fastmcp; print(fastmcp.__version__)'   # expect 3.x
 uv run pytest tests/unit/test_jwt_auth.py -q                    # auth proven offline
 ```
@@ -58,18 +58,22 @@ Each server (cop / thief) needs, in its cloud env (NEVER tracked — see `.env-e
 Deploy entrypoints (module-level `mcp`): `src/mcp/cloud_cop.py:mcp` and
 `src/mcp/cloud_thief.py:mcp`.
 
-## Stage 3 — deploy to Prefect Horizon + publish URLs (T8.2/T8.3)
+## Stage 3 — deploy to Render + publish URLs (T8.2/T8.3)
+
+Render (chosen over FastMCP Cloud / Prefect Horizon — see "Why Render" above) deploys
+from GitHub via a Blueprint; there is no deploy-platform API key.
 
 ```bash
-# 1. Sign in to horizon.prefect.io with GitHub; create a deploy key:
-export PREFECT_API_KEY=...          # from the Horizon UI (egress is gatekept: prefect_deploy 30/min)
-# 2. Deploy each server (entrypoint, name, env per Stage 2); disable org-OAuth, rely on app JWT:
-#    cop   -> name adrl-001-cop   -> https://adrl-001-cop.fastmcp.app/mcp
-#    thief -> name adrl-001-thief -> https://adrl-001-thief.fastmcp.app/mcp
-# 3. Record both URLs in config/config.yaml -> cloud.cop_url / cloud.thief_url.
-# 4. Verify health() over the public internet (from a machine OFF the dev host):
+# 1. In the Render dashboard: New -> Blueprint -> connect the repo -> path deploy/render.yaml.
+#    It provisions BOTH web services (adrl-001-cop, adrl-001-thief). The only dashboard
+#    secret is MCP_PUBLIC_KEY (the one-line \n-escaped PEM; the verifier normalizes it);
+#    MODEL_PATH + MCP_AUTH_MODE=jwt come from render.yaml.
+# 2. Render publishes:
+#    cop   -> https://adrl-001-cop.onrender.com/mcp
+#    thief -> https://adrl-001-thief.onrender.com/mcp   (already in config.cloud.*)
+# 3. Verify health() over the public internet (from a machine OFF the dev host):
 uv run python -c "import asyncio; from fastmcp import Client; from fastmcp.client.auth import BearerAuth; \
-print(asyncio.run(Client('https://adrl-001-cop.fastmcp.app/mcp', auth=BearerAuth('<token>')).__aenter__()))"
+print(asyncio.run(Client('https://adrl-001-cop.onrender.com/mcp', auth=BearerAuth('<token>')).__aenter__()))"
 ```
 
 Mint a client token from the private key (the minter). The verifier REQUIRES both a numeric

@@ -7,7 +7,7 @@ full queue (``max_queue``) rejects with an explicit error and logs it. Every cal
 logged (``log_all_calls``); the clock is injectable for deterministic tests;
 ``get_queue_status`` reports per-channel queue depth. At runtime the graded **Gmail
 report** send is routed through it (``reporting/send.py``); the ``peer_mcp`` /
-``prefect_deploy`` channels + the ``bearer_get``/``bearer_post`` httpx wrappers are the
+the ``bearer_get``/``bearer_post`` httpx wrappers are the
 governed path for HTTP egress (peer-MCP traffic itself uses the FastMCP client transport).
 
 Input: the versioned rate-limit JSON (``_validate_config`` -> ValueError) + an injectable
@@ -111,7 +111,7 @@ class ApiGatekeeper:
 
         Args:
             channel: One of the configured egress channels (``peer_mcp`` / ``gmail``
-                / ``prefect_deploy``).
+                ).
             call: A zero-arg thunk performing the outbound side effect.
 
         Returns:

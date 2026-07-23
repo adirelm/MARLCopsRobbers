@@ -68,5 +68,5 @@ def test_unknown_channel_raises():
 def test_get_queue_status_reports_all_channels():
     """Queue status enumerates every configured channel at zero depth on start."""
     status = ApiGatekeeper(clock=lambda: 0.0).get_queue_status()
-    assert set(status) == {"peer_mcp", "gmail", "prefect_deploy"}
+    assert set(status) == {"peer_mcp", "gmail"}
     assert all(depth == 0 for depth in status.values())

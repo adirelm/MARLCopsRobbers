@@ -54,11 +54,8 @@ dev = [
 # installs only base deps — its fastmcp presence check failed while these lived
 # here. The group is kept EMPTY so every documented `--group mcp` command still works.
 mcp = []
-# §8 — Prefect Horizon cloud deploy (P8 only; split out so the P5 localhost MCP
-# install stays light — Prefect pulls a large transitive tree not needed locally).
-cloud = [
-    "prefect>=3.0",
-]
+# (§8 cloud deploy uses Render via deploy/render.yaml — no extra Python deps; the
+# abandoned Prefect Horizon 'cloud' group was removed 2026-07-24, prefect was never imported.)
 # §5.5 — Gmail report. smtplib is stdlib (App-Password path); these enable the OAuth fallback.
 mail = [
     "google-api-python-client>=2.140",

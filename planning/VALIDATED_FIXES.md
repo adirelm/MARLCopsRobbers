@@ -37,7 +37,7 @@
   (iii) pick **alternating best-response** as THE regime; scope `update_ratio` to within-round
   learner cadence (or drop). (iv) add a per-round ε note + a one-line pool sampling/snapshot rule.
 - **#9 DROP `cloud.rate_limits`:** delete config.yaml lines 285-289; `config/rate_limits.json`
-  is the single source (superset: also has prefect_deploy/overflow/max_queue). Redirect any
+  is the single source (channels peer_mcp/gmail + overflow/max_queue). Redirect any
   PLAN/PRD pointer to rate_limits.json.
 - **#10 REPORT_RECIPIENT_OVERRIDE:** remove it from `.env-example:34` + the config.yaml:311
   comment; recipient is unconditionally `gmail.to`. (Override, if any, is test-injection only.)

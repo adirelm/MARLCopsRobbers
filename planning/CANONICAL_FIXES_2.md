@@ -65,7 +65,7 @@
    transient failure** to `execute` (V3 §5.1). Define overflow at `max_queue` (reject-with-error
    when full, logged — "no crash" must be enforceable).
 9. **Single rate-limit source (L22, Codex C16).** Remove `cloud.rate_limits` from config.yaml;
-   `config/rate_limits.json` is the SINGLE source (already has peer_mcp/gmail/prefect_deploy).
+   `config/rate_limits.json` is the SINGLE source (peer_mcp/gmail).
 10. **Report recipient (Codex C03/L23).** Remove `REPORT_RECIPIENT_OVERRIDE` from the prod path
     (it permits a "successful" send to the WRONG address); recipient is fixed `gmail.to`
     (`rmisegal+marl@gmail.com`). A test-only override may exist but must be inert in prod.
