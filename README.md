@@ -142,8 +142,8 @@ Reported plainly — the brief grades honest analysis over a polished narrative:
   the adversary into `T` (§7.1); the true game is general-sum (§2.1). A faithful treatment would
   train both roles as a POSG (true adversarial RL), not a cooperative-team proxy.
 - **The genuine multi-agent signal is the 4×4 2-cop stage**; the graded 5×5 is 1-cop, where the
-  QMIX mixer is a trivial scalar gain (§7.2 caveat). 5×5 is excluded from the figure matrix for
-  compute (training too slow to sweep all arms).
+  QMIX mixer is a trivial scalar gain (§7.2 caveat). 5×5 is where VDN's sum-decomposition reduces
+  exactly to IQL, so those two arms are bit-identical at the 1-cop final stage.
 - **OLoRA is a stability/efficiency aid, not the non-stationarity cure** (§7.2, `[7]`); the OLoRA-vs-
   full-fine-tune **ablation chart/table was descoped** (a PRD-designated stretch item) — the ~8×
   trainable-param reduction it would visualize is still asserted by `tests/unit/test_olora_linear.py`.
@@ -202,12 +202,17 @@ the joint max over the centrally-mixed value removes the marginalization. CTDE t
 γ / target cadence **and the configured 256-episode replay warmup**; only the mixer (or the IQL
 branch) differs (5 seeds, mean±SE). The expressive QMIX mixer is the **least stable at this budget**.
 At 3×3 all three converge close (IQL = VDN = **0.95**, QMIX **0.92**); but at the harder **4×4
-two-cop** stage QMIX's monotonic hypernetwork **destabilizes** — its F1 curve oscillates and settles at
-**0.63 ± 0.10**, *below* the simpler **VDN (0.84, the highest mean)** and **IQL (0.82, the tightest
-cross-seed spread)**. This is the studied non-convergence phenomenon (risk R1) and a well-known MARL result:
-QMIX is strictly **more expressive** than VDN/IQL but **harder to train**, so at a bounded 50-round
-budget the simpler decompositions win. Honoring the replay warmup (the audit fix) confirmed this is a
-genuine QMIX training-stability effect, **not** an early-buffer artifact. CTDE improves the
+two-cop** stage QMIX's monotonic hypernetwork **destabilizes** — the F5/F8 4×4 comparison shows it
+oscillating and settling at **0.63 ± 0.10**, *below* the simpler **VDN (0.84, the highest mean)** and
+**IQL (0.82, the tightest cross-seed spread)**. This is the studied non-convergence phenomenon (risk R1)
+and a well-known MARL result: QMIX is strictly **more expressive** than VDN/IQL but **harder to train**,
+so at a bounded 50-round budget the simpler decompositions win. Honoring the replay warmup (the audit
+fix) confirmed this is a genuine QMIX training-stability effect, **not** an early-buffer artifact.
+**The instability is specifically MULTI-AGENT.** At the **5×5 one-cop final test** (F1, §5.1) the
+credit-assignment pressure is gone and QMIX *recovers to the best* arm (**0.72 ± 0.05**), while VDN and
+IQL are bit-identical there (**0.61 ± 0.06** — at one agent VDN's sum-decomposition IS IQL). So the 4×4
+collapse is a two-cop credit-assignment effect, not a property of the mixer per se — exactly what the
+1-cop vs 2-cop contrast isolates. CTDE improves the
 **stability of the target**, not the sample-efficiency of the richer value class — reported faithfully,
 not cherry-picked.
 
@@ -246,28 +251,29 @@ bounds what it can disclose. Limitation analysis (§6) and these controls togeth
 ### 7.3 Results — the controlled experiment + figures
 
 **Single controlled experiment** (D10 §C): identical nets / replay / ε-decay / γ / target cadence —
-only the mixer (or the IQL branch) differs. **45 runs** = all three arms **IQL / VDN / QMIX** ×
-seeds **`[7, 17, 37, 71, 107]`** × stages **`[2×2, 3×3, 4×4]`**, every run honoring the 256-episode
+only the mixer (or the IQL branch) differs. **60 runs** = all three arms **IQL / VDN / QMIX** ×
+seeds **`[7, 17, 37, 71, 107]`** × stages **`[2×2, 3×3, 4×4, 5×5]`**, every run honoring the 256-episode
 replay warmup. The **4×4 two-cop stage is the comparison focus** (genuine multi-agent credit
-assignment). 5×5 is excluded from the matrix (training too slow to sweep all arms at that size).
+assignment). The full 2×2→5×5 curriculum is swept (the 5×5 rung is the brief §5.1 final test).
 Per-round records append to `results/runs/history.jsonl`; `results/figures/experiment_manifest.json`
-pins arms / seeds / stages + a config hash (= 45 runs, zero README↔code drift, R8).
+pins arms / seeds / stages + a config hash (= 60 runs across 4 stages, zero README↔code drift, R8).
 
 ![F1 learning curves](results/figures/learning_curves.png)
-*F1 — §7.3a BOTH agents' learning at the 4×4 two-cop focus stage (cross-seed mean±SE; capture rate is
+*F1 — §7.3a BOTH agents' learning at the **5×5 one-cop final test** (brief §5.1; cross-seed mean±SE; capture rate is
 the reward proxy — the terminal signal dominates and shaping is train-only). The cop panel STARTS high
 (the cop's greedy policy starts strong against an untrained thief) and capture then falls as the self-play thief improves —
 the right panel shows the thief's escape rate climbing in mirror: §7.2's non-stationarity made visible.
-QMIX's wider band is the monotonic-mixer training instability (R1). Train reads global `s`, exec local `o_i`.*
+At this 5×5 one-cop final test QMIX is in fact the tightest+highest arm (0.72±0.05) with VDN=IQL (0.61±0.06); the monotonic-mixer instability (R1) is the 4×4 two-cop story (F5/F8), not this one. Train reads global `s`, exec local `o_i`.*
 
 ![F1b cumulative return](results/figures/return_curves.png)
 *F1b — **§7.3(a) literal**: BOTH agents' **cumulative episodic return** (the measured reward
 sum per episode, mean±SE over 5 seeds) vs self-play round at 4×4. This is the reward-convergence
-plot the brief names; F1 above is the same story in capture/escape rate. Note the coupling: the
+plot the brief names, at the 4×4 two-cop focus (where the arms separate; F1 above is the
+5×5 final test). Note the coupling: the
 IQL/VDN cop return climbs toward ≈+1.0 while its thief counterpart is pushed negative, whereas the
 QMIX cop return sits **below zero** — the same monotonic-mixer instability §6 reports, now visible
 in reward units. Source: `results/runs/returns_history.jsonl` (the return fields post-date the
-headline 45-run matrix, so they are logged separately at the 4×4 focus stage).*
+headline 60-run matrix, so they are logged separately at the 4×4 two-cop focus stage).*
 
 ![F5 baseline comparison](results/figures/baseline_comparison.png)
 *F5 — final capture rate IQL vs VDN vs QMIX at 4×4 (SE whiskers; "final" = mean over each seed's
@@ -393,13 +399,13 @@ overlay state (`state_view_radius.png`) is referenced from [`docs/UX.md`](docs/U
 
 End-to-end evidence: [`results/subgames/full_match_5x5.redacted.json`](results/subgames/full_match_5x5.redacted.json)
 is a full 6-sub-game §3.5 report (role-only, PII-redacted) produced by `sdk.run_local_match` with FRESH
-nets — schema/pipeline proof (trained performance lives in the 45-run matrix behind F1/F5/F6). The SDK-only analysis
+nets — schema/pipeline proof (trained performance lives in the 60-run matrix behind F1/F5/F6). The SDK-only analysis
 notebook — LaTeX equations, the six plotted figures, citations, committed **executed** — is
 [`notebooks/analysis.ipynb`](notebooks/analysis.ipynb). The figure manifest:
 
 | Fig | Content | Generator | Path |
 |---|---|---|---|
-| **F1** | BOTH agents' learning at 4×4 (§7.3a): cop capture-rate panel + thief escape-rate panel, cross-seed mean±SE | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
+| **F1** | BOTH agents' learning at 5×5 — §5.1 final test (§7.3a): cop capture-rate panel + thief escape-rate panel, cross-seed mean±SE | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
 | **F1b** | BOTH agents' CUMULATIVE EPISODIC RETURN at 4×4 (§7.3a literal reward-convergence plot) | `python -m src.results.make_figures` (reads `returns_history.jsonl`) | `results/figures/return_curves.png` |
 | **F2** | Per-NETWORK TD-loss at 4×4 (§7.3b): cop net (QMIX/VDN/IQL) panel + thief Double-DQN panel | `python -m src.results.make_figures` | `results/figures/loss_curves.png` |
 | **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 + the terminal / barrier / view-radius states (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png`, `state_{terminal,barriers,view_radius}.png` |

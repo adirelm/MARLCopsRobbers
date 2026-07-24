@@ -209,21 +209,25 @@ before trusting its mean", not "QMIX is bad".
 
 ### F9 — mean final capture rate, algorithm × curriculum stage
 
-| Algorithm | stage 0 (2×2, 1 cop) | stage 1 (3×3, 1 cop) | stage 2 (4×4, **2 cops**) |
-|---|---|---|---|
-| IQL  | 0.998 | 0.947 | 0.816 |
-| VDN  | 0.998 | 0.947 | 0.845 |
-| QMIX | 0.999 | 0.920 | 0.628 |
+| Algorithm | stage 0 (2×2, 1 cop) | stage 1 (3×3, 1 cop) | stage 2 (4×4, **2 cops**) | stage 3 (5×5, 1 cop) |
+|---|---|---|---|---|
+| IQL  | 0.998 | 0.947 | 0.816 | 0.611 |
+| VDN  | 0.998 | 0.947 | 0.845 | 0.611 |
+| QMIX | 0.999 | 0.920 | 0.628 | **0.716** |
 
 **Finding — the arms only separate where the task is genuinely multi-agent.** The IQL and VDN rows
-are **identical** at stages 0 and 1 (0.998 / 0.9468 to four decimals), and that is a correctness
-signal rather than a coincidence: `env.curriculum.num_cops_by_stage = [1, 1, 2, 1]`, so those rungs
-train a **single** cop, and VDN's sum-decomposition `Q_tot = Σ_i Q_i` over one agent reduces exactly
-to IQL. Only stage 2 — the 2-cop team — creates a credit-assignment problem for a mixer to solve or
-botch, and only there do the three arms spread (0.816 / 0.845 / 0.628). This is the empirical
+are **identical** at every **1-cop** stage (0, 1, and the 5×5 stage 3: 0.998 / 0.9468 / 0.611), and
+that is a correctness signal rather than a coincidence: `env.curriculum.num_cops_by_stage = [1, 1, 2, 1]`,
+so those rungs train a **single** cop, and VDN's sum-decomposition `Q_tot = Σ_i Q_i` over one agent
+reduces exactly to IQL. Only stage 2 — the 2-cop team — creates a credit-assignment problem for a mixer
+to solve or botch, and only there do the three arms spread (0.816 / 0.845 / 0.628). This is the empirical
 justification for PRD K1's choice of the 4×4 two-cop stage as the comparison focus instead of the
-degenerate 1-cop rungs (§7.2 L4). Read left→right, every row also decays with board size + tighter
-view radius — the same partial-observability cost F6 plots, here shown per-arm.
+degenerate 1-cop rungs (§7.2 L4). **The 5×5 column (brief §5.1 final test) is the control that clinches
+it:** QMIX is *worst* at 4×4 (0.628, the 2-cop credit-assignment collapse) yet *best* at 5×5 (**0.716**,
+where there is no team to coordinate) — so QMIX's instability is a multi-agent effect, not a property of
+the harder board. Read left→right, every row also decays with board size + tighter view radius (the same
+partial-observability cost F6 plots) — except QMIX's 4×4→5×5 rise, which is exactly the 2-cop→1-cop drop
+in coordination burden.
 
 > Reproduce: `uv run python -m src.results.make_figures` (builders:
 > `src/results/plots_extra.py::plot_final_distribution` / `plot_capture_heatmap`); the per-seed

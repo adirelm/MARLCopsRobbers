@@ -7,13 +7,31 @@ from pathlib import Path
 
 import pytest
 
-from src.results.make_figures import _focus_stage, main
+from src.results._figure_stages import comparison_stage, final_stage, focus_stage
+from src.results.make_figures import main
 
 
 def test_focus_stage_prefers_most_covered_then_largest():
     records = [{"algorithm": a, "stage": 2, "seed": 7} for a in ("qmix", "vdn", "iql")]
     records += [{"algorithm": "qmix", "stage": 3, "seed": 7}]  # only qmix reached the slow stage
-    assert _focus_stage(records) == 2  # stage 2 (3 arms) beats stage 3 (1 arm)
+    assert focus_stage(records) == 2  # stage 2 (3 arms) beats stage 3 (1 arm)
+
+
+def test_final_stage_is_the_largest_present():
+    records = [{"algorithm": "qmix", "stage": s, "seed": 7} for s in (0, 1, 2, 3)]
+    assert final_stage(records) == 3  # §5.1 5x5 final test
+
+
+def test_comparison_stage_is_the_largest_multi_cop_stage():
+    cfg = {"env": {"curriculum": {"num_cops_by_stage": [1, 1, 2, 1]}}}
+    records = [{"algorithm": "qmix", "stage": s, "seed": 7} for s in (0, 1, 2, 3)]
+    assert comparison_stage(cfg, records) == 2  # 4x4 (2 cops), NOT the degenerate 1-cop 5x5
+
+
+def test_comparison_stage_falls_back_to_focus_when_no_multi_cop_stage():
+    cfg = {"env": {"curriculum": {"num_cops_by_stage": [1, 1, 1, 1]}}}
+    records = [{"algorithm": a, "stage": 1, "seed": 7} for a in ("qmix", "vdn", "iql")]
+    assert comparison_stage(cfg, records) == 1  # no 2-cop stage -> focus_stage
 
 
 def _write_runs(path: Path, with_returns: bool = False) -> None:

@@ -13,26 +13,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections import defaultdict
 from pathlib import Path
 
+from src.results._figure_stages import comparison_stage, final_stage, focus_stage
 from src.results.aggregate import final_values_by_seed, load_runs
 from src.results.plots import plot_comparison, plot_scaling, plot_two_agent_panels
 from src.results.plots_extra import plot_capture_heatmap, plot_final_distribution
 from src.utils.config_loader import load_config
-
-
-def _focus_stage(records: list[dict]) -> int:
-    """The LARGEST stage with the most algorithm coverage (robust to a partial run).
-
-    A partial run may have one slow stage reached by only some algorithms; the F5
-    comparison needs a stage where the most arms are present, preferring the largest.
-    """
-    algos_by_stage: dict[int, set] = defaultdict(set)
-    for rec in records:
-        algos_by_stage[rec["stage"]].add(rec["algorithm"])
-    most = max(len(algos) for algos in algos_by_stage.values())
-    return max(stage for stage, algos in algos_by_stage.items() if len(algos) == most)
 
 
 def _manifest(cfg: dict, records: list[dict]) -> dict:
@@ -67,7 +54,7 @@ def _return_curves(cfg: dict, fig_dir: Path) -> list[str]:
         records = _with_returns(load_runs(runs_dir / "history.jsonl"))
     if not records:
         return []
-    stage = _focus_stage(records)
+    stage = focus_stage(records)
     grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
     return [
         str(
@@ -110,14 +97,15 @@ def main(cfg: dict | None = None) -> list[str]:
     records = load_runs(Path(cfg["paths"]["runs_dir"]) / "history.jsonl")
     if not records:
         raise SystemExit("no runs in results/runs/history.jsonl — run scripts/run_results.py first")
-    stage = _focus_stage(records)  # the largest stage with the most algorithm coverage
-    grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
+    final = final_stage(records)  # §5.1 5x5 'final test' → the F1/F2 learning + loss curves
+    cmp_stage = comparison_stage(cfg, records)  # the multi-cop stage where algos separate (F5/F8)
+    fgrid = next(rec["grid"] for rec in records if rec["stage"] == final)
     saved = [
         str(
             plot_two_agent_panels(  # §7.3a: BOTH agents' learning (cop capture / thief escape)
                 records,
                 "capture_rate",
-                stage,
+                final,
                 [
                     ("cop", "Cop learning — capture rate (cop-training rounds)", "capture rate", None),
                     (
@@ -127,7 +115,7 @@ def main(cfg: dict | None = None) -> list[str]:
                         lambda m: 1.0 - m,
                     ),
                 ],
-                f"Both agents' learning at {grid}x{grid} (mean±SE over seeds)",
+                f"Both agents' learning at {fgrid}x{fgrid} — §5.1 final test (mean±SE over seeds)",
                 fig_dir / "learning_curves.png",
             )
         ),
@@ -135,19 +123,19 @@ def main(cfg: dict | None = None) -> list[str]:
             plot_two_agent_panels(  # §7.3b: the two NETS' losses (pooling would interleave them)
                 records,
                 "loss",
-                stage,
+                final,
                 [
                     ("cop", "Cop net TD-loss (QMIX/VDN/IQL)", "TD loss", None),
                     ("thief", "Thief Double-DQN TD-loss", "TD loss", None),
                 ],
-                f"Per-network training loss at {grid}x{grid} (mean±SE over seeds)",
+                f"Per-network training loss at {fgrid}x{fgrid} — §5.1 final test (mean±SE over seeds)",
                 fig_dir / "loss_curves.png",
             )
         ),
-        str(plot_comparison(records, "capture_rate", stage, fig_dir / "baseline_comparison.png")),
+        str(plot_comparison(records, "capture_rate", cmp_stage, fig_dir / "baseline_comparison.png")),
         str(plot_scaling(records, "capture_rate", fig_dir / "scaling.png")),
     ]
-    saved += _variety_figures(records, stage, fig_dir)  # V3 §9.3: BOX + HEATMAP families
+    saved += _variety_figures(records, cmp_stage, fig_dir)  # V3 §9.3: BOX + HEATMAP (2-cop focus)
     saved += _return_curves(cfg, fig_dir)
     manifest_path = Path(cfg["paths"]["experiment_manifest"])  # config-driven (no hardcoded path)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
