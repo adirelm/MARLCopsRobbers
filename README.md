@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (895 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (897 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (895 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (897 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -400,7 +400,7 @@ overlay state (`state_view_radius.png`) is referenced from [`docs/UX.md`](docs/U
 End-to-end evidence: [`results/subgames/full_match_5x5.redacted.json`](results/subgames/full_match_5x5.redacted.json)
 is a full 6-sub-game §3.5 report (role-only, PII-redacted) produced by `sdk.run_local_match` with FRESH
 nets — schema/pipeline proof (trained performance lives in the 60-run matrix behind F1/F5/F6). The SDK-only analysis
-notebook — LaTeX equations, the six plotted figures, citations, committed **executed** — is
+notebook — LaTeX equations, the nine plotted figures, citations, committed **executed** (freshness gated by tests/architecture/test_notebook_freshness.py) — is
 [`notebooks/analysis.ipynb`](notebooks/analysis.ipynb). The figure manifest:
 
 | Fig | Content | Generator | Path |
