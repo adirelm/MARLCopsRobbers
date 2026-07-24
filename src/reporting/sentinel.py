@@ -49,6 +49,20 @@ def already_sent(sentinel: str | Path, digest: str) -> bool:
     return digest in sent
 
 
+def has_open_intent(sentinel: str | Path) -> bool:
+    """Return whether a DANGLING ``intent`` (recorded, not yet ``sent``) exists.
+
+    ``send_lock`` uses this to decide whether a STALE ``<sentinel>.lock`` is safe to
+    reclaim. ``intent`` is appended immediately BEFORE dialing SMTP and the lockfile is
+    released BEFORE the dial, so a crash that left the lockfile but recorded NO open
+    intent provably never dialed SMTP — the lock is safe to steal (the MANDATORY email
+    is otherwise blocked forever). A dangling intent means delivery is UNKNOWN, so the
+    lock stays fail-CLOSED (``check_clear_to_send`` blocks that case too).
+    """
+    sent, intents = _entries(sentinel)
+    return bool(intents - sent)
+
+
 def _append(sentinel: str | Path, line: str) -> None:
     """Append one record line to the sentinel file (parent dirs created)."""
     path = Path(sentinel)

@@ -75,6 +75,19 @@ def test_run_and_log_uses_sdk_and_appends(tmp_path, cfg):
     assert len(out.read_text(encoding="utf-8").splitlines()) == 2
 
 
+def test_done_runs_ignores_env_semantics_a_stale_grid_still_counts_done(tmp_path, cfg):
+    """M2 (documented limitation, pinned): the resume key is (algorithm, seed, stage,
+    round) ONLY — it carries no env-semantics version. A combo whose recorded ``grid``
+    (stand-in for any changed env RULE) differs from the current config is STILL reported
+    done, i.e. reused not rebuilt. The manifest config_sha256 is the drift backstop."""
+    out = tmp_path / "history.jsonl"
+    records = history_records(cfg, "qmix", 7, 0, _history())
+    for rec in records:
+        rec["grid"] = 99  # env semantics changed underfoot; the resume key does not notice
+    append_records(out, records)
+    assert done_runs(out, required_rounds=2) == {("qmix", 7, 0)}  # reused, NOT rebuilt
+
+
 def test_history_records_omit_absent_returns_never_fabricate_zero(cfg):
     """codex W2 R2: a pre-§7.3(a) history (no return fields) must log records WITHOUT
     the return keys — a 0.0 default would fabricate flat-zero return curves."""

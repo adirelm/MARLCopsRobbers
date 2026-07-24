@@ -109,6 +109,10 @@ def action_mask(state: GlobalState, role: str, cfg: dict, idx: int = 0) -> np.nd
         # The transition also refuses to place on a cell that is ALREADY a barrier
         # (the cop stands on its own placement after placing) — mirror that here so
         # the mask never advertises a PLACE that would resolve to a free stay.
+        # BEHAVIOUR-NEUTRAL on the SHIPPED nets (train/serve fidelity preserved): the
+        # on-own-barrier edge state is never reached by the greedy served policy, so
+        # run_match stays cop 30 - thief 60 and eval_matchup --base-seed 1000 is
+        # byte-identical to the OLD-mask results/matchup/block_1000.json (re-verified).
         cell_placeable = pos not in state.barriers
         mask[int(Action.PLACE_BARRIER)] = actions_cfg["enable_barrier"] and budget_left and cell_placeable
 

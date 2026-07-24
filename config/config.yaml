@@ -370,6 +370,9 @@ wire_match:
 # partner-facing endpoints through a tunnel/cloud on match day.
 wire_agent:
   host: "127.0.0.1"
+  max_sessions: 8                 # LRU cap on live per-session snapshots (a match uses
+                                  #   sg-0..sg-5); each fresh move deep-copies the full torch
+                                  #   net, so the oldest session is evicted past this bound
 
 # ============================================================================
 # CLOUD (BRIEF §5.3 stage 2; §6 step 8) — LIVE on RENDER since 2026-07-22.

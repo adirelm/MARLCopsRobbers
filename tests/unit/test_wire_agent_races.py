@@ -23,6 +23,8 @@ import httpx
 
 from src.marl.env.actions import Action
 from src.mcp.wire_agent import make_wire_agent
+from src.sdk.sdk import MarlSDK
+from src.services.bonus_policies import AdaptiveThiefPolicy
 from tests.unit.test_wire_agent import _AUTH, _TOKEN, StubPolicy, _move, _new
 
 
@@ -99,3 +101,70 @@ def test_identical_hello_and_ticks_redraw_identical_actions_for_a_stochastic_pol
     finally:
         agent.close()
     assert runs[0] == runs[1] == runs[2]  # a void replay reproduces the first attempt exactly
+
+
+def _steps_since_seen(agent) -> int:
+    """Read the internal wire visibility counter for sub-game sg-0."""
+    return agent._server._sessions["sg-0"]["wire"]["steps_since_seen"]
+
+
+def test_a_newest_tick_recompute_does_not_double_advance_the_visibility_counter(cfg):
+    """W1: the snapshot restore rewinds the wire ``steps_since_seen`` too, not just policy+rng.
+
+    A novel body for the already-answered newest tick recomputes; without rewinding the wire
+    state the visibility counter advances TWICE (once per build_observation) instead of once,
+    diverging from a clean single request for the same tick.
+    """
+    agent = make_wire_agent(cfg, "cop", StubPolicy([Action.UP, Action.LEFT]), _TOKEN, port=0)
+    try:
+        with httpx.Client(base_url=f"http://127.0.0.1:{agent.port}") as client:
+            client.post("/new_sub_game", json=_new(), headers=_AUTH)
+            client.post("/request_move", json=_move(0, pos=(0, 0)), headers=_AUTH)  # first body
+            client.post("/request_move", json=_move(0, pos=(4, 4)), headers=_AUTH)  # novel newest-tick body
+            recompute = _steps_since_seen(agent)
+    finally:
+        agent.close()
+    clean = make_wire_agent(cfg, "cop", StubPolicy([Action.UP]), _TOKEN, port=0)
+    try:
+        with httpx.Client(base_url=f"http://127.0.0.1:{clean.port}") as client:
+            client.post("/new_sub_game", json=_new(), headers=_AUTH)
+            client.post("/request_move", json=_move(0, pos=(4, 4)), headers=_AUTH)  # one clean request
+            single = _steps_since_seen(clean)
+    finally:
+        clean.close()
+    assert recompute == single == 1  # the stale advance was rewound, not compounded onto the recompute
+
+
+def test_a_recompute_preserves_a_barrier_triggered_sticky_switch(cfg):
+    """W2: a fired AdaptiveThiefPolicy switch is match-sticky and MUST survive the snapshot rewind.
+
+    The pre-advance deepcopy captured ``switched=False``; restoring it verbatim would erase a
+    barrier sighting, contradicting the deliberate match-level stickiness (bonus_policies docstring
+    + ANALYSIS §12). The restore re-applies the monotonic switch instead.
+    """
+    net = MarlSDK(cfg).fresh_net("thief")
+    agent = make_wire_agent(cfg, "thief", AdaptiveThiefPolicy(cfg, net), _TOKEN, port=0)
+    try:
+        with httpx.Client(base_url=f"http://127.0.0.1:{agent.port}") as client:
+            client.post("/new_sub_game", json=_new(role="thief"), headers=_AUTH)
+            client.post("/request_move", json=_move(0, barriers=[(2, 1)], left=4), headers=_AUTH)  # trips it
+            assert agent._server.policy.switched is True
+            client.post("/request_move", json=_move(0, barriers=(), left=5, pos=(2, 3)), headers=_AUTH)
+            assert agent._server.policy.switched is True  # the sticky switch survived the rewind
+    finally:
+        agent.close()
+
+
+def test_sessions_are_lru_capped_so_authenticated_hellos_cannot_grow_memory(cfg):
+    """W3: past ``wire_agent.max_sessions`` hellos evict the oldest session (bounded snapshots)."""
+    cap = int(cfg["wire_agent"]["max_sessions"])
+    agent = make_wire_agent(cfg, "cop", StubPolicy([Action.UP]), _TOKEN, port=0)
+    try:
+        with httpx.Client(base_url=f"http://127.0.0.1:{agent.port}") as client:
+            for i in range(cap + 5):
+                client.post("/new_sub_game", json=_new(sid=f"sg-{i}"), headers=_AUTH)
+            live = set(agent._server._sessions)
+    finally:
+        agent.close()
+    assert len(live) == cap  # never grows past the cap
+    assert "sg-0" not in live and f"sg-{cap + 4}" in live  # oldest evicted, newest kept

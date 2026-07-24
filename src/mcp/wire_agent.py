@@ -1,30 +1,27 @@
 """Our-side §9 wire agent — the partner-brief HTTP adapter serving OUR policies.
 
-Serves docs/interfaces/partner_agent_brief.md §2 verbatim over a STDLIB
-:class:`ThreadingHTTPServer` (no new web-framework dependency): unauthenticated
-``GET /health``; bearer-authed ``POST /new_sub_game`` (FULL per-session reset —
-policy hidden state, visibility counter, idempotency cache — because a voided
-sub-game is replayed under the SAME ``session_id``) and ``POST /request_move``
-(rebuilds the exact env Observation + legality mask via :mod:`src.mcp.wire_obs`,
-advances the plugged-in ``act()``+``reset()`` policy — ``MarlSDK.build_policy``
-output, e.g. a :class:`RecurrentPolicy` whose hidden state moves one tick per
-move — and answers the brief's action string). A re-POSTed IDENTICAL
-``(session_id, tick)`` body returns the cached answer WITHOUT re-advancing the
-recurrent state. A DIFFERING body is honored ONLY for the newest answered tick —
-the stale-pre-void race (a server thread finishing a dead request AFTER the void
-re-hello): the pre-advance snapshot (policy + rng, deep-copied before every fresh
-``act``) is RESTORED first so the genuine recompute sees the state it would have
-had; a novel body for an OLDER tick is a 409. A lock serializes acting; the rng
-reseeds per hello (a void replay redraws the SAME stream). Acting is greedy (ε=0,
-decentralized execution — the ``AgentController`` convention). One server serves
-ONE role; ``make_wire_agent`` returns a started handle.
+Serves partner_agent_brief.md §2 over a STDLIB :class:`ThreadingHTTPServer`:
+unauthenticated ``GET /health``; bearer-authed ``POST /new_sub_game`` (FULL
+per-session reset — hidden state, visibility counter, cache — a void replays the
+SAME ``session_id``) and ``POST /request_move`` (rebuilds the exact env
+Observation + mask via :mod:`src.mcp.wire_obs`, advances the ``act()``+``reset()``
+policy from ``MarlSDK.build_policy``, answers the action string). An IDENTICAL
+``(session_id, tick)`` re-POST replays the cache without re-advancing z_t; a
+DIFFERING body is honored ONLY for the newest tick (the stale-pre-void race — a
+dead request finishing AFTER the void re-hello). For that, a pre-advance snapshot
+(policy + rng + the wire visibility counter, deep-copied before every ``act`` —
+the full torch-net copy is why ``_sessions`` is LRU-capped at
+``wire_agent.max_sessions``) is RESTORED, EXCEPT a fired sticky policy switch is
+kept (match-level adaptation, not per-attempt); a novel body for an OLDER tick is
+a 409. A lock serializes acting; the rng reseeds per hello (a void redraws the
+SAME stream); acting is greedy (ε=0). One server serves ONE role.
 """
 
 from __future__ import annotations
 
-import copy
 import json
 import threading
+from copy import deepcopy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from random import Random
 
@@ -94,7 +91,8 @@ class WireAgentServer(ThreadingHTTPServer):
         """Bind the role's acting policy + bearer token; start with no sessions."""
         super().__init__(address, _WireHandler)
         self.cfg, self.role, self.policy, self.token = cfg, role, policy, token
-        self._sessions: dict[str, dict] = {}
+        self._sessions: dict[str, dict] = {}  # insertion-ordered => LRU by re-hello
+        self._max_sessions = int(cfg.get("wire_agent", {}).get("max_sessions", 8))
         self._active: str | None = None
         self._lock = threading.Lock()  # a timeout re-POST must never double-advance z_t
         self._rng = Random(0)  # reseeded per hello: stochastic policies (flee pre-contact,
@@ -106,8 +104,11 @@ class WireAgentServer(ThreadingHTTPServer):
             if payload["your_role"] != self.role:
                 raise ValueError(f"this server plays {self.role!r}, not {payload['your_role']!r}")
             wire = wire_obs.new_session(self.role, payload["grid"], payload["max_moves"], self.cfg)
+            self._sessions.pop(payload["session_id"], None)  # re-hello: move to newest (LRU)
             self._sessions[payload["session_id"]] = {"wire": wire, "cache": {}, "last_tick": -1}
             self._active = payload["session_id"]
+            while len(self._sessions) > self._max_sessions:  # W3: bound the deep-copied snapshots
+                self._sessions.pop(next(iter(self._sessions)))  # evict the least-recently-helloed
             self._rng = Random(0)  # FRESH deterministic stream: a void replay reproduces attempt 1
             self.policy.reset()
         return {"ok": True}
@@ -130,8 +131,12 @@ class WireAgentServer(ThreadingHTTPServer):
             if cached is not None:
                 if tick != session["last_tick"]:  # novel body for an OLDER tick -> 409
                     raise RuntimeError(f"tick {tick} is sealed; only the newest tick may recompute")
-                self.policy, self._rng = session["snap"]  # rewind the stale pre-void advance of z_t
-            session["snap"] = (copy.deepcopy(self.policy), copy.deepcopy(self._rng))  # pre-advance state
+                switched = getattr(self.policy, "switched", False)  # W2: sticky match-level switch
+                self.policy, self._rng, session["wire"] = session["snap"]  # rewind z_t AND z_vis (W1)
+                if switched:
+                    self.policy.switched = True  # a fired switch is monotonic across the rewind
+            # pre-advance snapshot: policy + rng + wire visibility counter (all rewound together)
+            session["snap"] = (deepcopy(self.policy), deepcopy(self._rng), deepcopy(session["wire"]))
             obs = wire_obs.build_observation(session["wire"], payload, self.cfg)
             mask = [bool(b) for b in wire_obs.build_mask(session["wire"], payload, self.cfg)]
             action = self.policy.act([obs], [mask], 0.0, self._rng)[0]
@@ -165,16 +170,11 @@ class WireAgent:
 def make_wire_agent(cfg: dict, role: str, policy: object, token: str, port: int = 0) -> WireAgent:
     """Start one role's wire agent; return the running :class:`WireAgent` handle.
 
-    Args:
-        cfg: The loaded config. The bind host is ``wire_agent.host`` when present
-            (key owned by the referee-side config), else ``mcp.host``.
-        role: ``"cop"`` or ``"thief"`` — the only ``your_role`` this server accepts.
-        policy: Any ``act()``+``reset()`` acting object (``MarlSDK.build_policy``).
-        token: The bearer token every POST must carry (§5.3; value never tracked).
-        port: TCP port to bind; ``0`` picks an ephemeral free port (tests).
-
-    Returns:
-        A started :class:`WireAgent`; call ``close()`` to stop it.
+    ``cfg`` supplies the bind host (``wire_agent.host`` else ``mcp.host``) and the
+    session cap; ``role`` (``"cop"``/``"thief"``) is the only ``your_role`` accepted;
+    ``policy`` is any ``act()``+``reset()`` object (``MarlSDK.build_policy``); ``token``
+    is the bearer every POST carries (§5.3, value never tracked); ``port`` 0 picks an
+    ephemeral free port (tests). Call ``close()`` on the handle to stop it.
     """
     host = cfg.get("wire_agent", {}).get("host", cfg["mcp"]["host"])
     return WireAgent(WireAgentServer((host, int(port)), cfg, role, policy, token))

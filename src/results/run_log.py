@@ -6,6 +6,15 @@ keys ``algorithm`` / ``seed`` / ``stage`` / ``grid`` + the round metrics ``round
 F1 (learning curve), F2 (loss), F5 (algo comparison), and F6 (curriculum stages). ``done_runs``
 makes the matrix RESUMABLE — a ``(algorithm, seed, stage)`` with ALL its rounds logged is skipped.
 Routes through the SDK only (serial + thread-capped, so a full run cannot freeze the host).
+
+Resume-semantics limitation (M2): the resume key is ``(algorithm, seed, stage, round)`` and
+carries NO env-semantics/config version. If the env RULES change mid-project (reward shape,
+board, transition), an already-logged combo is silently REUSED — ``done_runs`` cannot tell a
+stale run from a fresh one, so resume only ever ADDS combos, never invalidates stale ones. The
+backstop is the ``make_figures`` ``experiment_manifest.json`` ``config_sha256`` pin: it records
+the config the figures were built under, so a changed config surfaces as a manifest-hash
+mismatch against the plotted run. To force a clean rebuild after an env-rule change, DELETE the
+run log (a lightweight, explicit operator action — kept out of the hot resume path by design).
 """
 
 from __future__ import annotations
@@ -59,6 +68,10 @@ def done_runs(path: str | Path, required_rounds: int) -> set[tuple[str, int, int
     otherwise be declared complete after ONE round and its remaining rounds skipped
     forever (codex W2 R1). Re-running a partial combo re-appends the full history;
     ``aggregate.load_runs`` keeps the LAST record per round key.
+
+    NOTE (M2): the key ignores env semantics (``grid`` and any env RULE) — a stale run
+    under changed env rules is REUSED, not rebuilt (see the module-level resume-semantics
+    limitation; the manifest ``config_sha256`` is the drift backstop).
     """
     path = Path(path)
     if not path.exists():
