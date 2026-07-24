@@ -104,10 +104,10 @@ class SelfPlayTrainer:
     def _round(self, round_idx: int) -> dict:
         """Run one best-response round; return its history record.
 
-        Records BOTH agents' mean CUMULATIVE EPISODIC RETURN (``cop_return`` /
-        ``thief_return``) next to the capture rate — §7.3(a) mandates learning curves
-        showing cumulative-reward convergence, so the plotted quantity is the real
-        episodic return, not only a proxy metric.
+        Records BOTH agents' mean PER-AGENT (team-mean) CUMULATIVE EPISODIC RETURN
+        (``cop_return`` / ``thief_return``) next to the capture rate — §7.3(a) mandates
+        learning curves showing cumulative-reward convergence. The per-agent mean (not a
+        team SUM) keeps the 1-cop and 2-cop stages on the same scale for the F1b curve.
         """
         role = training_role(round_idx, self._window_k)
         cop_pol, thief_pol, trainee = self._policies(role)
@@ -121,8 +121,8 @@ class SelfPlayTrainer:
             self._store(out)
             self._env_steps += len(out["cop"])
             captures += int(out["capture"])
-            for key in returns:  # sum every step's per-agent reward = the episodic return
-                returns[key] += sum(sum(step["rews"]) for step in out[key])
+            for key in returns:  # per-AGENT (team-mean) episodic return so 1-cop vs 2-cop stages compare (R3)
+                returns[key] += sum(sum(step["rews"]) / len(step["rews"]) for step in out[key])
             if len(buf) >= self._min_replay:  # honor the configured replay warmup
                 losses += [trainee.update(buf.sample(self._batch))["loss"] for _ in range(self._update_ratio)]
         (self._cop_pool if role == "cop" else self._thief_pool).add(trainee.online_net)

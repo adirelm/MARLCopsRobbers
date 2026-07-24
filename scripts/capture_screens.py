@@ -39,8 +39,11 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
         pygame.image.save(surface, str(path))
         saved.append(str(path))
 
+    cops = int(cfg["env"]["num_cops"])  # V3 no-hardcode: graded cop count + base seed from config
+    seed = int(cfg["training"]["seeds"][0])
+
     def _running(size: int) -> object:  # a mid-run frame (3 heuristic moves in)
-        session = sdk.spectator_session(size, size, num_cops=1, seed=7)
+        session = sdk.spectator_session(size, size, num_cops=cops, seed=seed)
         frame = session.reset()
         for _ in range(3):
             frame = session.step()

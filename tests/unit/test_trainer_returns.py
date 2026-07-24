@@ -30,6 +30,25 @@ def test_round_history_carries_cumulative_returns_for_both_roles():
     assert isinstance(record["thief_return"], float)
 
 
+def test_cop_return_is_per_agent_mean_not_team_sum(monkeypatch):
+    """A 2-cop stage reports the per-AGENT (team-mean) return, not ~2x the team SUM (codex R3).
+
+    Feeds a synthetic rollout (each of 2 cops earns 1.0/step over 2 steps); the per-agent
+    mean is 2.0, whereas the old team-SUM would report 4.0 — biasing the F1b cross-stage curve.
+    """
+    trainer = SelfPlayTrainer(_fast_cfg(), seed=1, h=3, w=3, num_cops=2)
+    fake = {
+        "cop": [{"rews": [1.0, 1.0]}, {"rews": [1.0, 1.0]}],
+        "thief": [{"rews": [-1.0]}, {"rews": [-1.0]}],
+        "capture": True,
+    }
+    monkeypatch.setattr(trainer, "_store", lambda out: None)  # skip buffer ingest (synthetic steps)
+    monkeypatch.setattr("src.services.trainer.collect_episode", lambda *a, **k: fake)
+    record = trainer.train_stage(rounds=1)[0]
+    assert record["cop_return"] == 2.0  # per-agent mean, NOT 4.0 team-sum
+    assert record["thief_return"] == -2.0  # single thief unaffected by the mean
+
+
 def test_returns_are_episodic_sums_not_per_step_means():
     """A cumulative return spans a whole episode, so it is not bounded by a single step reward.
 

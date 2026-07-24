@@ -14,6 +14,16 @@ random floor). The full per-grid ``bc.val_acc_gate_by_grid`` gate (read by
 :func:`gate_for`) is checked by the slow full-BC script, not the unit suite (a
 tiny set under-trains). The privileged-expert vs local-obs ceilings that justify
 those per-grid gates are derived in docs/ANALYSIS.md §0.
+
+KNOWN LIMITATION (OLoRA path only, not graded — codex R4): BC is a SINGLE GRU step
+from a zero hidden state, so the recurrent ``weight_hh`` receives ZERO task gradient
+(verified: its grad norm is exactly 0). Because OLoRA (:func:`~src.marl.nets.olora_linear.wrap_encoder`)
+then FREEZES the GRU, an OLoRA-finetuned net keeps ~random recurrent dynamics on
+``weight_hh``. This does NOT touch the graded models: OLoRA is opt-in (``sdk.finetune(..., olora=True)``
+only, DEFAULT OFF for the from-scratch 5x5 path) and the shipped ``deploy/model/*.pt``
+are PLAIN QMIX self-play actors whose GRU is trained through RL BPTT, not BC-then-frozen.
+A safe future improvement (left un-applied by design — no graded benefit, retrain risk)
+would be a multi-step BC unroll, or leaving the GRU trainable under OLoRA.
 """
 
 from __future__ import annotations

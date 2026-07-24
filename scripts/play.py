@@ -23,7 +23,8 @@ def main() -> None:
     parser.add_argument("--grid", type=int, default=5)
     args = parser.parse_args()
     cfg = load_config()
-    session = MarlSDK(cfg).spectator_session(args.grid, args.grid, num_cops=1, seed=args.seed)
+    cops = int(cfg["env"]["num_cops"])  # V3 no-hardcode: graded cop count from config (was a bare 1)
+    session = MarlSDK(cfg).spectator_session(args.grid, args.grid, num_cops=cops, seed=args.seed)
     run_app(InProcStateClient(session))  # pragma: no cover - requires pygame
 
 

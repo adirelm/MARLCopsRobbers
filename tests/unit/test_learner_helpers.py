@@ -59,6 +59,25 @@ def test_masked_huber_no_grad_flows_into_mask() -> None:
     assert not loss.requires_grad
 
 
+def test_masked_huber_broadcasts_mask_before_reduction() -> None:
+    """A broadcastable [B,T,1] mask on [B,T,N] TD errors divides by the true count, not scaled by N (R2)."""
+    torch.manual_seed(SEED)
+    td = torch.randn(2, 3, 4)
+    full = masked_huber(td, torch.ones(2, 3, 4), 1.0)  # explicit exact-shape mask
+    bcast = masked_huber(td, torch.ones(2, 3, 1), 1.0)  # broadcastable mask over the agent axis
+    assert torch.allclose(bcast, full)  # equal — NOT 4x the full-mask loss
+
+
+def test_masked_huber_exact_shape_mask_numerically_unchanged() -> None:
+    """The exact-shape callers ([B,T,1] mask on [B,T,1] error) are numerically unchanged by the broadcast."""
+    torch.manual_seed(SEED)
+    td = torch.randn(2, 3, 1)
+    mask = torch.tensor([[[1.0], [1.0], [0.0]], [[1.0], [0.0], [1.0]]])
+    per = functional.huber_loss(td, torch.zeros_like(td), delta=1.0, reduction="none")
+    ref = (per * mask).sum() / mask.sum()  # mean over the 4 kept entries
+    assert torch.allclose(masked_huber(td, mask, 1.0), ref)
+
+
 def test_bptt_unroll_shape_and_matches_manual_roll(cfg: dict) -> None:
     """bptt_unroll output is [B,T+1,N,A] and equals a manual per-step roll."""
     torch.manual_seed(SEED)

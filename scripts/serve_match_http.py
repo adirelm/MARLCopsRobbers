@@ -63,7 +63,10 @@ async def _play(cfg: dict, urls: dict, tokens: dict) -> dict:
         await cop.health()
         await thief.health()
         games = int(cfg["game"]["num_games"])  # §5.3 stage 1: the WHOLE game over real HTTP
-        return await MatchRunner(Referee(cfg, 5, 5, 1), games, 7).play_match(cop, thief)
+        grid = int(cfg["game"]["grid_size"])  # V3 no-hardcode: the graded board from config, not a literal
+        num_cops = int(cfg["env"]["num_cops"])  # graded match cop count from config (was a bare 1)
+        seed = int(cfg["training"]["seeds"][0])  # deterministic base seed s0 from config (was a bare 7)
+        return await MatchRunner(Referee(cfg, grid, grid, num_cops), games, seed).play_match(cop, thief)
 
 
 def main() -> dict:

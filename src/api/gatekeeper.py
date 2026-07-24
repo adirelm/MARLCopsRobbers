@@ -6,9 +6,8 @@ then a FIFO overflow queue absorbs the excess (NO crash) and DRAINS as tokens re
 full queue (``max_queue``) rejects with an explicit error and logs it. Every call is
 logged (``log_all_calls``); the clock is injectable for deterministic tests;
 ``get_queue_status`` reports per-channel queue depth. At runtime the graded **Gmail
-report** send is routed through it (``reporting/send.py``); the ``peer_mcp`` /
-the ``bearer_get``/``bearer_post`` httpx wrappers are the
-governed path for HTTP egress (peer-MCP traffic itself uses the FastMCP client transport).
+report** send routes through it (``reporting/send.py``); ``bearer_get``/``bearer_post`` are
+the governed HTTP-egress path (peer-MCP traffic itself uses the FastMCP client transport).
 
 Input: the versioned rate-limit JSON (``_validate_config`` -> ValueError) + an injectable
 clock; per call, ``(channel, thunk)`` (``_validate_input`` -> TypeError).
@@ -16,12 +15,22 @@ Output: the thunk's result when admitted, the ``DEFERRED`` sentinel when queued,
 per-channel queue depths from ``get_queue_status``.
 Setup: ``ApiGatekeeper()`` reads ``config/rate_limits.json``; pass ``path``/``clock`` to
 inject a test spec + a deterministic clock (no network, no global state).
+
+Concurrency (T5.9 wave-3): FastMCP dispatches on worker threads, so every bucket/queue
+TRANSACTION is one-lock guarded (burst can't be over-admitted; ``get_queue_status`` is a
+consistent snapshot), yet admitted thunks RUN OUTSIDE the lock — a thunk may re-enter
+``execute`` and re-taking the lock would self-deadlock. The overflow queue is BEST-EFFORT,
+NOT a background worker: it flushes only when a LATER ``execute`` frees tokens, so every
+caller treats ``DEFERRED`` as terminal (send returns ``reason=deferred``; the peer RAISES).
+A drained call is a PRIOR caller's, so its failure is caught + logged (``_run_isolated``),
+never raised into the unrelated caller that triggered the drain.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 from collections import deque
 from collections.abc import Callable
@@ -105,6 +114,7 @@ class ApiGatekeeper:
         }
         self._queues: dict[str, deque] = {ch: deque() for ch in self._buckets}
         self._max_queue = int(spec["max_queue"])
+        self._lock = threading.Lock()  # guards each bucket/queue transaction (thunks run OUTSIDE it)
 
     def execute(self, channel: str, call: Callable[[], object]) -> object:
         """Run ``call`` now if a token is free (FIFO-fair), else enqueue (or reject if full).
@@ -127,27 +137,48 @@ class ApiGatekeeper:
         _validate_input(channel, call)
         if channel not in self._buckets:
             raise KeyError(f"unknown egress channel {channel!r}")
-        self._drain(channel)
-        if not self._queues[channel] and self._buckets[channel].try_consume():
-            return self._run(channel, call)
-        if len(self._queues[channel]) >= self._max_queue:
+        # DECIDE under the lock (atomic token/queue transaction); EXECUTE thunks after
+        # releasing it — a thunk may itself call execute() and must not re-enter the lock.
+        with self._lock:
+            drained = self._drain_collect(channel)
+            if not self._queues[channel] and self._buckets[channel].try_consume():
+                outcome = "run"
+            elif len(self._queues[channel]) >= self._max_queue:
+                outcome = "reject"
+            else:
+                self._queues[channel].append(call)
+                _log.info("egress channel=%s status=queued depth=%d", channel, len(self._queues[channel]))
+                outcome = "defer"
+        for queued in drained:  # FIFO: prior deferrals run before this call; failures isolated
+            self._run_isolated(channel, queued)
+        if outcome == "reject":
             _log.error("egress channel=%s status=rejected reason=queue_full", channel)
             raise RuntimeError(f"egress channel {channel!r} queue full (max_queue={self._max_queue})")
-        self._queues[channel].append(call)
-        _log.info("egress channel=%s status=queued depth=%d", channel, len(self._queues[channel]))
+        if outcome == "run":
+            return self._run(channel, call)
         return DEFERRED
 
-    def _drain(self, channel: str) -> None:
-        """Flush queued calls FIFO while tokens are available."""
+    def _drain_collect(self, channel: str) -> list[Callable[[], object]]:
+        """Pop queued calls FIFO while tokens are available (charges tokens; does NOT run them)."""
         queue, bucket = self._queues[channel], self._buckets[channel]
+        drained: list[Callable[[], object]] = []
         while queue and bucket.try_consume():
-            self._run(channel, queue.popleft())
+            drained.append(queue.popleft())
+        return drained
 
     def _run(self, channel: str, call: Callable[[], object]) -> object:
         """Execute one admitted call (``log_all_calls``)."""
         _log.info("egress channel=%s status=executed", channel)
         return call()
 
+    def _run_isolated(self, channel: str, call: Callable[[], object]) -> None:
+        """Run a DRAINED (prior-deferred) call, absorbing its failure so no later caller is corrupted."""
+        try:
+            self._run(channel, call)
+        except Exception:
+            _log.exception("egress channel=%s status=drained_call_failed", channel)
+
     def get_queue_status(self) -> dict[str, int]:
-        """Return the per-channel FIFO overflow-queue depth."""
-        return {channel: len(queue) for channel, queue in self._queues.items()}
+        """Return the per-channel FIFO overflow-queue depth (a consistent locked snapshot)."""
+        with self._lock:
+            return {channel: len(queue) for channel, queue in self._queues.items()}

@@ -59,3 +59,40 @@ def test_dribbling_peer_faults_within_the_wall_clock_budget():
     finally:
         sock.close()
     assert elapsed < budget + 0.15  # bounded by join(budget), NOT by when the peer stops dribbling
+
+
+def test_abandoned_workers_are_bounded_by_the_inflight_cap():
+    """C4: repeated dribbling voids cannot accumulate orphan threads past the per-client cap."""
+    block = threading.Event()  # never set during the test -> stub workers stay alive (orphans)
+
+    def blocking_post(url, token, payload, timeout):
+        block.wait(30)  # every attempt hangs past the budget, like a dribbling peer
+
+    cap = 3
+    base = threading.active_count()
+    client = WireClient(
+        "http://stub.test", "tok", timeout_s=0.02, retries=0, post_fn=blocking_post, max_inflight=cap
+    )
+    try:
+        for _ in range(25):
+            with pytest.raises(VoidSubGame):
+                client.request_move({"session_id": "s", "tick": 0})
+        assert threading.active_count() - base <= cap  # bounded at the cap, NOT ~25 leaked orphans
+    finally:
+        block.set()  # release the orphans so they wind down
+
+
+def test_health_probe_is_bounded_by_the_wall_clock():
+    """C4: health() routes through the wall clock, so a hung partner cannot make it outlast the budget."""
+    hang = threading.Event()
+
+    def hanging_get(url, token, timeout):
+        hang.wait(30)  # ignore the scalar timeout, like a dribbling/hung /health
+
+    client = WireClient("http://stub.test", "tok", timeout_s=0.05, retries=0, get_fn=hanging_get)
+    started = time.monotonic()
+    try:
+        assert client.health() is False  # an expiry just reads as "not healthy"
+        assert time.monotonic() - started < 0.05 + 0.2  # bounded by the wall clock, not 30s
+    finally:
+        hang.set()

@@ -153,14 +153,15 @@ class QmixLearner:
         grad_norm = clip_grad_norm_(self._clip_params(), self.grad_clip_norm)
         self.optimizer.step()
         self._maybe_sync()
-        loss_v, q_v = float(loss.detach()), float(q_tot.mean().detach())
-        return {"loss": loss_v, "grad_norm": float(grad_norm), "q_tot": q_v}
+        fmask = data["filled"].float().unsqueeze(-1)  # q_tot telemetry over FILLED steps only (R3)
+        q_v = float(((q_tot * fmask).sum() / fmask.sum().clamp(min=1.0)).detach())
+        return {"loss": float(loss.detach()), "grad_norm": float(grad_norm), "q_tot": q_v}
 
     def _clip_params(self) -> list[Tensor]:
-        """Return every trainable parameter (net + mixer) for grad clipping."""
-        params = list(self.online_net.parameters())
+        """Trainable (``requires_grad``) net+mixer params: a frozen param's stale grad never clips (R1)."""
+        params = [p for p in self.online_net.parameters() if p.requires_grad]
         if self.mixer is not None:
-            params += list(self.mixer.parameters())
+            params += [p for p in self.mixer.parameters() if p.requires_grad]
         return params
 
     def _maybe_sync(self) -> None:

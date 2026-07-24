@@ -84,4 +84,5 @@ def wrap_encoder(net: RecurrentQNet, cfg: dict) -> RecurrentQNet:
             net.encoder[idx] = OLoRALinear(module, rank, scale)
     for param in net.gru.parameters():
         param.requires_grad_(False)  # freeze the transferred recurrent backbone
+        param.grad = None  # drop any stale BC grad so it can't leak into the learner's clip norm (R1)
     return net

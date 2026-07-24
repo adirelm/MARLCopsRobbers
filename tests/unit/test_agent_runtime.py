@@ -7,6 +7,8 @@ a role bearer token to its scoped claims. torch seeded.
 
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 import pytest
 import torch
@@ -63,14 +65,17 @@ def test_act_is_idempotent_on_retried_tick(cfg):
     assert torch.equal(ctrl._sessions["s1"]["policy"]._hidden, hidden_after_first)
 
 
-def test_act_rejects_a_regressing_tick(cfg):
-    """A tick below the last advanced tick is rejected (idempotency contract)."""
+def test_act_rejects_a_non_sequential_tick(cfg):
+    """An uncached tick that is not exactly last+1 (a gap OR a regress) is rejected."""
     ctrl = _controller(cfg)
     ctrl.new_session("s1")
     image, scalars, legal = _obs(cfg)
-    ctrl.act("s1", 5, image, scalars, legal)
-    with pytest.raises(ValueError, match="regress"):
-        ctrl.act("s1", 3, image, scalars, legal)
+    with pytest.raises(ValueError, match="breaks the sequence"):
+        ctrl.act("s1", 5, image, scalars, legal)  # gap from a fresh session (last=-1, expected 0)
+    ctrl.act("s1", 0, image, scalars, legal)
+    ctrl.act("s1", 1, image, scalars, legal)
+    with pytest.raises(ValueError, match="breaks the sequence"):
+        ctrl.act("s1", 3, image, scalars, legal)  # gap forward (last=1, expected 2)
 
 
 def test_new_session_resets_hidden_stream(cfg):
@@ -81,6 +86,50 @@ def test_new_session_resets_hidden_stream(cfg):
     before = ctrl._sessions["s1"]
     ctrl.new_session("s1")
     assert ctrl._sessions["s1"] is not before
+
+
+class _CountingSDK:
+    """Build a policy whose act() counts invocations and returns a distinct action each call."""
+
+    def __init__(self) -> None:
+        self.calls: list[int] = []
+
+    def build_policy(self, role, net, n):
+        sdk = self
+
+        class _Policy:
+            def act(self, obs_list, mask_list, eps, rng):
+                sdk.calls.append(1)
+                return [len(sdk.calls) - 1]  # distinct per real advance -> reveals a double-advance
+
+        return _Policy()
+
+
+def test_concurrent_retry_of_same_tick_advances_gru_exactly_once():
+    """Two threads racing the SAME (session, tick) advance z_t once and share one cached action.
+
+    No sleeps: a barrier releases both threads into act() together. The per-session lock
+    serializes the check->advance->commit transaction, so the second thread hits the cache
+    instead of re-running the net (the unlocked code double-advanced — see probe_c1).
+    """
+    sdk = _CountingSDK()
+    ctrl = AgentController(sdk, "cop", object(), n_agents=1)
+    ctrl.new_session("s1")
+    args = ("s1", 0, [[[0.0]]], [0.0], [True])
+    barrier = threading.Barrier(2, timeout=5)
+    out: dict[int, int] = {}
+
+    def worker(i: int) -> None:
+        barrier.wait()
+        out[i] = ctrl.act(*args)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(5)
+    assert len(sdk.calls) == 1  # the GRU advanced exactly once for the retried tick
+    assert out[0] == out[1] == 0  # both callers observe the same committed action
 
 
 def test_build_verifier_returns_static_verifier(cfg):

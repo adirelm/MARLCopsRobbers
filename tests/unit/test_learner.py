@@ -22,6 +22,7 @@ from __future__ import annotations
 import copy
 
 import torch
+from torch.nn.utils import clip_grad_norm_
 
 from src.marl.learner._learner_helpers import to_tensors
 from src.marl.learner.learner_base import QmixLearner
@@ -143,6 +144,30 @@ def test_double_q_decoupling_uses_online_argmax(cfg: dict) -> None:
     learner.double_q = False
     vanilla = learner._compute_target(data, q_online_next, q_target_next)
     assert not torch.allclose(ddqn, vanilla)
+
+
+def test_clip_params_excludes_frozen_param_stale_grad(cfg: dict) -> None:
+    """A frozen param's stale grad is excluded from the clip norm (never inflates / over-clips) — R1."""
+    learner = _cop_learner(cfg, n_agents=2)
+    learner.update(make_batch(b=2, t=3, n=2, active=[True, True], seed=11))  # real grads on trainables
+    gru_p = next(p for name, p in learner.online_net.named_parameters() if "gru" in name)
+    gru_p.requires_grad_(False)  # simulate an OLoRA freeze after BC left a stale grad behind
+    gru_p.grad = torch.full_like(gru_p, 1.0e6)
+    assert all(p is not gru_p for p in learner._clip_params())  # frozen param excluded
+    norm = float(clip_grad_norm_(learner._clip_params(), float("inf")))
+    assert norm < 1.0e3  # the 1e6 stale grad never enters the clip norm
+
+
+def test_q_tot_telemetry_ignores_padded_steps(cfg: dict) -> None:
+    """q_tot telemetry averages over FILLED steps only: perturbing a pad step's obs leaves it flat — R3."""
+    learner = _cop_learner(cfg, n_agents=1)
+    batch = make_batch(b=1, t=3, n=1, active=[True], seed=3, filled=[True, True, False])
+    base = learner.update(copy.deepcopy(batch))["q_tot"]
+    learner2 = _cop_learner(cfg, n_agents=1)
+    bumped = copy.deepcopy(batch)
+    bumped["obs"][:, 2, 0] += 60.0  # perturb ONLY the padded (last) frame's obs
+    after = learner2.update(bumped)["q_tot"]
+    assert abs(base - after) < 1e-6
 
 
 def test_qmix_inactive_slot_has_zero_q_gradient(cfg: dict) -> None:

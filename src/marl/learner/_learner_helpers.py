@@ -54,7 +54,10 @@ def masked_huber(td_error: Tensor, mask: Tensor, delta: float) -> Tensor:
     Returns:
         A scalar tensor: the mean Huber loss over the unmasked entries.
     """
-    keep = mask.detach().to(td_error.dtype)
+    # Broadcast the mask to the TD-error shape BEFORE the reduction so a
+    # broadcastable ([B,T,1]) mask on wider ([B,T,N]) errors divides by the true
+    # kept-element count, not the pre-broadcast count (which would scale by N).
+    keep = mask.detach().to(td_error.dtype).broadcast_to(td_error.shape)
     per_elem = functional.huber_loss(td_error, torch.zeros_like(td_error), delta=delta, reduction="none")
     return (per_elem * keep).sum() / keep.sum().clamp(min=1.0)
 
