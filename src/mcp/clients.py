@@ -20,6 +20,11 @@ from src.api.gatekeeper import DEFERRED, ApiGatekeeper
 
 _log = logging.getLogger("marl.mcp.client")
 
+# The genuine cop<->thief peer side-channel tools the §5 peer_mcp rate limit governs
+# (position-probe vector). The referee game loop (health/new_sub_game/request_move) is bounded
+# by the 6x25 match structure — logged, never throttled — so it is deliberately NOT in this set.
+_PEER_TOOLS = frozenset({"reveal_location", "query_opponent"})
+
 
 def make_client(url: str, token: str) -> Client:
     """Build a bearer-authed FastMCP HTTP client for a remote agent server."""
@@ -72,11 +77,12 @@ class AgentClient:
         last: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
             try:
-                # §5: admit through the peer_mcp channel BEFORE the outbound call leaves.
-                # A DEFERRED admission (backpressure) MUST hard-fault: a deferred synchronous
-                # peer call is a fault (mirrors the wire-match stance) — never let the real
-                # outbound call fire ungoverned after the gate declined to admit it now.
-                if self._gate.execute("peer_mcp", lambda: None) is DEFERRED:
+                # §5: the peer_mcp rate limit governs the spammable cop<->thief SIDE-CHANNEL
+                # (reveal_location / query_opponent — the position-probe vector), NOT the
+                # bounded referee game loop (health / new_sub_game / request_move, ~300 calls
+                # per match). A DEFERRED admission on a peer probe hard-faults (backpressure is
+                # a fault, mirroring the wire-match stance); the game loop is logged, not throttled.
+                if tool in _PEER_TOOLS and self._gate.execute("peer_mcp", lambda: None) is DEFERRED:
                     raise RuntimeError("peer_mcp call deferred by rate limiter")
                 call = self._client.call_tool(tool, args)
                 # wrap in the configured timeout so a hung call fails fast (then retries) vs blocking

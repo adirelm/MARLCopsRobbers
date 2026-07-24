@@ -71,12 +71,14 @@ def test_http_client_exposes_bearer_wrappers(symbol):
     assert hasattr(http_client, symbol)
 
 
-def test_peer_mcp_calls_are_admitted_through_the_gatekeeper():
-    """Every peer-MCP tool call passes the `peer_mcp` channel BEFORE leaving (V3 §5).
+def test_peer_side_channel_is_gated_but_the_game_loop_is_not():
+    """The §5 peer_mcp rate limit governs the spammable cop<->thief SIDE-CHANNEL only.
 
-    Asserts ROUTING, not import location: a recording gatekeeper double must see one
-    `peer_mcp` admission per tool call. This is the gate that would have caught the
-    pre-2026-07 bypass, where peer traffic went straight out through the FastMCP client.
+    Asserts ROUTING, not import location: a recording gatekeeper double must see a
+    `peer_mcp` admission for `reveal_location` (the position-probe vector), and NONE for
+    the bounded referee game loop (`health` / `new_sub_game` / `request_move`, ~300 calls
+    per match — throttling those would spuriously void sub-games). This is the gate that
+    would have caught the pre-2026-07 bypass, without breaking a fast local match.
     """
 
     class _RecordingGate:
@@ -88,7 +90,7 @@ def test_peer_mcp_calls_are_admitted_through_the_gatekeeper():
             return call()
 
     class _StubResult:
-        data: ClassVar[dict] = {"status": "ok"}
+        data: ClassVar[dict] = {"status": "ok", "action": 0}
 
     class _StubClient:
         async def __aenter__(self):
@@ -104,11 +106,13 @@ def test_peer_mcp_calls_are_admitted_through_the_gatekeeper():
 
     async def _run():
         async with AgentClient(_StubClient(), label="cop", gatekeeper=gate) as client:
-            await client.health()
-            await client.health()
+            await client.health()  # game loop — NOT throttled
+            await client.new_sub_game("sg-0", (5, 5), (0, 0))  # game loop — NOT throttled
+            await client.request_move("sg-0", 0, [[0.0]], [0.0], [True])  # game loop — NOT throttled
+            await client.reveal_location("sg-0", "thief", (1, 1))  # PEER probe — gated
 
     asyncio.run(_run())
-    assert gate.channels == ["peer_mcp", "peer_mcp"]
+    assert gate.channels == ["peer_mcp"]  # exactly one admission: the reveal_location probe
 
 
 def test_peer_mcp_deferred_admission_hard_faults_without_egress():
@@ -141,7 +145,7 @@ def test_peer_mcp_deferred_admission_hard_faults_without_egress():
 
     async def _run():
         async with AgentClient(client, max_retries=1, gatekeeper=_DeferGate()) as agent:
-            await agent.health()
+            await agent.reveal_location("sg-0", "thief", (1, 1))  # a PEER probe — the gated path
 
     with pytest.raises(RuntimeError, match="deferred by rate limiter"):
         asyncio.run(_run())
