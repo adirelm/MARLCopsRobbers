@@ -65,8 +65,23 @@ def encode_state(state: GlobalState, cfg: dict) -> np.ndarray:
 
     Returns:
         A float32 ``np.ndarray`` of shape ``(77,)`` with every entry in ``[0, 1]``.
+
+    Raises:
+        ValueError: If the board exceeds the fixed ``W x W`` footprint (any
+            ``h`` or ``w`` > ``2 * view_radius_max + 1``). The encoding is
+            FROZEN at the net's input width, so an out-of-footprint coordinate
+            would be silently dropped and alias two distinct states — an
+            unsupported board must fail loudly instead (codex F5). The graded
+            2x2..5x5 square ladder fits the footprint exactly and never raises.
     """
     w = _plane_width(cfg)
+    if state.h > w or state.w > w:
+        raise ValueError(
+            f"encode_state: a {state.h}x{state.w} board exceeds the fixed {w}x{w} "
+            f"stage-invariant footprint (max grid {w} = 2*env.view_radius_max+1); "
+            "coordinates beyond it would silently alias distinct states. Supported: "
+            "the 2x2..5x5 curriculum ladder."
+        )
     planes = np.zeros((_N_PLANES, w, w), dtype=np.float32)
     for cop in state.cop_pos:
         # Binary occupancy: two co-located cops collapse to a single 1.0

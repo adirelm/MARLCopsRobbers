@@ -7,6 +7,7 @@ the stage-invariant encode_state 77-float encoder (shape, value range, planes).
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from src.marl.data.obs_encoder import encode_obs_batch, encode_state
 from src.marl.env.observation import VisibilityMemory, build_observation
@@ -155,3 +156,22 @@ def test_encode_state_pads_small_grid_within_5x5(make_state, cfg):
     thief_plane = vec[_THIEF * _PLANE : (_THIEF + 1) * _PLANE].reshape(_W, _W)
     assert cop_plane[0, 0] == 1.0
     assert thief_plane[1, 1] == 1.0
+
+
+def test_encode_state_rejects_oversized_board(make_state, cfg):
+    """A board past the fixed WxW footprint raises loudly instead of silently aliasing.
+
+    Regression for codex F5: two distinct 4x6 states (differing only OUTSIDE the
+    5x5 footprint) formerly encoded identically because out-of-footprint cells were
+    silently dropped. The encoder must now raise a clear ValueError naming the size.
+    """
+    oversized = make_state(cop_pos=(0, 0), thief_pos=(0, 5), h=4, w=6)  # w=6 > 5
+    with pytest.raises(ValueError, match="4x6 board exceeds"):
+        encode_state(oversized, cfg)
+
+
+def test_encode_state_passes_on_max_footprint_5x5(make_state, cfg):
+    """The graded 5x5 (max supported) encodes without raising (guard not over-eager)."""
+    state = make_state(cop_pos=(4, 4), thief_pos=(0, 0), h=5, w=5)
+    vec = encode_state(state, cfg)
+    assert vec.shape == (_STATE_DIM,)

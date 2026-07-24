@@ -212,17 +212,20 @@ selfplay:
                                   #   snapshot stays frozen before it is refreshed (§7.2
                                   #   non-stationarity knob).
   pool_size: 5                    # opponent-pool snapshots (latest/best/historical + floor).
-                                  #   Each round samples the frozen opponent uniformly from
-                                  #   this pool; the round's final learner net is snapshotted
-                                  #   back into the pool (FIFO over pool_size).
+                                  #   Each window_k-round window samples the frozen opponent
+                                  #   uniformly from this pool once (held for the window); the
+                                  #   round's final learner net is snapshotted back into the
+                                  #   pool (FIFO over pool_size).
   update_ratio: 1                 # within-round learner cadence: learner updates per collected
                                   #   episode while the opponent is frozen (1 = one update/episode)
   rounds: 50                      # alternating best-response rounds per curriculum stage
   episodes_per_round: 100         # episodes collected per round. Budget identity:
                                   #   rounds(50) * episodes_per_round(100) = 5000 =
                                   #   training.episodes_per_stage (NEVER hardcoded elsewhere).
-  # Per-round epsilon: each round restarts the training.eps_start->eps_end anneal for the
-  #   active learner so the just-unfrozen side re-explores against the new frozen opponent.
+  # Epsilon anneals over the STAGE-CUMULATIVE env-step count (trainer._env_steps accumulates
+  #   across rounds; linear_epsilon(cfg, env_steps)): eps_start->eps_end over
+  #   training.eps_anneal_env_steps, then held at eps_end. A standard global schedule — the
+  #   frozen opponent still refreshes each round, so late rounds exploit at the eps floor.
 
 # ============================================================================
 # TRAINING (BRIEF §5.2 training MUST be local; §6.1 theory-first; §7.3 curves)

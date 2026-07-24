@@ -71,6 +71,20 @@ def test_does_not_promote_below_threshold(cfg):
     assert cur.current() == before
 
 
+def test_non_finite_or_out_of_range_rate_never_promotes(cfg):
+    # A NaN/inf or out-of-[0,1] capture-rate is NOT-yet-eligible and must NOT
+    # promote (bare `nan < threshold` is False -> would silently promote; codex F2).
+    for bad in (float("nan"), float("inf"), float("-inf"), -0.5, 1.5):
+        cur = Curriculum(cfg)
+        before = cur.current()
+        assert cur.maybe_promote(bad) is False
+        assert cur.current() == before  # stage unchanged
+    # A normal at-threshold rate still promotes (guard doesn't over-reject).
+    cur = Curriculum(cfg)
+    threshold = cfg["env"]["curriculum"]["promotion_threshold"]
+    assert cur.maybe_promote(threshold) is True
+
+
 def test_clamps_at_final_stage(cfg):
     cur = Curriculum(cfg)
     stages = _stages(cfg)

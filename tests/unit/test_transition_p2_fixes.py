@@ -96,6 +96,23 @@ def test_two_cop_double_occupancy_no_collision(cfg, make_state):
     assert res.next_state.terminal is False
 
 
+def test_place_barrier_ignored_when_toggle_off(cfg, make_state):
+    # With env.actions.enable_barrier=False a direct/out-of-mask PLACE_BARRIER must
+    # resolve to a STAY: no barrier placed, no budget consumed (codex F1). The mask
+    # already hides PLACE when the toggle is off, so the dynamics must agree.
+    off = copy.deepcopy(cfg)
+    off["env"]["actions"]["enable_barrier"] = False
+    state = make_state(cop_pos=(2, 2), thief_pos=(0, 4), barriers_used=0, step=1)
+    res = resolve_joint_action(state, {"cop_0": Action.PLACE_BARRIER, "thief": Action.UP}, off)
+    assert res.next_state.barriers_used == 0  # no budget consumed
+    assert len(res.next_state.barriers) == 0  # no barrier placed
+    assert res.next_state.cop_pos == ((2, 2),)  # PLACE degrades to a stay
+    # Sanity: the SAME action DOES place a barrier when the toggle is on (graded cfg).
+    on = resolve_joint_action(state, {"cop_0": Action.PLACE_BARRIER, "thief": Action.UP}, cfg)
+    assert on.next_state.barriers_used == 1
+    assert (2, 2) in on.next_state.barriers
+
+
 def test_non_simultaneous_move_resolution_raises(cfg, make_state):
     # env.move_resolution other than "simultaneous" is an honest, unimplemented
     # limitation -> NotImplementedError (live the config key, no silent fallback).

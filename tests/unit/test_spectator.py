@@ -11,6 +11,7 @@ import dataclasses
 import pytest
 
 from src.gui.spectator import SpectatorFrame
+from src.marl.env.observation import view_radius
 from src.sdk.sdk import MarlSDK
 
 
@@ -75,6 +76,21 @@ def test_session_runs_to_a_winner_with_scores(cfg):
     after = session.step()  # stepping a finished sub-game is idempotent
     assert after.winner == frame.winner
     assert after.move == frame.move
+
+
+def test_session_on_unsupported_board_uses_view_radius_fallback(cfg):
+    """A 6x6 board (no view_radius_by_grid entry) resolves via the env's fallback.
+
+    Regression for codex F3: the frame formerly indexed view_radius_by_grid[6]
+    directly and raised a bare KeyError; it must now use the SAME view_radius()
+    resolution the env uses (config override else the ceil fallback) so an
+    unsupported size resolves cleanly instead of crashing.
+    """
+    session = MarlSDK(cfg).spectator_session(6, 6, num_cops=1, seed=3)  # no KeyError
+    frame = session.reset()
+    assert frame.grid == (6, 6)
+    assert frame.view_radius == view_radius(6, 6, cfg)  # fallback = ceil(6/2)-1 = 2
+    assert session.step().move == 1  # a real move steps without crashing
 
 
 def test_frame_is_god_view_with_full_positions(cfg):

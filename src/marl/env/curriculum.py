@@ -13,6 +13,8 @@ nothing is hardcoded (CLAUDE.md §4).
 
 from __future__ import annotations
 
+import math
+
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 
 
@@ -64,7 +66,10 @@ class Curriculum:
         """Advance one stage when ``capture_rate`` clears the threshold.
 
         Promotion is clamped at the final stage: once there, no further advance
-        is possible and the call returns ``False`` even at a perfect rate.
+        is possible and the call returns ``False`` even at a perfect rate. A
+        non-finite (NaN/inf) or out-of-``[0, 1]`` rate is treated as NOT-yet-eligible
+        and never promotes — a bare ``nan < threshold`` is False, so without this
+        guard a NaN rate would silently promote the curriculum.
 
         Args:
             capture_rate: The cop capture-rate over ``promotion_window`` episodes.
@@ -72,6 +77,8 @@ class Curriculum:
         Returns:
             ``True`` iff this call advanced the stage index, else ``False``.
         """
+        if not math.isfinite(capture_rate) or not 0.0 <= capture_rate <= 1.0:
+            return False
         if capture_rate < self._threshold:
             return False
         if self._idx >= len(self._stages) - 1:

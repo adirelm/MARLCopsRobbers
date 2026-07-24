@@ -45,25 +45,31 @@ def _resolve_thief(state: GlobalState, action: Action) -> Pos:
 
 
 def _resolve_cops(
-    state: GlobalState, joint_a: dict[str, Action], max_barriers: int
+    state: GlobalState, joint_a: dict[str, Action], max_barriers: int, enable_barrier: bool
 ) -> tuple[tuple[Pos, ...], frozenset[Pos], int]:
     """Resolve every cop's move + barrier placement from the pre-move state.
 
-    Iterates cops by index. A ``PLACE_BARRIER`` is honored only while
+    Iterates cops by index. A ``PLACE_BARRIER`` is honored only while barriers are
+    globally enabled (``env.actions.enable_barrier``) AND
     ``barriers_used < max_barriers`` (TEAM cap, deterministic by index) AND the
     cop's cell is not ALREADY a barrier this tick: an honored placement drops a
     barrier on the cop's current cell, keeps the cop there, and increments the
-    used count; once the cap is hit (or a co-located cop already placed on that
-    exact cell) later cops' PLACE degrades to a stay. Keeping the increment tied
-    to distinct placed cells means ``barriers_used == len(distinct placed cells)``
-    so the per-barrier reward charge is applied exactly once. Non-PLACE moves
-    resolve via ``grid.resolve_move`` against the original (pre-move) barrier set,
-    so the resolution is order-independent.
+    used count; once the cap is hit (or the toggle is off, or a co-located cop
+    already placed on that exact cell) the PLACE degrades to a stay — no barrier,
+    no budget consumed (matching the mask, which also hides PLACE when the toggle
+    is off, so a direct/out-of-mask PLACE can never sneak a barrier in). Keeping
+    the increment tied to distinct placed cells means ``barriers_used ==
+    len(distinct placed cells)`` so the per-barrier reward charge is applied
+    exactly once. Non-PLACE moves resolve via ``grid.resolve_move`` against the
+    original (pre-move) barrier set, so the resolution is order-independent.
 
     Args:
         state: The pre-move global state.
         joint_a: Per-agent action dict keyed ``cop_0..`` (+ ``thief``).
         max_barriers: The team barrier budget (``game.max_barriers``).
+        enable_barrier: The ``env.actions.enable_barrier`` toggle; when False a
+            PLACE resolves to a stay (no barrier, no budget) — same as the
+            on-own-barrier / over-budget degradations.
 
     Returns:
         A ``(new_cop_positions, new_barriers, new_barriers_used)`` triple.
@@ -73,7 +79,7 @@ def _resolve_cops(
     new_positions: list[Pos] = []
     for i, cop in enumerate(state.cop_pos):
         action = joint_a[f"cop_{i}"]
-        if action == Action.PLACE_BARRIER and used < max_barriers and cop not in barriers:
+        if action == Action.PLACE_BARRIER and enable_barrier and used < max_barriers and cop not in barriers:
             barriers = barriers | {cop}
             used += 1
             new_positions.append(cop)  # placement IS the move ⇒ stay put
@@ -135,8 +141,9 @@ def resolve_joint_action(state: GlobalState, joint_a: dict[str, Action], cfg: di
     max_barriers = cfg["game"]["max_barriers"]
     max_moves = cfg["game"]["max_moves"]
     capture_on_swap = cfg["env"]["capture_on_swap"]
+    enable_barrier = cfg["env"]["actions"]["enable_barrier"]
 
-    new_cops, barriers, used = _resolve_cops(state, joint_a, max_barriers)
+    new_cops, barriers, used = _resolve_cops(state, joint_a, max_barriers, enable_barrier)
     new_thief = _resolve_thief(state, joint_a["thief"])
 
     capture = _detect_capture(state.cop_pos, new_cops, state.thief_pos, new_thief, capture_on_swap)

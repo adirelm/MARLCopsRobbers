@@ -16,6 +16,7 @@ from src.gui.spectator import SpectatorFrame
 from src.marl.data.heuristics import cop_expert, thief_expert
 from src.marl.env.actions import Action
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
+from src.marl.env.observation import view_radius
 from src.marl.env.render_state import render_state
 from src.marl.env.scorer import Scorer
 
@@ -80,7 +81,10 @@ class SpectatorSession:
         """Snapshot the god-view + HUD into a frozen :class:`SpectatorFrame`."""
         god = render_state(self._env.state(), self._cfg)
         scores = self._scorer.score(self._winner) if self._winner else {"cop": 0, "thief": 0}
-        radius = int(self._cfg["env"]["view_radius_by_grid"][min(god["h"], god["w"])])
+        # Resolve via the SAME path the env uses (config override else the ceil
+        # fallback, raising ValueError past view_radius_max) — never a bare KeyError
+        # on an unsupported board size (codex F3).
+        radius = view_radius(god["h"], god["w"], self._cfg)
         return SpectatorFrame(
             grid=(god["h"], god["w"]),
             cop_positions=tuple(tuple(p) for p in god["cop_positions"]),
