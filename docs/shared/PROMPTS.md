@@ -44,7 +44,7 @@
 ## Phase 7–9 — GUI, cloud Stage-2, Gmail report
 | Prompt | Commit | Human-judgment annotation |
 |---|---|---|
-| _Build the Pygame god-view spectator (purity-gated) + screenshots; the RS256-JWT cloud entrypoints/runbook; the idempotent §3.5 Gmail sender_ (summary) | `0e345d8` … `1c7e414` | Architect chose Pygame (ADR-0014), Prefect-Horizon-primary/Render-fallback (ADR-0012), App-Password-over-OAuth (ADR-0013), and the HARD no-send-without-explicit-go email gate. |
+| _Build the Pygame god-view spectator (purity-gated) + screenshots; the RS256-JWT cloud entrypoints/runbook; the idempotent §3.5 Gmail sender_ (summary) | `0e345d8` … `1c7e414` | Architect chose Pygame (ADR-0014), Prefect-Horizon-primary/Render-fallback (ADR-0012 — later REVERSED to Render-live, 2026-07-22: OAuth clash), App-Password-over-OAuth (ADR-0013), and the HARD no-send-without-explicit-go email gate. |
 
 ## Phase 10–11 — results, README §7, gates
 | Prompt | Commit | Human-judgment annotation |

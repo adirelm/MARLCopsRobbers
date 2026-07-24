@@ -10,7 +10,7 @@
 The runtime topology: **two independent FastMCP agent servers** (Cop, Thief) + a **neutral referee** =
 the environment (CTDE global-state holder, not a third player); ONE canonical five-tool contract for
 localhost **and** cloud; revocable RS256 bearer-JWT auth; genuine server-to-server location comms
-(evidence-only, decoupled from the policy); the Prefect-Horizon/FastMCP-Cloud deploy (built + tested,
+(evidence-only, decoupled from the policy); the Render deploy (built + tested,
 not live-run); and a strict read-only Pygame **god-view spectator**.
 
 ## Functional requirements (canonical text in `docs/PRD.md`)
@@ -23,17 +23,17 @@ not live-run); and a strict read-only Pygame **god-view spectator**.
 | **FR-MCP-6 / 9** | Revocable bearer token, invalid/revoked → 401; technical-loss replay to reach exactly 6 valid sub-games. |
 | **FR-MCP-7 / 8** | Full localhost run (two ports) producing 6 valid sub-games; the **Cop only** sends ONE report. |
 | **FR-MCP-10** | Zero hardcoded ports/URLs/tokens (config/`.env`; local vs cloud by env). |
-| **FR-CLOUD-1..3** | Public HTTPS deploy (Horizon primary, Render fallback); cloud-to-cloud comms with one shared `trace_id`; inference-only (actor weights only). |
+| **FR-CLOUD-1..3** | Public HTTPS deploy (**Render** live; Horizon/FastMCP-Cloud reversed — OAuth clash); cloud-to-cloud comms with one shared `trace_id`; inference-only (actor weights only). |
 | **FR-CLOUD-4 / 5** | Revocable (jti deny-list) + idempotent `(session_id,tick)` + resilient client (timeout/retry/backoff/prewarm); cloud match emits the §3.5 JSON but does NOT send. |
 | **FR-GUI-1..7** | Mandatory real-time render; **spectator purity** (zero effect on agent obs; reads referee truth only); deterministic 2×2–5×5 screenshots; HUD/scoreboard; dynamic grid; Stage-2 SSE spectator path; rendering literals local in `palette.py`. |
 
 ## Key architect decisions (human-decided, §1.4)
 
 - **Referee-mediated 3-process topology**, server-side per-session GRU state (single worker) — ADR-0011.
-- **Cloud = Prefect Horizon / FastMCP Cloud**, app-level **revocable RS256 JWT** (not Horizon OAuth),
+- **Cloud = Render** (Horizon/FastMCP-Cloud reversed), app-level **revocable RS256 JWT** (not any platform OAuth),
   jti deny-list + key rotation — ADR-0012.
 - **GUI = Pygame god-view spectator**, dual read path, render literals local — ADR-0014.
-- **§5 ApiGatekeeper** (peer_mcp/gmail/prefect channels) governs egress — ADR-0006/0009.
+- **§5 ApiGatekeeper** (peer_mcp/gmail channels) governs egress — ADR-0006/0009.
 
 ## Acceptance & evidence
 

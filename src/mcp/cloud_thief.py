@@ -1,4 +1,4 @@
-"""Cloud thief deploy entrypoint — module-level ``mcp`` (T8.1; FastMCP/Prefect target).
+"""Cloud thief deploy entrypoint — module-level ``mcp`` (T8.1; Render deploy target).
 
 Deployed as ``src/mcp/cloud_thief.py:mcp``. Serves the SAME canonical tool contract as
 localhost over RS256 JWT auth, loading the OLoRA-tuned thief actor from ``MODEL_PATH``.

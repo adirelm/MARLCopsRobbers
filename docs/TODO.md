@@ -19,7 +19,7 @@ These are settled (the user chose "maximize the grade; complexity/time acceptabl
 3. **Reward = potential-based shaping** (provably policy-invariant, Ng 1999: `F = γ·Φ(s') − Φ(s)`, `Φ = −Manhattan(cop,thief)/d_max`, plus `−1/step`) during **TRAINING only**, toggled OFF at eval. The official **§3.4 scoreboard** (cop_win 20 / thief_win 10 / cop_loss 5 / thief_loss 5) is computed **separately** by a `Scorer` for reports — **never** the training signal.
 4. **Cop-team size.** The graded **5×5 match is faithful 1-cop-vs-1-thief** (`env.num_cops:1`, BRIEF §3). A **2-cop scenario runs ONLY on the 4×4 training/sanity grid** (`env.curriculum.num_cops_by_stage:[1,1,2,1]`) so the QMIX mixer is genuinely multi-agent and §7.2 learning curves show real credit assignment. **Does NOT change the graded game rules.**
 
-**Standing defaults:** simultaneous move resolution + **capture on same-cell OR swap** (`env.capture_on_swap:true`, a deliberate ADR-0004 rule clarification); `env.view_radius_by_grid` auto-tightens (`ceil(min(H,W)/2)−1` → 2×2:0, 3×3:1, 4×4:1, 5×5:2, with `env.view_radius_max:2`); `PLACE_BARRIER` counts as the move; barriers **cop-only** (≤5); curriculum **2×2→3×3→4×4→5×5**; seeds **`[7,17,37,71,107]`**; **Pygame god-view spectator** (reads the referee, NOT agent obs); a **neutral REFEREE = "the environment"** drives the 6 sub-games and calls each agent MCP tool per turn; cloud = **FastMCP + Prefect/Horizon**; **bearer JWT auth + jti-deny-list** revoke; Gmail via **smtplib + App-Password** with an `EmailSender` Protocol fallback to Google-API OAuth.
+**Standing defaults:** simultaneous move resolution + **capture on same-cell OR swap** (`env.capture_on_swap:true`, a deliberate ADR-0004 rule clarification); `env.view_radius_by_grid` auto-tightens (`ceil(min(H,W)/2)−1` → 2×2:0, 3×3:1, 4×4:1, 5×5:2, with `env.view_radius_max:2`); `PLACE_BARRIER` counts as the move; barriers **cop-only** (≤5); curriculum **2×2→3×3→4×4→5×5**; seeds **`[7,17,37,71,107]`**; **Pygame god-view spectator** (reads the referee, NOT agent obs); a **neutral REFEREE = "the environment"** drives the 6 sub-games and calls each agent MCP tool per turn; cloud = **Render** (live; Horizon/FastMCP-Cloud reversed); **bearer JWT auth + jti-deny-list** revoke; Gmail via **smtplib + App-Password** with an `EmailSender` Protocol fallback to Google-API OAuth.
 
 **PII (hard).** Real student names/IDs/emails + GitHub owner slug **NEVER** in tracked files — placeholders in tracked repo-root `players.example.yaml`, real values in git-ignored repo-root `players.local.yaml` + `.env`. Cover sheet `adrl-001-ex06.pdf` git-ignored (Moodle only); never asserted-present in a test (MEMORY: that exact assert broke A5 CI — skip-when-absent).
 
@@ -254,7 +254,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 - [x] **T5.9 — API gatekeeper (§5 REQUIRED for A6)** · _B_
   `src/api/gatekeeper.py` — a SINGLE `ApiGatekeeper` with `execute(call)` AND `get_queue_status()`, a per-channel token-bucket built from versioned git-tracked `config/rate_limits.json` (`peer_mcp 120/min burst 10`, `gmail 5/min burst 1`), a **FIFO overflow queue** (`overflow_policy:fifo_queue`, `on_overflow:enqueue`, `max_queue:256` — NO crash on burst), and `log_all_calls:true` per-call logging. ALL outbound egress (peer-MCP HTTP, Gmail) routes through `ApiGatekeeper.execute()`; + `http_client.py` (bearer) is the only httpx wrapper.
-  **DoD:** `test_egress_via_gatekeeper.py` fails if any module imports `httpx`/Gmail/Prefect-deploy outside `src/api` + `src/reporting/mailer.py`; `get_queue_status()` reports per-channel queue depth; burst beyond `burst` enqueues (does not crash) and drains FIFO; every call logged; ADR-0006 written (§5 flips N/A→REQUIRED).
+  **DoD:** `test_egress_via_gatekeeper.py` fails if any module imports `httpx`/Gmail outside `src/api` + `src/reporting/mailer.py`; `get_queue_status()` reports per-channel queue depth; burst beyond `burst` enqueues (does not crash) and drains FIFO; every call logged; ADR-0006 written (§5 flips N/A→REQUIRED).
 
 ---
 
@@ -314,21 +314,21 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 ---
 
-# Phase 8 — Cloud-MCP deploy (BRIEF §6.8, §8): FastMCP + Prefect Horizon
+# Phase 8 — Cloud-MCP deploy (BRIEF §6.8, §8): Render (FastMCP servers)
 
 > **Exit gate (P8):** both servers live on public HTTPS URLs; cloud cop↔thief comms with a shared `trace_id`; 401-without-token + revoke demo captured. Cloud is **upside, not an A6 grading gate** (ADR-D10-E; localhost F4 is canonical).
 
-> **§8 four-stage cloud runbook (BRIEF §8 appendix).** T8.0→T8.4 implement the four mandated appendix stages, in order: **(1) local `uv` deps** (T8.0: prefect/fastmcp/torch/numpy via `pyproject` + `uv sync`), **(2) `mcp_server.py` `@mcp.tool` loading the local OLoRA-tuned nets** (T8.1, same tool contract as localhost), **(3) Prefect token + deploy + publish public URL** (T8.2/T8.3), **(4) Gmail auto-report** (Phase 9, triggered after the 6th cloud sub-game). `deploy/runbook.md` (T8.5) is the copy-pasteable ordered version of these four stages.
+> **§8 four-stage cloud runbook (BRIEF §8 appendix).** T8.0→T8.4 implement the four mandated appendix stages, in order: **(1) local `uv` deps** (T8.0: fastmcp/torch/numpy via `pyproject` + `uv sync`), **(2) `mcp_server.py` `@mcp.tool` loading the local OLoRA-tuned nets** (T8.1, same tool contract as localhost), **(3) Render Blueprint deploy + publish public URL** (T8.2/T8.3), **(4) Gmail auto-report** (Phase 9, triggered after the 6th cloud sub-game). `deploy/runbook.md` (T8.5) is the copy-pasteable ordered version of these four stages.
 
 - [x] **T8.0 — Stage 1: local uv deps + pin fastmcp + verify auth import path** · _B_
-  Declare the cloud deps (`prefect`, `fastmcp`, `torch`, `numpy`) in `pyproject.toml` (the `mcp` uv group); `uv run python -c 'import fastmcp; print(fastmcp.__version__)'`; confirm exact import path for `BearerAuthProvider`/`JWTVerifier`/`RSAKeyPair` (v2 vs v3 moved it). Pin that version in `pyproject.toml` (**NO `deploy/requirements.txt`** — V3 forbids requirements.txt; if a deploy target demands a pinned file, generate it at deploy time via `uv export --no-dev > <tmp>` / `uv pip compile`, never tracked).
+  Declare the cloud deps (`fastmcp`, `torch`, `numpy`) in `pyproject.toml` (base project deps); `uv run python -c 'import fastmcp; print(fastmcp.__version__)'`; confirm exact import path for `BearerAuthProvider`/`JWTVerifier`/`RSAKeyPair` (v2 vs v3 moved it). Pin that version in `pyproject.toml` (**NO `deploy/requirements.txt`** — V3 forbids requirements.txt; if a deploy target demands a pinned file, generate it at deploy time via `uv export --no-dev > <tmp>` / `uv pip compile`, never tracked).
   **DoD:** version pinned in `pyproject.toml`; `uv.lock` committed; import path verified BEFORE any cloud auth code (do not guess); no tracked `requirements.txt` anywhere.
 
 - [x] **T8.1 — Stage 2: cloud server = SAME `src/mcp/` contract + JWT auth** · _B_
   Reuse the ONE tool contract from Phase 5 — there is NO divergent `src/marl/mcp` fork and NO `propose_action`/`commit_turn`/`get_public_state`/`place_barrier` tool set. The cloud entrypoints `src/mcp/cop_server.py:mcp` / `src/mcp/thief_server.py:mcp` register the SAME canonical tools (`health`, `ping`, `new_sub_game`, `request_move` [local-obs-only, **rejects any `global_state` field**], `reveal_location` [radius-gated], `query_opponent`, cop-only `send_final_report`) at the SAME `mcp.path:/mcp`. The only Stage-1→Stage-2 delta is the auth verifier: swap `StaticTokenVerifier`→`JWTVerifier` (RS256 from env; jti deny-list; client token minter) via `build_verifier(cfg)` (T5.4), wiring OLoRA-tuned actor nets through `sdk.build_policy`.
   **DoD:** localhost and cloud expose IDENTICAL tool names + `/mcp` path (one contract, ADR-D5-01); unit test: missing/revoked Bearer → 401; `request_move` rejects `global_state`; deployed `.pt` files contain actor weights only; each file ≤150 LOC.
 
-- [x] **T8.2 — Stage 3: deploy both servers to Horizon + publish public URL** · _B_
+- [x] **T8.2 — Stage 3: deploy both servers to Render + publish public URL** · _B_
   Deploy to **Render** via a Blueprint (`deploy/render.yaml`, no platform API key): it provisions both web services from GitHub; the only dashboard secret is `MCP_PUBLIC_KEY` (env `MODEL_PATH`/`MCP_AUTH_MODE=jwt` come from render.yaml) → record `https://adrl-001-cop.onrender.com/mcp`; repeat for thief. (Original plan was Prefect Horizon — reversed, OAuth clash.)
   **DoD:** both URLs return `health()` over the public internet from a machine outside the dev host; record both URLs in `cloud.cop_url`/`cloud.thief_url`.
 

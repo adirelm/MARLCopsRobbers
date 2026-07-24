@@ -5,7 +5,7 @@ RS256 JWT verifier: it scopes ``MCP_AUTH_MODE=jwt`` to the build so the shared
 ``build_verifier`` seam selects JWT, then restores the env (no global mutation). The
 actor net is loaded from ``MODEL_PATH`` (the OLoRA-tuned ``.pt``) unless one is injected
 (tests). The thin ``cloud_cop.py`` / ``cloud_thief.py`` modules expose ``mcp`` as the
-FastMCP/Prefect deploy entrypoint (``src/mcp/cloud_cop.py:mcp``) — the only cloud-only
+Render (FastMCP) deploy entrypoint (``src/mcp/cloud_cop.py:mcp``) — the only cloud-only
 code (omitted from coverage: they import a real model on the worker).
 """
 

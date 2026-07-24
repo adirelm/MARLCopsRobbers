@@ -414,7 +414,9 @@ gmail:
   # §9.4 bonus subject — the PDF example shape verbatim (both group names, explicit bonus)
   bonus_subject_template: "[MARL Bonus Game] {group_1} vs {group_2} – Final Report"
   output_dir: "results/reports"   # role-only REDACTED copy written here (README §7.3 evidence)
-  sentinel: "results/.report_sent"  # idempotency sentinel (sha256-keyed; write AFTER send)
+  sentinel: "results/.report_sent"  # idempotency sentinel (sha256-keyed; two-phase: `intent`
+                                    #   line BEFORE SMTP, `sent` AFTER — a dangling intent or a
+                                    #   different digest blocks further sends unless RESEND_APPROVED=1)
   # The report JSON-Schema (draft-2020-12, docs/schema/report.schema.json) is a repo constant
   # loaded by src/reporting/schema.py — not a config knob.
   # Sender + App Password come from .env: GMAIL_SENDER, GMAIL_APP_PASSWORD.

@@ -20,7 +20,7 @@ and emailed **once** by the Cop to `gmail.to`. PII (real names/ids) lives only i
 | **FR-RPT-1** | After the 6th valid sub-game the **Cop sends exactly ONE** email (idempotent; sha256 sentinel inside the egress thunk). |
 | **FR-RPT-2** | Body conforms to `{group_name, students[]{role,full_name,id}, github_repo, timezone, sub_games[6]{id,start,end,moves,winner,scores}, totals}` (schema `minItems:1` for SOLO); `validate()` rejects bad winner, wrong game count, `end<start`, `totals≠Σ`. |
 | **FR-RPT-3** | Scores **derived** from `winner` + `game.scoring` (the §3.4 REPORT scoreboard) — never the RL `reward.*`; callers cannot supply scores. |
-| **FR-API-1** | All Gmail/peer-MCP/Prefect egress routes through `ApiGatekeeper` (per-channel token-bucket from `config/rate_limits.json`; FIFO overflow; calls logged). |
+| **FR-API-1** | All Gmail/peer-MCP egress routes through `ApiGatekeeper` (per-channel token-bucket from `config/rate_limits.json`; FIFO overflow; calls logged). |
 
 ## Key architect decisions (human-decided, §1.4)
 

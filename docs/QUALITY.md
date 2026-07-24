@@ -82,5 +82,5 @@ by two implementations or a test double.
 
 ## Portability
 `uv` + `pyproject.toml` (no `pip`/`requirements.txt`); pure-Python + torch; headless via
-`SDL_VIDEODRIVER=dummy`; a Prefect Horizon deploy with a Render fallback blueprint.
+`SDL_VIDEODRIVER=dummy`; a Render deploy blueprint (`deploy/render.yaml`).
 Evidence: `pyproject.toml` + `uv.lock`; `deploy/render.yaml`; `deploy/runbook.md`.

@@ -1,4 +1,4 @@
-"""Cloud cop deploy entrypoint — module-level ``mcp`` (T8.1; FastMCP/Prefect target).
+"""Cloud cop deploy entrypoint — module-level ``mcp`` (T8.1; Render deploy target).
 
 Deployed as ``src/mcp/cloud_cop.py:mcp``. Serves the SAME canonical tool contract as
 localhost over RS256 JWT auth, loading the OLoRA-tuned cop actor from ``MODEL_PATH``.
