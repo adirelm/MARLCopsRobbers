@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (897 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (901 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (897 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (901 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -308,8 +308,12 @@ stages (`env.curriculum.num_cops_by_stage = [1, 1, 2, 1]`), where VDN's sum-deco
 single agent is mathematically IDENTICAL to IQL, and the two rows are indeed bit-for-bit equal.
 Only stage 2 (4×4, the 2-cop team) spreads them: 0.816 / 0.845 / 0.628. That is the empirical
 justification for choosing the 4×4 2-cop stage as the comparison focus (K1) instead of the
-degenerate 1-cop rungs — and the row-wise decay left→right is the same partial-observability +
-board-size cost F6 plots. Full matrix: [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §11.*
+degenerate 1-cop rungs. **Stage 3 (5×5, back to 1 cop) is the control that clinches it:** IQL and
+VDN are bit-identical again (0.611 / 0.611) while QMIX *recovers to the best arm* (0.716) — so
+QMIX's 4×4 collapse is a two-cop credit-assignment effect, not a penalty for the harder board.
+The row-wise decay left→right is the partial-observability + board-size cost F6 plots; QMIX's
+4×4→5×5 rise is exactly the drop in coordination burden. Full matrix:
+[`docs/ANALYSIS.md`](docs/ANALYSIS.md) §11.*
 
 ![F6 scaling](results/figures/scaling.png)
 *F6 — capture rate across the curriculum stages. Honest caveat: the stages vary board size AND
@@ -318,9 +322,11 @@ is a curriculum-stage curve, NOT an isolated board-size scaling experiment. With
 capture falls as the board grows and the view radius tightens (partial observability bites).*
 
 ![F2 loss curves](results/figures/loss_curves.png)
-*F2 — §7.3b the two NETWORKS' TD-losses at 4×4 (mean±SE): left the cop net (QMIX/VDN/IQL), right the
-thief Double-DQN. Self-play alternates which net trains each round, so pooling them into one curve
-would interleave two different losses; split per network, the cop's QMIX loss visibly decays.*
+*F2 — §7.3b the two NETWORKS' TD-losses at the **5×5 §5.1 final test** (mean±SE; same stage as F1):
+left the cop net (QMIX/VDN/IQL), right the thief Double-DQN. Self-play alternates which net trains
+each round, so pooling them into one curve would interleave two different losses; split per network,
+the cop's QMIX loss spikes early then decays to the VDN/IQL level (which overlap — at 1 cop VDN is
+IQL), while the thief's loss rises late as the cop stops being easy to predict.*
 
 ![Sensitivity](results/figures/sensitivity_view_radius.png)
 *V3-§9 sensitivity — final capture vs the 4×4 execution view radius (1 vs 2) with everything else
