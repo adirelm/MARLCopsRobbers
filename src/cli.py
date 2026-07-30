@@ -1,4 +1,4 @@
-"""CLI entrypoint — ``python -m src.cli {train,play}`` routed through the SDK (§4.1).
+"""CLI entrypoint — ``uv run python -m src.cli {train,play}`` routed through the SDK (§4.1).
 
 Thin argument dispatch over :class:`MarlSDK` (the single business-logic seam): ``train
 --algo {qmix,vdn,iql} --stage N`` runs one curriculum stage of self-play; ``play`` runs
@@ -56,5 +56,5 @@ def main(argv: list[str] | None = None, sdk: object = None) -> object:
     return args.func(sdk or MarlSDK(cfg), cfg, args)
 
 
-if __name__ == "__main__":  # pragma: no cover - module CLI entry (python -m src.cli)
+if __name__ == "__main__":  # pragma: no cover - module CLI entry (uv run python -m src.cli)
     main()

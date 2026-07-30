@@ -55,3 +55,19 @@ def test_caption_states_the_stage_the_figure_is_rendered_at(figure: str, selecto
         f"{figure} renders at stage {stage} ({grid}x{grid}) but its README caption never says so "
         f"— caption: {caption[:160]!r}"
     )
+
+
+def test_readme_config_table_covers_every_top_level_config_key() -> None:
+    """README §Configuration claims it lists "every top-level key" — hold it to that.
+
+    It silently fell to 20-of-23 as `wire_match` / `wire_agent` / `matchup_eval` were added
+    (2026-07-30 audit). A documented completeness claim needs a completeness check.
+    """
+    import yaml  # noqa: PLC0415 — only this test needs the raw (un-interpolated) config
+
+    keys = set(yaml.safe_load((_ROOT / "config" / "config.yaml").read_text(encoding="utf-8")))
+    listed = set(re.findall(r"^\| `([a-z_]+)` \|", _README.read_text(encoding="utf-8"), re.M))
+    assert not keys - listed, (
+        "README's config table claims to cover every top-level key but omits: "
+        + ", ".join(sorted(keys - listed))
+    )

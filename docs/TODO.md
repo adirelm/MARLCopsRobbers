@@ -254,7 +254,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 - [x] **T5.9 — API gatekeeper (§5 REQUIRED for A6)** · _B_
   `src/api/gatekeeper.py` — a SINGLE `ApiGatekeeper` with `execute(call)` AND `get_queue_status()`, a per-channel token-bucket built from versioned git-tracked `config/rate_limits.json` (`peer_mcp 120/min burst 10`, `gmail 5/min burst 1`), a **FIFO overflow queue** (`overflow_policy:fifo_queue`, `on_overflow:enqueue`, `max_queue:256` — NO crash on burst), and `log_all_calls:true` per-call logging. ALL outbound egress (peer-MCP HTTP, Gmail) routes through `ApiGatekeeper.execute()`; + `http_client.py` (bearer) is the only httpx wrapper.
-  **DoD:** `test_egress_via_gatekeeper.py` fails if any module imports `httpx`/Gmail outside `src/api` + `src/reporting/mailer.py`; `get_queue_status()` reports per-channel queue depth; burst beyond `burst` enqueues (does not crash) and drains FIFO; every call logged; ADR-0006 written (§5 flips N/A→REQUIRED).
+  **DoD:** `test_egress_via_gatekeeper.py` fails if any module imports `httpx`/Gmail outside `src/api` + `src/reporting/mailer.py`; `get_queue_status()` reports per-channel queue depth; burst beyond `burst` enqueues (does not crash) and drains FIFO; every call logged; ADR-0009 written (§5 flips N/A→REQUIRED).
 
 ---
 
@@ -333,7 +333,7 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
   **DoD:** both URLs return `health()` over the public internet from a machine outside the dev host; record both URLs in `cloud.cop_url`/`cloud.thief_url`.
 
 - [x] **T8.3 — Wire peers + cloud match** · _B_
-  Set each server's `PEER_MCP_URL`+`PEER_MCP_TOKEN`; redeploy; run `python -m mcp.cloud_match --num-games 6 --max-moves 25` over the two cloud URLs → `full_match.json` (the §3.5 body). Cloud client uses `mcp.client.timeout_s:10`, `mcp.client.max_retries:3`+backoff, `mcp.client.prewarm_ping:true`; the run reuses the SAME `request_move`/`new_sub_game` contract as localhost (no `commit_turn` fork).
+  Set each server's `PEER_MCP_URL`+`PEER_MCP_TOKEN`; redeploy; drive the referee over the two cloud URLs (entrypoints `src/mcp/cloud_cop.py:mcp` / `src/mcp/cloud_thief.py:mcp`, served per `deploy/runbook.md`) → the §3.5 body committed at `results/subgames/cloud_match_5x5.redacted.json`. Cloud client uses `mcp.client.timeout_s:10`, `mcp.client.max_retries:3`+backoff, `mcp.client.prewarm_ping:true`; the run reuses the SAME `request_move`/`new_sub_game` contract as localhost (no `commit_turn` fork).
   **DoD:** ≥1 valid cloud sub-game; `full_match.json` produced; **does NOT send email** (that is §6 step 9).
 
 - [x] **T8.4 — Cloud proofs (§7.3d) + redaction** · _B_
@@ -499,7 +499,7 @@ A task is **done** only when ALL of the following hold (not "code compiles"):
 | 6 | **uv-only (NO requirements.txt)** | CI uses `uv`; no pip/conda; `uv.lock` committed; deploy deps come from `pyproject.toml` / `uv export` — **NO `deploy/requirements.txt`** (V3 forbids requirements.txt) | CI `uv sync --frozen`; `check_no_requirements_txt.py` |
 | 7 | **Single SDK entry for UIs** (scripts exempt) | GUI/MCP/report import only `src.sdk`; scripts are thin wrappers | `test_sdk_single_entry.py`; `test_mcp_servers_have_no_logic.py` |
 | 8 | **Version starts `1.00`** | started `1.0.0` → `1.1.0` (L11 §5 Minimax-Q bonus) → now `1.2.0` (post-audit hardening; distinct from the DEFERRED §9 inter-group "P-bonus" phase): `src/__init__.py::__version__` == `config.version` == `pyproject` (ADR-0011) | `tests/unit/test_config_loader.py` (see the implementation note above) |
-| 9 | **§5 External-API governance** (N/A→**REQUIRED** for A6) | all peer-MCP + Gmail egress via `src/api/gatekeeper.py` + `config/rate_limits.json` | `test_egress_via_gatekeeper.py`; ADR-0006 |
+| 9 | **§5 External-API governance** (N/A→**REQUIRED** for A6) | all peer-MCP + Gmail egress via `src/api/gatekeeper.py` + `config/rate_limits.json` | `test_egress_via_gatekeeper.py`; ADR-0009 |
 | 10 | **§10 UX / Nielsen** (N/A→**REQUIRED** — GUI mandatory) | `docs/UX.md` maps all 10 heuristics + screenshot per state | `test_required_docs_present.py` |
 | 11 | **PRD/PLAN/TODO + ADRs** | `docs/PRD.md`, `docs/PLAN.md`, this `docs/TODO.md`, `docs/prd/*`, ADRs 0001-0014 + dimension ADRs; human §1.4 sign-off before code | `test_required_docs_present.py` |
 | 12 | **Cover sheet git-ignored** | `adrl-001-ex06.pdf` ignored, Moodle-only | `test_cover_sheet_gitignored.py` (**skip-when-absent** — MEMORY) |

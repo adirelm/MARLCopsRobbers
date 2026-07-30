@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (901 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (907 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (901 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (907 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -50,7 +50,25 @@ uv run python -m src.results.make_figures        # regenerate F1/F2/F5/F6/F8/F9 
 ## Examples
 
 The graded deliverables (brief §7.3) — learning curves, loss curves, GUI screenshots at
-2×2/3×3/4×4/5×5, and the MCP-comms proof — are shown inline in §7.3 below.
+2×2/3×3/4×4/5×5, and the MCP-comms proof — are shown inline in §7.3 below. To reproduce them:
+
+```bash
+# 1) the graded 6-sub-game match over the two MCP servers -> the §3.5 report body (dry-run)
+uv run python scripts/run_match.py            # prints: 6 sub-games | totals={'cop': 30, 'thief': 60}
+
+# 2) regenerate every plotted figure + the provenance manifest from the committed run log
+uv run python -m src.results.make_figures     # -> results/figures/*.png + experiment_manifest.json
+
+# 3) the §12 exploitability arms (serving cop vs flee / random / our thief at 3 noise levels)
+uv run python scripts/eval_matchup.py         # cop vs flee 59/60 ... cop vs OUR thief 8/60
+
+# 4) replay the §9 wire match from its shared log and re-render the §9.3 evidence screenshots
+uv run python scripts/replay_wire_match.py    # verifies all 6 sub-games, writes 18 PNGs
+```
+
+Each command is idempotent and reads only committed artifacts, so a fresh clone reproduces the
+same numbers (`scripts/run_results.py` re-runs the training matrix itself — hours, not needed
+to reproduce the figures).
 
 ## Configuration
 
@@ -87,6 +105,9 @@ Every top-level key of `config/config.yaml` and what it controls:
 | `gui` | spectator screenshot sizes and output dir (colors/fonts/FPS are local to `src/gui/palette.py` by design) |
 | `paths` | `runs_dir`, `figures_dir`, experiment manifest, checkpoint dirs |
 | `logging` | log level for the `marl.*` loggers (PII/secret redaction is unconditional, never a flag) |
+| `wire_match` | the §9 inter-group match over the neutral wire protocol: per-move `timeout_s`/`retries`, `max_void_replays`, the jointly-frozen P7 `seeds`, and each group's endpoint URLs + token env-var NAMES |
+| `wire_agent` | our own wire-agent servers: bind `host` and the `max_sessions` LRU cap |
+| `matchup_eval` | the ANALYSIS §12 exploitability probe: games per arm, seed-block start, and the thief-epsilon grid |
 
 ## Troubleshooting
 
@@ -411,18 +432,18 @@ notebook — LaTeX equations, the nine plotted figures, citations, committed **e
 
 | Fig | Content | Generator | Path |
 |---|---|---|---|
-| **F1** | BOTH agents' learning at 5×5 — §5.1 final test (§7.3a): cop capture-rate panel + thief escape-rate panel, cross-seed mean±SE | `python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
-| **F1b** | BOTH agents' CUMULATIVE EPISODIC RETURN at 4×4 (§7.3a literal reward-convergence plot) | `python -m src.results.make_figures` (reads `returns_history.jsonl`) | `results/figures/return_curves.png` |
-| **F2** | Per-NETWORK TD-loss at 4×4 (§7.3b): cop net (QMIX/VDN/IQL) panel + thief Double-DQN panel | `python -m src.results.make_figures` | `results/figures/loss_curves.png` |
+| **F1** | BOTH agents' learning at 5×5 — §5.1 final test (§7.3a): cop capture-rate panel + thief escape-rate panel, cross-seed mean±SE | `uv run python -m src.results.make_figures` (plots `results/runs/*.jsonl`) | `results/figures/learning_curves.png` |
+| **F1b** | BOTH agents' CUMULATIVE EPISODIC RETURN at 4×4 (§7.3a literal reward-convergence plot) | `uv run python -m src.results.make_figures` (reads `returns_history.jsonl`) | `results/figures/return_curves.png` |
+| **F2** | Per-NETWORK TD-loss at 5×5 — §5.1 final test (§7.3b): cop net (QMIX/VDN/IQL) panel + thief Double-DQN panel | `uv run python -m src.results.make_figures` | `results/figures/loss_curves.png` |
 | **F3** | GUI screenshots at 2×2/3×3/4×4/5×5 + the terminal / barrier / view-radius states (CAPTURED, not plotted) | `scripts/capture_screens.py` (headless) | `results/screenshots/grid_{2,3,4,5}x{n}.png`, `state_{terminal,barriers,view_radius}.png` |
 | **F4** | MCP-comms proof — localhost in-memory contract (CAPTURED, CI-deterministic) | redacted cop↔thief comms log / `scripts/capture_comms.py` | `results/figures/mcp_comms_local.png` |
 | **F4b** | MCP-comms proof over REAL localhost HTTP — ports 8001/8002, bearer auth, shared `session_id` (§5.3 Stage-1) | `scripts/serve_match_http.py` | `results/figures/mcp_comms_http.png` |
 | **F4c** | **Stage-2 LIVE cloud** — full 6-sub-game match + mutual `reveal_location` verification over the public internet, RS256 JWT | referee vs the two live cloud URLs | `results/figures/mcp_comms_cloud.png` |
 | **Auth** | Live cloud auth matrix — 200 valid / 401 bad / 401 none / 401 wrong-audience / 401 revoked | live verification vs both endpoints | `results/figures/cloud_auth.png` |
-| **F5** | IQL vs VDN vs QMIX final capture rate at 4×4, the 2-cop stage (bar + SE whiskers) | `python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
-| **F8** | V3-§9.3 BOX family — per-seed final capture rate at 4×4, one box per arm (median / IQR / fliers + the individual seed points F5's SE hides) | `python -m src.results.make_figures` | `results/figures/final_distribution.png` |
-| **F9** | V3-§9.3 HEATMAP family — mean final capture rate matrix, algorithm × curriculum stage (annotated cells + colorbar) | `python -m src.results.make_figures` | `results/figures/capture_heatmap.png` |
-| **F6** | Capture rate across curriculum stages (board size AND team size vary — the 4×4 stage is 2-cop, so NOT an isolated grid-size effect) | `python -m src.results.make_figures` | `results/figures/scaling.png` |
+| **F5** | IQL vs VDN vs QMIX final capture rate at 4×4, the 2-cop stage (bar + SE whiskers) | `uv run python -m src.results.make_figures` | `results/figures/baseline_comparison.png` |
+| **F8** | V3-§9.3 BOX family — per-seed final capture rate at 4×4, one box per arm (median / IQR / fliers + the individual seed points F5's SE hides) | `uv run python -m src.results.make_figures` | `results/figures/final_distribution.png` |
+| **F9** | V3-§9.3 HEATMAP family — mean final capture rate matrix, algorithm × curriculum stage (annotated cells + colorbar) | `uv run python -m src.results.make_figures` | `results/figures/capture_heatmap.png` |
+| **F6** | Capture rate across curriculum stages (board size AND team size vary — the 4×4 stage is 2-cop, so NOT an isolated grid-size effect) | `uv run python -m src.results.make_figures` | `results/figures/scaling.png` |
 | **Sens.** | V3-§9 sensitivity — final capture vs the 4×4 view radius, all else pinned | `scripts/sensitivity_sweep.py` | `results/figures/sensitivity_view_radius.png` |
 | **F7** | Minimax-Q equilibrium baseline (L11 §5 bonus): game-value + capture-rate convergence on the 3×3 zero-sum pursuit | `scripts/plot_minimax_q.py` (slow; per-step maximin LP) | `results/figures/minimax_q.png` |
 

@@ -7,6 +7,7 @@ client, and a radius-gated reveal_location round-trip over an in-memory server.
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 import torch
@@ -85,3 +86,59 @@ def test_reveal_location_round_trips_radius_gated(cfg):
     result = asyncio.run(_run())
     assert result["visible"] is True
     assert tuple(result["position"]) == (0, 0)
+
+
+def test_prewarm_absorbs_a_cold_start_that_would_exhaust_the_move_retries():
+    """A sleeping free-tier container wakes LONG after timeout_s*max_retries (measured ~90 s).
+
+    The warm-up must poll to its own deadline instead of raising — before this, a cold
+    start aborted the whole cloud match before sub-game 1 while the runbook claimed the
+    prewarm "absorbed" it.
+    """
+
+    class _WakesOnAttempt:
+        """Fails more times than max_retries allows, then answers."""
+
+        def __init__(self, wake_on: int) -> None:
+            self.calls, self._wake_on = 0, wake_on
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return None
+
+        async def call_tool(self, tool, args):
+            self.calls += 1
+            if self.calls < self._wake_on:
+                raise ConnectionError("container asleep")
+            return SimpleNamespace(data={"status": "ok"})
+
+    stub = _WakesOnAttempt(wake_on=12)  # 12 > max_retries(3): health() alone would give up
+
+    async def _run():
+        async with AgentClient(stub, max_retries=3, backoff_s=0.0) as client:
+            return await client.prewarm(deadline_s=30.0)
+
+    assert asyncio.run(_run()) is True
+    assert stub.calls >= 12  # it kept polling past the per-move retry budget
+
+
+def test_prewarm_returns_false_at_its_deadline_instead_of_raising():
+    """An unreachable peer must surface as a health verdict, not a warm-up traceback."""
+
+    class _NeverWakes:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return None
+
+        async def call_tool(self, tool, args):
+            raise ConnectionError("down")
+
+    async def _run():
+        async with AgentClient(_NeverWakes(), max_retries=1, backoff_s=0.0) as client:
+            return await client.prewarm(deadline_s=0.05)
+
+    assert asyncio.run(_run()) is False

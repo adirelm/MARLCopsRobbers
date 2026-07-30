@@ -307,10 +307,14 @@ mcp:
   observation:
     view_radius: 2                # radius the referee crops to at execution (5x5 graded)
   client:
-    timeout_s: 10                 # absorbs cloud cold-start
+    timeout_s: 10                 # PER-MOVE budget (kept tight: a slow move is a §3.7 fault)
     max_retries: 3
     backoff_s: 0.5
-    prewarm_ping: true            # warm-up health() ping before the tick loop
+    prewarm_ping: true            # warm-up health() poll before the tick loop
+    prewarm_deadline_s: 180       # SEPARATE cold-start budget: Render's free tier sleeps after
+                                  #   15 min and a measured wake takes ~90 s (2026-07-25), well
+                                  #   past timeout_s*max_retries — so the warm-up polls until this
+                                  #   deadline instead of failing the match before it starts.
   auth:                           # BRIEF §5.3 revocable bearer token; §7.3(d) 401 proof
     scheme: "bearer"              # (NOT read — scheme is implicit in the Static/JWT verifier choice)
     # Stage 1 local = FastMCP StaticTokenVerifier; Stage 2 cloud = JWTVerifier (RS256)

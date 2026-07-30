@@ -1,4 +1,4 @@
-"""``python -m src.gui`` — launch the Pygame god-view spectator (T7; routed through the SDK).
+"""``uv run python -m src.gui`` — launch the Pygame god-view spectator (T7; routed through the SDK).
 
 Thin module entrypoint mirroring ``scripts/play.py``: builds a 5x5 spectator session via
 the SDK and runs the window loop (in ``src.gui.render``). REQUIRES pygame (the ``gui``

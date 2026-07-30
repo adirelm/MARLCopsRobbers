@@ -33,7 +33,7 @@ not live-run); and a strict read-only Pygame **god-view spectator**.
 - **Cloud = Render** (Horizon/FastMCP-Cloud reversed), app-level **revocable RS256 JWT** (not any platform OAuth),
   jti deny-list + key rotation — ADR-0012.
 - **GUI = Pygame god-view spectator**, dual read path, render literals local — ADR-0014.
-- **§5 ApiGatekeeper** (peer_mcp/gmail channels) governs egress — ADR-0006/0009.
+- **§5 ApiGatekeeper** (peer_mcp/gmail channels) governs egress — ADR-0009.
 
 ## Acceptance & evidence
 

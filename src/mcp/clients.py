@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from fastmcp import Client
 from fastmcp.client.auth import BearerAuth
@@ -111,8 +112,29 @@ class AgentClient:
         raise last  # type: ignore[misc]
 
     async def health(self) -> dict:
-        """Liveness handshake (used by the orchestrator to absorb cold-start)."""
+        """Liveness handshake (one bounded attempt-set; see :meth:`prewarm` for cold starts)."""
         return await self._call("health", {})
+
+    async def prewarm(self, deadline_s: float) -> bool:
+        """Poll ``health`` until it answers or ``deadline_s`` elapses; True iff it woke.
+
+        The per-move ``timeout_s`` is deliberately tight (a slow move is a §3.7 technical
+        fault), which is FAR under a sleeping free-tier container's wake time — a measured
+        Render cold start is ~90 s. Without this the warm-up would exhaust its retries and
+        abort the match before the first sub-game, so the cold start gets its own budget.
+        Returns False instead of raising: an unreachable peer must surface as the match's
+        own health check, not as a warm-up traceback.
+        """
+        deadline = time.monotonic() + float(deadline_s)
+        while True:
+            try:
+                await self.health()
+            except Exception:
+                if time.monotonic() >= deadline:
+                    return False
+                await asyncio.sleep(self._backoff_s)
+            else:
+                return True
 
     async def new_sub_game(self, session_id: str, grid: tuple, position: tuple | None = None) -> dict:
         """Start/reset a sub-game session on the server (fresh hidden ``z_0``)."""
