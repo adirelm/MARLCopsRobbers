@@ -32,13 +32,16 @@ _NEGATION = re.compile(
     r"\b(no|not|never|avoid|forbid|forbidden|instead of|NOT)\b|אין|אסור|ללא", re.IGNORECASE
 )
 _SKIP_SUFFIX = (".png", ".pt", ".jsonl", ".lock", ".ipynb", ".pdf", ".docx")
+# This file DEFINES the forbidden literals, so it must exempt itself: a guard that spells out
+# what it forbids fails against itself (the same trap the PII host-path gate hit on 2026-07-22).
+_SELF = Path(__file__).relative_to(_ROOT).as_posix()
 
 
 def _tracked_text_files() -> list[str]:
     out = subprocess.run(
         ["git", "ls-files"], cwd=_ROOT, capture_output=True, text=True, check=True
     ).stdout.split()
-    return [p for p in out if not p.endswith(_SKIP_SUFFIX)]
+    return [p for p in out if not p.endswith(_SKIP_SUFFIX) and p != _SELF]
 
 
 @pytest.mark.parametrize("term", sorted(_FORBIDDEN))
