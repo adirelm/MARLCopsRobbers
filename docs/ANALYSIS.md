@@ -336,9 +336,13 @@ sticky matches) and the lineups tie. Against dedicated best responses **both** l
 critic-audited): vs weak/median opponents P(win) ≈ 1.0; vs a strong barrier cop ≈ 0.87–0.90;
 vs an opponent fielding a **net-quality thief** we likely lose (P ≈ 0.08) — the binding
 constraint is **our cop** (proxy p=16/120 vs a net evader, likely pessimistic since the proxy
-is our own co-adapted thief). Honest risks, stated plainly: our weights are in a PUBLIC repo,
-so a targeted exploiter is reproducible by any opponent (~2 min of training; symmetric if
-their repo is public); §9 pays win +10 / **loss +7 / tie +5** (a tie is worth *less* than a
+is our own co-adapted thief). Honest risks, stated plainly: a targeted exploiter takes only
+~2 min to train **given the weights**, so weight visibility is the dominant risk lever — this
+repo is now **private** (read access granted to the lecturer only), which removes that lever
+for an opponent but does **not** remove it symmetrically: if their repo is public we can
+exploit them and they cannot exploit us, and if theirs is private too the matchup is blind on
+both sides. Blind is the case we plan for, and it is the case the table above measures.
+§9 pays win +10 / **loss +7 / tie +5** (a tie is worth *less* than a
 loss); and the bonus requires both groups' valid emails with `mutual_agreement=true`, else
 both score 0. Full matrix, scoring model, and 12 caveats: `results/bonus/stress_report.json`.
 

@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (915 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (926 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (915 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (926 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -175,9 +175,9 @@ Reported plainly — the brief grades honest analysis over a polished narrative:
   (Stage-2 cloud IS live since 2026-07-22: see §7.3d)
   (a deliberate scope line — PLAN §6 ADR-0013 (App-Password over OAuth) + risk R3; the send is built, idempotent and test-pinned, and stays behind an explicit human go).
 
-**Self-grade.** No numeric self-grade is claimed in this public repo: the rubric self-score lives on the
+**Self-grade.** No numeric self-grade is claimed in this repository: the rubric self-score lives on the
 Moodle cover sheet (`adrl-001-ex06.pdf` — git-ignored, carries PII). The bullets above are the honest
-public self-assessment; per the brief's standing rule the self-grade recommendation drives grading
+in-repo self-assessment; per the brief's standing rule the self-grade recommendation drives grading
 strictness. (This README does not award itself a number — the work has real, named gaps above.)
 
 ---
