@@ -105,6 +105,14 @@ After the 6th cloud sub-game, the cop emails the §3.5 report exactly once:
 uv run python scripts/run_match.py --send    # needs GMAIL_SENDER / GMAIL_APP_PASSWORD
 ```
 
+That replays a fresh in-memory match. To email the body for the **recorded cloud match**
+instead — same scores, but carrying the real over-the-internet timestamps — use:
+
+```bash
+uv run python scripts/send_cloud_report.py           # assemble + validate, no egress
+uv run python scripts/send_cloud_report.py --send    # the real (idempotent) send
+```
+
 ## What actually happened (the LIVE run, 2026-07-22)
 
 Deployed via `deploy/render.yaml` (Blueprint → repo → path `deploy/render.yaml`); the only

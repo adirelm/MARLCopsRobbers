@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (909 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (915 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (909 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (915 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -64,6 +64,9 @@ uv run python scripts/eval_matchup.py         # cop vs flee 59/60 ... cop vs OUR
 
 # 4) replay the §9 wire match from its shared log and re-render the §9.3 evidence screenshots
 uv run python scripts/replay_wire_match.py    # verifies all 6 sub-games, writes 18 PNGs
+
+# 5) the same §3.5 body, but for the CLOUD match the referee drove over the public internet
+uv run python scripts/send_cloud_report.py    # same totals, real Render timestamps (dry-run)
 ```
 
 Each command is idempotent and reads only committed artifacts, so a fresh clone reproduces the
@@ -388,7 +391,13 @@ agent needs one. The match's §3.5 report
 body is committed at
 [`results/subgames/cloud_match_5x5.redacted.json`](results/subgames/cloud_match_5x5.redacted.json)
 (6 sub-games, PII-redacted — the redaction strips the `students` name/id fields, so this tracked copy is deliberately NOT `schema.validate`-clean; the UNREDACTED body that IS validated at send time never leaves the git-ignored local file + the email). URLs: `adrl-001-cop.onrender.com/mcp` ·
-`adrl-001-thief.onrender.com/mcp` (RS256 JWT required).*
+`adrl-001-thief.onrender.com/mcp` (RS256 JWT required).
+**Timing footnote (reported, not smoothed):** five sub-games took ~13.5–14.6 s each; sub-game 5 took
+**198.8 s**. That is free-tier INFRASTRUCTURE, not the game — the client budget is
+`timeout_s` 10 × `max_retries` 3, so ~18 timed-out-then-retried ticks account for the excess, and the
+sub-game itself is unremarkable (25 moves, thief win, Table-1 5/10 like the rest). The brief bounds
+MOVES (≤25), not wall-clock, so nothing is out of spec; the outlier is left in rather than re-rolled
+because it is what the deployed system actually did.*
 
 **§3.5 send — automatic capability, deliberately human-gated trigger.** The Cop emails the report
 with *no per-step human interaction*: one command (`uv run python scripts/run_match.py --send`) plays
