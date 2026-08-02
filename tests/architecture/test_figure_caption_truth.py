@@ -71,3 +71,27 @@ def test_readme_config_table_covers_every_top_level_config_key() -> None:
         "README's config table claims to cover every top-level key but omits: "
         + ", ".join(sorted(keys - listed))
     )
+
+
+def test_experiment_manifest_hash_matches_the_current_config() -> None:
+    """The manifest's config hash IS the R8 drift detector — so check the detector itself.
+
+    README §7.3 cites it as proof of "zero README<->code drift", but nothing verified the
+    committed hash still matched the live config: a 2026-08-02 fresh-clone run found it stale
+    (a config key had been added without regenerating), i.e. the detector was silently RED.
+    Fix by re-running ``uv run python -m src.results.make_figures`` and committing both.
+    """
+    import hashlib  # noqa: PLC0415 — only this test needs the manifest digest
+    import json  # noqa: PLC0415
+
+    from src.utils.config_loader import load_config  # noqa: PLC0415
+
+    manifest_path = _ROOT / "results" / "figures" / "experiment_manifest.json"
+    if not manifest_path.exists():
+        pytest.skip("no experiment manifest in this checkout")
+    recorded = json.loads(manifest_path.read_text(encoding="utf-8"))["config_sha256"]
+    payload = json.dumps(load_config(), sort_keys=True, default=str).encode("utf-8")
+    assert recorded == hashlib.sha256(payload).hexdigest()[:16], (
+        "experiment_manifest.json config_sha256 is stale vs config/config.yaml — regenerate the "
+        "figures (uv run python -m src.results.make_figures) and commit the manifest with them"
+    )
