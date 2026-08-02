@@ -402,7 +402,17 @@ because it is what the deployed system actually did.*
 **§3.5 send — automatic capability, deliberately human-gated trigger.** The Cop emails the report
 with *no per-step human interaction*: one command (`uv run python scripts/run_match.py --send`) plays
 the 6 sub-games, assembles + schema-validates the §3.5 body, and delivers it via `sdk.send_final_report`
-in a single pass (`send.send_report` → §5 gatekeeper → `GmailMailer`). Delivery is content-keyed
+in a single pass (`send.send_report` → §5 gatekeeper → `GmailMailer`).
+
+*Which body was actually emailed:* the graded send used
+`uv run python scripts/send_cloud_report.py --send`, the **same** assembly + validation + gatekeeper
++ mailer chain, but sourcing the six sub-games from `results/subgames/cloud_match_5x5.redacted.json`
+— the match the referee drove against the two **Render-deployed** MCP servers over the public
+internet (§5.3 Stage-2). Both paths yield the identical result (cop 30 – thief 60); the cloud one
+carries the real distributed timestamps (2026-07-22), which is why the emailed body is dated 11 days
+before the send. `run_match.py --send` replays the match locally and would stamp today's clock
+instead — it demonstrates the automatic end-of-match capability, but the *cloud* run is the graded
+§5.3 evidence, so that is the body that ships. Delivery is content-keyed
 **idempotent** — the report sha256 in the `results/.report_sent` sentinel emails the lecturer **exactly
 once** — and the body is **validated** (schema + §3.4 Table-1 scores) before any SMTP dial. The single
 non-automatic step is the final trigger: the MCP `send_final_report` tool is **dry-run by default**

@@ -63,7 +63,10 @@ def main(cfg: dict | None = None, send: bool = False) -> dict:
         date_str = datetime.datetime.now(zoneinfo.ZoneInfo(report["timezone"])).strftime("%Y-%m-%d")
         # date_str MUST be keyword — the 2nd positional of send_final_report is `sender`.
         result = MarlSDK(cfg).send_final_report(report, date_str=date_str)
+        # Echo recipient + subject: this send is irreversible, so the operator must be able to
+        # confirm WHERE it landed without digging through the sentinel.
         print(f"[email] sent={result['sent']} reason={result.get('reason', 'ok')}")
+        print(f"[email] to={result.get('to')}\n[email] subject={result.get('subject')}")
     return report
 
 
