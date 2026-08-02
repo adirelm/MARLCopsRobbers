@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (907 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (909 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (907 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (909 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -115,7 +115,7 @@ Every top-level key of `config/config.yaml` and what it controls:
 |---|---|---|
 | `ModuleNotFoundError: No module named 'pygame'` on `uv run python -m src.gui` | the GUI is an **optional extra** — headless training/CI deliberately do not install SDL | `uv sync --extra gui` (or `--all-extras`) |
 | GUI crashes / hangs on a headless box or over SSH | SDL has no display to open | export `SDL_VIDEODRIVER=dummy` (and `SDL_AUDIODRIVER=dummy`) before launching — this is exactly what `tests/conftest.py` does for the render tests |
-| `SystemExit: no runs in results/runs/history.jsonl — run scripts/run_results.py first` | `make_figures` is a pure analysis layer over the append-only run log; heavy artifacts are git-ignored, so a fresh clone has none | run `uv run python scripts/run_results.py` (or a training run) first, then `uv run python -m src.results.make_figures` |
+| `SystemExit: no runs in results/runs/history.jsonl — run scripts/run_results.py first` | `make_figures` is a pure analysis layer over the append-only run log. `results/runs/history.jsonl` IS tracked, so a fresh clone reproduces every figure directly — you only hit this if the file was deleted or you point `paths.runs_dir` elsewhere | re-run `uv run python -m src.results.make_figures`; to regenerate the log itself (hours) use `uv run python scripts/run_results.py` |
 | MCP client fails to connect over HTTP | the two servers are separate OS processes and must already be listening on `127.0.0.1:8001` (cop) and `127.0.0.1:8002` (thief) at path `/mcp` | let `uv run python scripts/serve_match_http.py` spawn them, or start each by hand with `uv run fastmcp run src/mcp/localhost_cop.py:mcp --transport http --host 127.0.0.1 --port 8001` (and `localhost_thief.py:mcp` on 8002); check nothing else holds those ports |
 | MCP call returns **401** | the bearer token is missing/wrong — Stage 1 uses a static token, Stage 2 an RS256 JWT | fill `COP_MCP_TOKEN` / `THIEF_MCP_TOKEN` / `REFEREE_MCP_TOKEN` (and `PEER_MCP_TOKEN`) in `.env`, copied from `.env-example`; for JWT mode also set `MCP_AUTH_MODE=jwt` + `MCP_PUBLIC_KEY` |
 | `KeyError: 'MODEL_PATH'` importing `src.mcp.cloud_cop` / `cloud_thief` | those are **deploy entrypoints**, not importable library modules — they load an actor bundle at import time | set `MODEL_PATH` to the actor-only `.pt` bundle, or use the tested factory `src.mcp.cloud.build_cloud_server` instead |
@@ -170,7 +170,7 @@ Reported plainly — the brief grades honest analysis over a polished narrative:
   trainable-param reduction it would visualize is still asserted by `tests/unit/test_olora_linear.py`.
 - **The Gmail send is built + tested, not live-run** — it is credential-gated
   (Stage-2 cloud IS live since 2026-07-22: see §7.3d)
-  (a deliberate scope line — PLAN §6 ADR-0012 + risk R2; the localhost match F4 is canonical).
+  (a deliberate scope line — PLAN §6 ADR-0013 (App-Password over OAuth) + risk R3; the send is built, idempotent and test-pinned, and stays behind an explicit human go).
 
 **Self-grade.** No numeric self-grade is claimed in this public repo: the rubric self-score lives on the
 Moodle cover sheet (`adrl-001-ex06.pdf` — git-ignored, carries PII). The bullets above are the honest
@@ -281,9 +281,13 @@ pins arms / seeds / stages + a config hash (= 60 runs across 4 stages, zero READ
 
 ![F1 learning curves](results/figures/learning_curves.png)
 *F1 — §7.3a BOTH agents' learning at the **5×5 one-cop final test** (brief §5.1; cross-seed mean±SE; capture rate is
-the reward proxy — the terminal signal dominates and shaping is train-only). The cop panel STARTS high
-(the cop's greedy policy starts strong against an untrained thief) and capture then falls as the self-play thief improves —
-the right panel shows the thief's escape rate climbing in mirror: §7.2's non-stationarity made visible.
+the reward proxy — the terminal signal dominates and shaping is train-only). **Read the two panels
+together — they are mirror images, and that IS §7.2's non-stationarity made visible.** Both start near
+even (~0.51 capture / ~0.42 escape). The thief improves first, peaking at ~0.90 escape around rounds
+11–13 — exactly where the cop's capture rate bottoms out (~0.16–0.29 at rounds 14–16). The cop then
+learns to counter that thief and climbs steadily to **0.82 (QMIX) / 0.70 (VDN=IQL)** by round 48
+while the thief's escape rate falls back to ~0.25–0.40. Neither curve converges monotonically,
+because each side's target keeps moving: that alternating best-response oscillation is the point.
 At this 5×5 one-cop final test QMIX is in fact the tightest+highest arm (0.72±0.05) with VDN=IQL (0.61±0.06); the monotonic-mixer instability (R1) is the 4×4 two-cop story (F5/F8), not this one. Train reads global `s`, exec local `o_i`.*
 
 ![F1b cumulative return](results/figures/return_curves.png)
@@ -371,17 +375,19 @@ on ports 8001/8002 with bearer auth, one shared `session_id` across both servers
 
 ![F4c cloud comms](results/figures/mcp_comms_cloud.png)
 *F4c — **§5.3 Stage-2 LIVE**: a **FULL 6-sub-game match** played between two servers deployed on
-Render (Oregon), driven by the referee over the **public internet** (traces `sg-0`…`sg-5`, final
-cop 30 – thief 60). The capture also shows the §5.3 **mutual position verification**: each server's
-`reveal_location` answers the *other* agent's HTTP query, radius-gated — an adjacent requester gets
-`{visible: true, position: [1,0]}`, a distant one gets `{visible: false}`. Per the §5.3 wording —
+Render (Oregon), driven by the referee over the **public internet** (final cop 30 – thief 60). The
+image renders the transcript's **first 40 lines** (`src/results/comms.py` caps it for legibility), so
+what you SEE is the opening of trace `sg-0`; the full six traces `sg-0`…`sg-5` and the §5.3 **mutual
+position verification** — each server's `reveal_location` answering the *other* agent's radius-gated
+HTTP query (adjacent requester → `{visible: true, position: [1,0]}`, distant → `{visible: false}`) —
+are in the complete run log behind it. Per the §5.3 wording —
 *each reveals position/actions over HTTP **only as needed** for mutual location checks* — this reveal is
 **on-demand + radius-gated**, not a mandatory per-tick broadcast: the referee (the environment, sole
 holder of ground-truth `s`) drives each agent's move every tick, and a peer location check fires when an
 agent needs one. The match's §3.5 report
 body is committed at
 [`results/subgames/cloud_match_5x5.redacted.json`](results/subgames/cloud_match_5x5.redacted.json)
-(schema-valid, 6 sub-games, PII-redacted). URLs: `adrl-001-cop.onrender.com/mcp` ·
+(6 sub-games, PII-redacted — the redaction strips the `students` name/id fields, so this tracked copy is deliberately NOT `schema.validate`-clean; the UNREDACTED body that IS validated at send time never leaves the git-ignored local file + the email). URLs: `adrl-001-cop.onrender.com/mcp` ·
 `adrl-001-thief.onrender.com/mcp` (RS256 JWT required).*
 
 **§3.5 send — automatic capability, deliberately human-gated trigger.** The Cop emails the report

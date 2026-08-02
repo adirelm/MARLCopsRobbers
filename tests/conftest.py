@@ -61,3 +61,22 @@ def make_state() -> Callable[..., GlobalState]:
         )
 
     return _factory
+
+
+# Set by the collection hook below so the doc-count gate can compare the number the README
+# advertises against the number actually collected (see test_figure_caption_truth.py).
+COLLECTED: dict[str, int | bool] = {"count": 0, "full_suite": False}
+
+
+def pytest_collection_modifyitems(session, config, items) -> None:
+    """Record the collected test count + whether this run covered the WHOLE suite.
+
+    The documented count drifted twice (888->895, 907->908) because nothing checked it.
+    `full_suite` is False for a targeted subset run, so the gate skips instead of failing
+    spuriously when someone runs a single file.
+    """
+    targets = [str(a) for a in config.args if not str(a).startswith("-")]
+    whole = not targets or all(
+        str(t).rstrip("/") in {"tests", str(config.rootpath / "tests")} for t in targets
+    )
+    COLLECTED.update(count=len(items), full_suite=bool(whole))

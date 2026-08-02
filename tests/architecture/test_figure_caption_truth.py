@@ -95,3 +95,23 @@ def test_experiment_manifest_hash_matches_the_current_config() -> None:
         "experiment_manifest.json config_sha256 is stale vs config/config.yaml — regenerate the "
         "figures (uv run python -m src.results.make_figures) and commit the manifest with them"
     )
+
+
+def test_documented_test_count_matches_the_suite() -> None:
+    """README/QUALITY advertise a test count — hold it to the number actually collected.
+
+    It drifted twice (888->895, 907->908) because every other doc number is test-pinned and
+    this one was not. Skipped on a targeted subset run, where the collected count is partial.
+    """
+    from tests.conftest import COLLECTED  # noqa: PLC0415 — the collection hook fills this
+
+    if not COLLECTED["full_suite"]:
+        pytest.skip("subset run — the collected count is not the whole suite")
+    actual = int(COLLECTED["count"])
+    stale: list[str] = []
+    for rel in ("README.md", "docs/QUALITY.md"):
+        for number, line in enumerate((_ROOT / rel).read_text(encoding="utf-8").splitlines(), start=1):
+            for claimed in re.findall(r"\b(\d{3,4}) tests\b", line):
+                if int(claimed) != actual:
+                    stale.append(f"{rel}:{number} says {claimed}")
+    assert not stale, f"docs advertise a stale test count (suite collects {actual}): " + "; ".join(stale)

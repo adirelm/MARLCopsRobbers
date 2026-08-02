@@ -129,5 +129,7 @@ Deployment gotchas found the hard way (all fixed in-repo):
 - The build-time `uv` binary is **not** preserved at runtime → start via
   `.venv/bin/fastmcp` (deps are still uv-resolved, `--frozen`).
 - fastmcp 3.x wraps `RSAKeyPair.private_key` in a pydantic `SecretStr`.
-- Free tier sleeps after 15 min → the first request takes ~60–70 s; the client's
-  `prewarm_ping` + retries absorb it (mention this to anyone testing the URLs).
+- Free tier sleeps after 15 min → the first request takes **~90 s** (measured 2026-07-30).
+  The per-move budget (`mcp.client.timeout_s` 10 × `max_retries` 3 ≈ 31 s) is deliberately far
+  too tight for that, so the warm-up does NOT rely on it: `prewarm_ping` polls health to its own
+  `mcp.client.prewarm_deadline_s` (180 s) budget. Mention the ~90 s wake to anyone testing the URLs.

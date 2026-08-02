@@ -277,7 +277,8 @@ superiority.** Injecting small exploration noise into the thief alone recovers c
 monotonically in both committed blocks (8 → 26/25 → 47/45). At ε=0 both policies are bit-identically
 reproducible across runs *and* across RNG seeds (the RNG is consumed every tick but provably
 inert on actions), so each start position replays one fixed greedy escape trajectory — **distinct
-per seed** (6 seeds → 6 distinct sequences, one of which is even captured), sharing a
+per seed** (the 6 match seeds give 5 distinct sequences — seeds 7 and 8 happen to coincide — and one
+of them is even captured), sharing a
 left/right-oscillation motif — that exploits *this specific cop's* deterministic greedy
 responses. One tick-level illustration from the development probe (a session observation, not a
 committed artifact): on actual match seed 7, a single ε=0.10 deviation at tick 14 flipped a
