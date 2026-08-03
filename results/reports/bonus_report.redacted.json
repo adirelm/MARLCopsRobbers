@@ -1,0 +1,112 @@
+{
+  "report_type": "bonus_game",
+  "groups": {
+    "group_1": "adrl-001",
+    "group_2": "biu-azri"
+  },
+  "github_repo_group_1": "<redacted — real URL only in the git-ignored copy + the email>",
+  "github_repo_group_2": "<redacted — real URL only in the git-ignored copy + the email>",
+  "timezone": "Asia/Jerusalem",
+  "students_group_1": [
+    {
+      "role": "A"
+    }
+  ],
+  "students_group_2": [
+    {
+      "role": "A"
+    },
+    {
+      "role": "B"
+    }
+  ],
+  "sub_games": [
+    {
+      "id": 1,
+      "start": "2026-08-04T00:21:24.647+03:00",
+      "end": "2026-08-04T00:21:25.574+03:00",
+      "moves": 6,
+      "winner": "cop",
+      "scores": {
+        "cop": 20,
+        "thief": 5
+      },
+      "cop_group": "adrl-001",
+      "thief_group": "biu-azri"
+    },
+    {
+      "id": 2,
+      "start": "2026-08-04T00:21:25.574+03:00",
+      "end": "2026-08-04T00:21:28.822+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      },
+      "cop_group": "adrl-001",
+      "thief_group": "biu-azri"
+    },
+    {
+      "id": 3,
+      "start": "2026-08-04T00:21:28.822+03:00",
+      "end": "2026-08-04T00:21:31.874+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      },
+      "cop_group": "adrl-001",
+      "thief_group": "biu-azri"
+    },
+    {
+      "id": 4,
+      "start": "2026-08-04T00:21:31.874+03:00",
+      "end": "2026-08-04T00:21:35.065+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      },
+      "cop_group": "biu-azri",
+      "thief_group": "adrl-001"
+    },
+    {
+      "id": 5,
+      "start": "2026-08-04T00:21:35.066+03:00",
+      "end": "2026-08-04T00:21:38.120+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      },
+      "cop_group": "biu-azri",
+      "thief_group": "adrl-001"
+    },
+    {
+      "id": 6,
+      "start": "2026-08-04T00:21:38.121+03:00",
+      "end": "2026-08-04T00:21:41.176+03:00",
+      "moves": 25,
+      "winner": "thief",
+      "scores": {
+        "cop": 5,
+        "thief": 10
+      },
+      "cop_group": "biu-azri",
+      "thief_group": "adrl-001"
+    }
+  ],
+  "totals_by_group": {
+    "adrl-001": 60,
+    "biu-azri": 40
+  },
+  "bonus_claim": {
+    "adrl-001": 10,
+    "biu-azri": 7
+  },
+  "mutual_agreement": true
+}

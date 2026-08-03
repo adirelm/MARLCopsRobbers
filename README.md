@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (977 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (981 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (977 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (981 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -524,8 +524,10 @@ late-penalty R15, solo-overload R16) are tabulated in `docs/PLAN.md §10`.
 
 ## 9. Inter-group bonus match (ex06 §9 — counts toward the FINAL PROJECT)
 
-**Status: MATCH-READY — the full wire stack is built and dress-rehearsed; the match has
-not been played yet.** The neutral wire protocol we offer partners is specified in
+**Status: PLAYED AND AGREED — 2026-08-04. Opponent `biu-azri`. Final score
+`adrl-001 60 — biu-azri 40`. Our bonus claim: 10 (theirs 7). Both groups set
+`mutual_agreement: true` after an independent byte-compare.** Details in §9a below.
+The neutral wire protocol we offer partners is specified in
 [`docs/interfaces/partner_agent_brief.md`](docs/interfaces/partner_agent_brief.md) (a
 self-contained brief their coding agent can implement from directly). Our side is
 implemented end-to-end: `src/mcp/wire_obs.py` reconstructs our policies' observations
@@ -545,9 +547,62 @@ dual-block redaction + one-valid-email idempotent send
 `wire_referee.build_draft_report`, which falls back to the example template until the
 partner file exists), and the pre-game rules agreement + neutral
 wire protocol ([`docs/interfaces/intergroup_mcp.md`](docs/interfaces/intergroup_mcp.md)).
-Per §9.3, this section will record — once the match is played and both groups agree —
-the opponent group's name, the final `totals_by_group`, our `bonus_claim`, and
-screenshots of the bonus match.
+### 9a. The played match (§9.3 record)
+
+| | |
+|---|---|
+| **Opponent group** | `biu-azri` — [github.com/Azriel-Erenkrantz/marl-cop-thief](https://github.com/Azriel-Erenkrantz/marl-cop-thief) |
+| **Played** | 2026-08-04, 00:21 Asia/Jerusalem, over the public internet against their live Render adapter |
+| **Final score** | **`adrl-001` 60 — `biu-azri` 40** |
+| **Our bonus claim** | **10** (theirs 7, per §9.2 win/loss) |
+| **Agreement** | `mutual_agreement: true` — both groups byte-compared independently built drafts |
+
+| sub-game | cop | thief | moves | winner | scores (cop/thief) |
+|---|---|---|---|---|---|
+| 1 | adrl-001 | biu-azri | **6** | **cop** | 20 / 5 |
+| 2 | adrl-001 | biu-azri | 25 | thief | 5 / 10 |
+| 3 | adrl-001 | biu-azri | 25 | thief | 5 / 10 |
+| 4 | biu-azri | adrl-001 | 25 | thief | 5 / 10 |
+| 5 | biu-azri | adrl-001 | 25 | thief | 5 / 10 |
+| 6 | biu-azri | adrl-001 | 25 | thief | 5 / 10 |
+
+**How the margin arises.** Under the §3.4 table the thief side cancels across the mirror
+pairs, so the result reduces to `20 × (A − B)` where `A`/`B` are each group's captures as
+cop. Our cop captured once (sub-game 1, in 6 moves); theirs never did. `20 × (1 − 0) = +20`
+— exactly the 60–40 margin. Our thief was never caught in three attempts, which is what
+[`docs/ANALYSIS.md`](docs/ANALYSIS.md) §13 predicted from the stress test.
+
+**Fairness of the frozen layouts.** `biu-azri` chose the seed list
+(`6897, 2531, 1891` + spares `3573, 5224, 2407`, generated with `secrets.randbelow` and
+never executed on their side); we published the literal `[row, col]` cop/thief cells those
+resolve to, and they verified every row before freezing. That ordering matters: we host the
+referee, so whoever picks the seeds could preview the layouts — having *them* pick removes
+the surface. Mirror pairs `k`/`k+3` share a seed, so both groups played cop from the
+identical start.
+
+**Run integrity.** 274 requests, **0 P8 retries, 0 error responses, 0 voids, 0 re-hellos** —
+every sub-game is its first and only attempt. Their latency was 93–215 ms against a 10 s
+per-move budget. An unscored protocol-conformance sub-game ran first on seed `424242`,
+deliberately outside the frozen list so no real layout was exposed.
+
+**Independent verification, both directions.** We re-derived every tick from the log
+(`scripts/replay_wire_match.py`) and checked all six seeds and both start cells against the
+frozen table. `biu-azri` replayed all 274 moves through *their own* engine under
+simultaneous + swap-capture resolution and reached identical winners and move counts. The
+§5 byte-compare was done by exchanging a `sha256` of the canonicalised
+`sub_games`/`totals_by_group`/`bonus_claim` — `1261` bytes, `b15848a2…1dd58` — identical on
+both sides, so neither group saw the other's file before building its own.
+
+**Evidence:** shareable per-request log
+[`results/wire_match/wire_log_20260804T002124.jsonl`](results/wire_match/wire_log_20260804T002124.jsonl);
+conformance log `results/wire_match/conformance_20260804.jsonl`; the 18 replay screenshots
+below; redacted §9.4 body `results/reports/bonus_report.redacted.json` (both student blocks
+and both repo URLs masked — the unredacted draft is git-ignored).
+
+![bonus sg1 start](results/screenshots/bonus/bonus_sg1_t00.png) ![bonus sg1 mid](results/screenshots/bonus/bonus_sg1_mid.png) ![bonus sg1 final](results/screenshots/bonus/bonus_sg1_final.png)
+*§9.3 match screenshots — sub-game 1 at t=0, mid-game, and the capture that decided the match
+(all 18 frames, three per sub-game, regenerate from the shared log via
+`uv run python scripts/replay_wire_match.py`).*
 
 **Match lineup (selected by a 10-seed 5×5 self-play tournament,
 [`results/bonus/selection_report.json`](results/bonus/selection_report.json)):** cop =
