@@ -26,19 +26,35 @@ _CMD_SHORT = {
 }
 
 
-def _help_line(supported_commands=None) -> str:
-    """The persistent HUD help/legend line — DERIVED from the real key bindings (never drifts).
+# Which commands belong on which help row. Split because all eight on one line rendered
+# 789px wide in a 720px window — it ran off the screen edge.
+_PLAYBACK = ("toggle_pause", "speed_up", "slow_down", "next_sub_game", "reset")
+
+
+def _help_lines(supported_commands=None) -> list[str]:
+    """The persistent HUD help rows — DERIVED from the real key bindings (never drift).
 
     ``supported_commands`` (a set, or ``None`` for all) drops keys the current frame
     source cannot honestly execute — e.g. 'n next' when the client has no
     ``next_sub_game`` — so the HUD never advertises a command that silently no-ops.
+
+    Two rows, playback then view: one row overflowed the window, and eight bindings run
+    together were unreadable even when they fitted. Each key is bracketed because
+    "r reset - speed-" gives no cue which token is the key and which is the action.
     """
     keys_by_cmd: dict[str, list[str]] = {}
     for key, cmd in bindings().items():
         if supported_commands is None or cmd in supported_commands:
             keys_by_cmd.setdefault(cmd, []).append(key)
-    parts = ["/".join(sorted(keys)) + " " + _CMD_SHORT[cmd] for cmd, keys in sorted(keys_by_cmd.items())]
-    return "Keys  " + "  ".join(parts)
+
+    def row(label: str, cmds) -> str | None:
+        parts = [
+            f"[{'/'.join(sorted(keys_by_cmd[c]))}] {_CMD_SHORT[c]}" for c in sorted(cmds) if c in keys_by_cmd
+        ]
+        return f"{label}  " + " · ".join(parts) if parts else None
+
+    rows = [row("Playback", _PLAYBACK), row("View", set(keys_by_cmd) - set(_PLAYBACK))]
+    return [r for r in rows if r]
 
 
 def hud_height(frame: SpectatorFrame) -> int:
@@ -68,17 +84,19 @@ def build_hud_plan(frame: SpectatorFrame, supported_commands=None, width: int | 
     lines = [
         f"Sub-game {frame.sub_game}/{frame.num_games}",
         f"Move {frame.move}/{frame.max_moves}",
-        f"Scores  cop {frame.scores['cop']}  thief {frame.scores['thief']}",
-        f"Totals  cop {frame.totals['cop']}  thief {frame.totals['thief']}",
+        f"This sub-game   cop {frame.scores['cop']}   thief {frame.scores['thief']}",
+        f"Match totals   cop {frame.totals['cop']}   thief {frame.totals['thief']}",
     ]
     if frame.max_barriers:  # §3.3 budget — omitted when the frame source doesn't know it
-        lines.append(f"Barriers  {len(frame.barriers)}/{frame.max_barriers}")
+        lines.append(f"Barriers used  {len(frame.barriers)}/{frame.max_barriers}")
     if frame.last_action:
-        lines.append("Last  " + "  ".join(f"{k}:{v}" for k, v in frame.last_action.items()))
+        lines.append("Last move   " + "   ".join(f"{k} {v.lower()}" for k, v in frame.last_action.items()))
     if frame.winner:
         lines.append(f"WINNER: {frame.winner.upper()}")
-    lines.append(_help_line(supported_commands))  # persistent key-bindings help (§10.2 Nielsen 6 + 10)
-    lines.append("Legend  cop=blue  thief=red  barrier=grey")  # token legend (own line — fits 720px)
+    lines += _help_lines(supported_commands)  # persistent key-bindings help (§10.2 Nielsen 6 + 10)
+    # Names the SHAPES, not just the colours: since the arcade sprites landed, "cop=blue"
+    # described a hue but not the blue GHOST the viewer is actually looking at.
+    lines.append("Legend  blue ghost = cop · red wedge = thief (mouth leads) · grey block = barrier")
     text_ops = [
         {"kind": "text", "pos": (8, 8 + i * (palette.FONT_PX + 4)), "text": t, "color": palette.TEXT}
         for i, t in enumerate(lines)

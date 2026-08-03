@@ -91,10 +91,10 @@ Both sign off on every ADR before its code lands (PRD/PLAN edit first → then e
 
 - [x] **T0.8 — Repo sharing & branch** · _B_
   Repo sharing + branch hygiene. AS BUILT: development runs on `main` (feature branches merged, e.g.
-  `bonus/minimax-q-baseline`) rather than a long-lived `assignment-6` branch; the repo is **PRIVATE**
-  (flipped from public so a §9 opponent cannot train a best-response exploiter against our published
-  weights — see ANALYSIS §13); `rmisegal` (Dr. Yoram Segal) has **accepted** read access, so the
-  `github_repo` URL in the §3.5 report resolves for the grader. Keep a `/tmp` clone to recover `.git` (MEMORY: Google-Drive sync
+  `bonus/minimax-q-baseline`) rather than a long-lived `assignment-6` branch; the repo is **PUBLIC** again
+  since 2026-08-04. It was flipped private for the §9 window (so no opponent could train a
+  best-response against our published weights — ANALYSIS §13) and restored once the match was
+  played and agreed. `rmisegal` (Dr. Yoram Segal) also holds accepted read access from that period. Keep a `/tmp` clone to recover `.git` (MEMORY: Google-Drive sync
   silently deletes `.git`; push often).
   **DoD (as built):** repo public + pushed; solo submission (one Moodle URL); collaborator add = the
   explicit pre-submission checklist item.

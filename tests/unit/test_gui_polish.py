@@ -39,21 +39,21 @@ def _texts(frame) -> list[str]:
 
 
 def test_hud_shows_barriers_placed_over_budget() -> None:
-    """Two barriers placed out of a budget of 5 must read 'Barriers  2/5'."""
+    """Two barriers placed out of a budget of 5 must read 'Barriers used  2/5'."""
     line = next(t for t in _texts(_frame(max_barriers=5)) if t.startswith("Barriers"))
-    assert line == "Barriers  2/5"
+    assert line == "Barriers used  2/5"
 
 
 def test_barrier_line_tracks_the_actual_placements() -> None:
     """The count is derived from the frame's barriers — it cannot drift from the board."""
     frame = _frame(barriers=((0, 0), (1, 1), (2, 2), (3, 3)), max_barriers=5)
-    assert "Barriers  4/5" in _texts(frame)
+    assert "Barriers used  4/5" in _texts(frame)
 
 
 def test_exhausted_budget_is_visible() -> None:
     """A cop with no barriers left must be able to see that from the HUD alone."""
     frame = _frame(barriers=tuple((0, i) for i in range(5)), max_barriers=5)
-    assert "Barriers  5/5" in _texts(frame)
+    assert "Barriers used  5/5" in _texts(frame)
 
 
 def test_hud_omits_the_barrier_line_when_the_budget_is_unknown() -> None:

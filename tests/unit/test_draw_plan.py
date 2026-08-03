@@ -74,9 +74,11 @@ def test_hud_plan_has_move_scores_and_winner():
     """The HUD renders move, scores, TOTALS, last action, a winner banner, and the help line."""
     texts = [op["text"] for op in build_hud_plan(_frame(winner="cop"))]
     assert any("Move 4/25" in t for t in texts)
-    assert any("Scores" in t for t in texts)
-    assert any("Totals" in t for t in texts)
-    assert any("Last" in t for t in texts)
+    # Labels say WHICH scope: "Scores"/"Totals" alone did not distinguish this sub-game
+    # from the match, which is the one thing a viewer most needs from those two rows.
+    assert any("This sub-game" in t for t in texts)
+    assert any("Match totals" in t for t in texts)
+    assert any("Last move" in t for t in texts)
     assert any("WINNER: COP" in t for t in texts)
     assert all(op["kind"] == "text" for op in build_hud_plan(_frame()))
 
@@ -97,11 +99,17 @@ def test_board_reserves_the_hud_strip_at_the_shipped_window_size():
 def test_hud_help_line_is_derived_from_the_real_bindings():
     """The persistent help + legend lines list every bound command (derived, so they can't drift)."""
     texts = [op["text"] for op in build_hud_plan(_frame())]
-    help_line, legend = texts[-2], texts[-1]
-    assert help_line.startswith("Keys")
-    for fragment in ("space pause", "v radius", "escape quit"):
-        assert fragment in help_line
-    assert legend.startswith("Legend") and "cop=blue" in legend
+    playback, view, legend = texts[-3], texts[-2], texts[-1]
+    assert playback.startswith("Playback") and view.startswith("View")
+    # Each key is bracketed and bindings are separated — one run-on row was unreadable
+    # AND overflowed the 720px window at 789px.
+    for fragment in ("[space] pause", "[v] radius", "[escape] quit"):
+        assert fragment in playback + view
+    # The legend must name the SHAPES: since the arcade sprites landed, a colour alone
+    # does not tell the viewer they are looking at a ghost and a wedge.
+    assert legend.startswith("Legend")
+    for fragment in ("ghost", "wedge", "barrier"):
+        assert fragment in legend
 
 
 def test_hud_plan_omits_last_and_winner_on_opening_frame():
@@ -135,10 +143,11 @@ def test_view_radius_overlay_covers_every_cop():
 
 def test_help_line_drops_commands_the_frame_source_cannot_do():
     """The HUD 'n next' hint disappears when next_sub_game is unsupported (wave-2 G5)."""
-    all_texts = [op["text"] for op in build_hud_plan(_frame())]
-    assert "next" in all_texts[-2]  # default (None) advertises the full binding set
+    all_help = " ".join(op["text"] for op in build_hud_plan(_frame())[-3:])
+    assert "next" in all_help  # default (None) advertises the full binding set
     limited = frozenset({"toggle_pause", "reset", "toggle_view_radius", "quit", "speed_up", "slow_down"})
     texts = [op["text"] for op in build_hud_plan(_frame(), limited)]
-    assert "next" not in texts[-2]  # the honest HUD for a client without next_sub_game
-    assert "pause" in texts[-2] and "quit" in texts[-2]
-    assert len(texts) == len(all_texts)  # line COUNT unchanged -> hud_height stays valid
+    help_rows = " ".join(texts[-3:])
+    assert "next" not in help_rows  # the honest HUD for a client without next_sub_game
+    assert "pause" in help_rows and "quit" in help_rows
+    assert len(texts) == len(build_hud_plan(_frame()))  # line COUNT unchanged -> hud_height valid

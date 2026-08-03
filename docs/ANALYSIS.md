@@ -338,10 +338,12 @@ vs an opponent fielding a **net-quality thief** we likely lose (P ≈ 0.08) — 
 constraint is **our cop** (proxy p=16/120 vs a net evader, likely pessimistic since the proxy
 is our own co-adapted thief). Honest risks, stated plainly: a targeted exploiter takes only
 ~2 min to train **given the weights**, so weight visibility is the dominant risk lever — this
-repo is now **private** (read access granted to the lecturer only), which removes that lever
-for an opponent but does **not** remove it symmetrically: if their repo is public we can
-exploit them and they cannot exploit us, and if theirs is private too the matchup is blind on
-both sides. Blind is the case we plan for, and it is the case the table above measures.
+weight visibility is the dominant risk lever. It was managed by TIMING rather than by
+secrecy: the repo stayed **private for the whole §9 negotiation and match** — read access to
+the lecturer only — so neither group could train a best-response against the other's
+published weights, and both sides played blind. That is the case the table above measures.
+The repo was made **public after the match was played and both reports were agreed**, when
+exposure can no longer affect a result.
 §9 pays win +10 / **loss +7 / tie +5** (a tie is worth *less* than a
 loss); and the bonus requires both groups' valid emails with `mutual_agreement=true`, else
 both score 0. Full matrix, scoring model, and 12 caveats: `results/bonus/stress_report.json`.
