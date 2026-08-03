@@ -144,11 +144,39 @@ session, so a pass means the live path is warm and verified.
 
 ---
 
-## What we need from you to lock this in
+## What we need from you — in order
 
-1. Bearer token (private channel).
-2. Availability window.
-3. "Frozen" on the P7 table above — or your own seed list if you would rather choose it.
-4. Whether you want `stay` after all (C1).
+**1. A working bearer token (BLOCKING — nothing else can start).**
+
+The value you sent returns `401` from your own deployment. Before resending, verify the
+token you are about to send against the **deployed** service (not a local run) — that
+distinction is almost certainly where this went wrong:
+
+```powershell
+$t = "<the token you are about to send>"
+$b = "https://marl-bonus-adapter.onrender.com"
+
+curl.exe -s -o NUL -w "%{http_code}`n" -X POST -H "Authorization: Bearer $t" -H "Content-Type: application/json" -d '{\"session_id\":\"tokencheck\",\"grid\":[5,5],\"your_role\":\"thief\",\"your_pos\":[1,1],\"max_moves\":25}' "$b/new_sub_game"
+```
+
+`200` means send it. `401` means the secret in your hosting dashboard differs from `$t` —
+fix that first (and remember a dashboard change needs a redeploy/restart to take effect).
+If you would rather not paste it again, send us the first 12 characters of its `sha256`
+and we will tell you whether it matches what we already hold (`d06ce58286d8`).
+
+**2. Your availability window.** Ours is at the bottom of this message.
+
+**3. "Frozen" on the P7 table** in C2 above — or send your own 6+ seeds and we will
+publish the layouts they resolve to, and you freeze those instead.
+
+**4. Your call on C1 (`stay`).** We declined, but the offer stands: say the word and we
+enable it for both sides.
+
+**5. Confirm the C3 log schema is enough** to re-derive every tick. If a field is missing
+for your verifier, better to say now than after sub-game 6.
+
+**6. Keep auto-deploy disabled** for the window, as you proposed — we are doing the same.
+
+Once 1–3 land we will run the unscored conformance sub-game, then the real match.
 
 Our availability: **<<< FILL IN: your window >>>**
