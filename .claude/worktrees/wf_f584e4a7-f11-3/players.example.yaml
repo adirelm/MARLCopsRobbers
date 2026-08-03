@@ -1,0 +1,35 @@
+# ============================================================================
+# players.example.yaml — Assignment 6 MARL Cops & Robbers (group adrl-001)
+# ----------------------------------------------------------------------------
+# TRACKED placeholder file. Copy to players.local.yaml (GIT-IGNORED) and fill
+# REAL names/IDs + GitHub owner slug there. PII (full_name, id) and the owner
+# handle MUST NEVER appear in any tracked file (A1-A5 PII deny-list; V3 gate).
+#
+#   cp players.example.yaml players.local.yaml   # then fill real values
+#
+# .gitignore MUST contain:  players.local.yaml  secrets/
+#
+# These identities are loaded at runtime and injected into the §3.5 email JSON
+# body ONLY at send time; the committed report copy is REDACTED to roles only.
+# BRIEF §5 default is 2 students (A, B; optional C). THIS submission is SOLO
+# (single student, role A) per the course's general solo-work approval + the
+# A1-A5 precedent — so students[] has exactly one entry. Cover sheet
+# adrl-001-ex06.pdf is git-ignored, Moodle-only.
+# ============================================================================
+
+group_name: "adrl-001"            # §3.5 group_name (matches config project.group_code)
+
+# §3.5 github_repo — owner slug is PII-adjacent, so it lives here (git-ignored
+# in players.local.yaml), NOT in config.yaml.
+github_repo: "https://github.com/<OWNER>/Assignment6-MARLCopsRobbers"
+
+# §3.5 students[]: SOLO submission — exactly one entry (role A).
+# id pattern: ^[0-9]{5,12}$ (validated by the report schema).
+# (Schema still accepts B/C if a partner ever joins; left commented.)
+students:
+  - role: "A"
+    full_name: "<STUDENT A FULL NAME>"
+    id: "<STUDENT A ID>"
+  # - role: "B"                   # add only if this becomes a 2-person group
+  #   full_name: "<STUDENT B FULL NAME>"
+  #   id: "<STUDENT B ID>"

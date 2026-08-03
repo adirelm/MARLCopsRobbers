@@ -19,23 +19,6 @@ from src.gui.sprites import capture_rings, pursued_ops, pursuer_ops
 from src.gui.transform import GridView
 
 
-def _token(rect: tuple, color: tuple, alpha: int | None = None, scale: float = 1.0) -> dict:
-    """Return an inset filled-circle token op centred in ``rect``.
-
-    ``scale`` shrinks the circle about the cell centre. Trail dots use it: at full token
-    size a four-cell tail reads as four agents on the board rather than as one agent's path.
-    """
-    x, y, w, h = rect
-    inset = _inset_px(w, h)
-    inner_w, inner_h = w - 2 * inset, h - 2 * inset
-    dx, dy = inner_w * (1 - scale) / 2, inner_h * (1 - scale) / 2
-    box = (x + inset + dx, y + inset + dy, max(1, inner_w * scale), max(1, inner_h * scale))
-    op = {"kind": "circle", "rect": tuple(round(v) for v in box), "color": color}
-    if alpha is not None:
-        op["alpha"] = alpha
-    return op
-
-
 def _inset_px(w: int, h: int) -> int:
     """The gap to leave around a sprite, CLAMPED so it can never consume the cell.
 

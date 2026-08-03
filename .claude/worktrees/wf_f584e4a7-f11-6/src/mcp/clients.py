@@ -1,0 +1,160 @@
+"""Typed peer MCP clients — bearer auth + retry + structured logging (T5.7).
+
+``make_client`` builds a FastMCP HTTP client with bearer auth for a remote agent
+server; ``AgentClient`` is the async typed wrapper the referee drives — one method
+per canonical tool, each call bounded by ``mcp.client.max_retries`` and emitting a
+structured log line (the §7.3d F4 evidence). For in-memory tests the wrapper takes
+a ``Client(server)`` directly (no HTTP). It is an async context manager so a whole
+sub-game reuses ONE connection.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+
+from fastmcp import Client
+from fastmcp.client.auth import BearerAuth
+
+from src.api.gatekeeper import DEFERRED, ApiGatekeeper
+
+_log = logging.getLogger("marl.mcp.client")
+
+# The genuine cop<->thief peer side-channel tools the §5 peer_mcp rate limit governs
+# (position-probe vector). The referee game loop (health/new_sub_game/request_move) is bounded
+# by the 6x25 match structure — logged, never throttled — so it is deliberately NOT in this set.
+_PEER_TOOLS = frozenset({"reveal_location", "query_opponent"})
+
+
+def make_client(url: str, token: str) -> Client:
+    """Build a bearer-authed FastMCP HTTP client for a remote agent server."""
+    return Client(url, auth=BearerAuth(token))
+
+
+class AgentClient:
+    """Async typed wrapper over a FastMCP ``Client`` for one agent server."""
+
+    def __init__(  # noqa: PLR0913 — client + retry/label/backoff/timeout/gatekeeper are distinct
+        self,
+        client: Client,
+        max_retries: int = 3,
+        label: str = "peer",
+        backoff_s: float = 0.0,
+        timeout_s: float | None = None,
+        gatekeeper: object = None,
+    ) -> None:
+        """Wrap a (HTTP or in-memory) client with a bounded retry/backoff/timeout budget + a log label.
+
+        ``gatekeeper`` governs OUTBOUND peer-MCP egress (V3 §5): every tool call is admitted
+        through the ``peer_mcp`` token bucket, so no outbound API call bypasses the single
+        governor. Defaults to a process-wide :class:`~src.api.gatekeeper.ApiGatekeeper`;
+        in-memory test transports may pass their own or an admit-all double.
+        """
+        self._client = client
+        self._gate = gatekeeper if gatekeeper is not None else ApiGatekeeper()
+        self._max_retries = max(1, int(max_retries))
+        self._label = label
+        self._backoff_s = max(0.0, float(backoff_s))
+        self._timeout_s = float(timeout_s) if timeout_s else None  # None => no per-call timeout
+
+    async def __aenter__(self) -> AgentClient:
+        """Open the underlying client connection (reused across the sub-game)."""
+        await self._client.__aenter__()
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Close the underlying client connection."""
+        await self._client.__aexit__(*exc)
+
+    async def _call(self, tool: str, args: dict) -> object:
+        """Call ``tool`` with bounded retries + structured logging; return result data.
+
+        The log line carries the client ``label`` (which server) + the ``trace`` (the
+        session_id): a sub-game's cop AND thief calls share one trace — the §7.3d F4 proof.
+        """
+        req = args.get("req")
+        trace = req.get("session_id", "-") if isinstance(req, dict) else "-"
+        last: Exception | None = None
+        for attempt in range(1, self._max_retries + 1):
+            try:
+                # §5: the peer_mcp rate limit governs the spammable cop<->thief SIDE-CHANNEL
+                # (reveal_location / query_opponent — the position-probe vector), NOT the
+                # bounded referee game loop (health / new_sub_game / request_move, ~300 calls
+                # per match). A DEFERRED admission on a peer probe hard-faults (backpressure is
+                # a fault, mirroring the wire-match stance); the game loop is logged, not throttled.
+                if tool in _PEER_TOOLS and self._gate.execute("peer_mcp", lambda: None) is DEFERRED:
+                    raise RuntimeError("peer_mcp call deferred by rate limiter")
+                call = self._client.call_tool(tool, args)
+                # wrap in the configured timeout so a hung call fails fast (then retries) vs blocking
+                result = await (asyncio.wait_for(call, self._timeout_s) if self._timeout_s else call)
+                data = result.data
+                _log.info(
+                    "mcp_call client=%s tool=%s trace=%s attempt=%d status=ok",
+                    self._label,
+                    tool,
+                    trace,
+                    attempt,
+                )
+                return data
+            except Exception as exc:  # retried up to max_retries, then re-raised on exhaustion
+                last = exc
+                _log.warning(
+                    "mcp_call client=%s tool=%s trace=%s attempt=%d status=err err=%s",
+                    self._label,
+                    tool,
+                    trace,
+                    attempt,
+                    type(exc).__name__,
+                )
+                if attempt < self._max_retries and self._backoff_s:
+                    await asyncio.sleep(self._backoff_s * attempt)  # configured linear backoff
+        raise last  # type: ignore[misc]
+
+    async def health(self) -> dict:
+        """Liveness handshake (one bounded attempt-set; see :meth:`prewarm` for cold starts)."""
+        return await self._call("health", {})
+
+    async def prewarm(self, deadline_s: float) -> bool:
+        """Poll ``health`` until it answers or ``deadline_s`` elapses; True iff it woke.
+
+        The per-move ``timeout_s`` is deliberately tight (a slow move is a §3.7 technical
+        fault), which is FAR under a sleeping free-tier container's wake time — a measured
+        Render cold start is ~90 s. Without this the warm-up would exhaust its retries and
+        abort the match before the first sub-game, so the cold start gets its own budget.
+        Returns False instead of raising: an unreachable peer must surface as the match's
+        own health check, not as a warm-up traceback.
+        """
+        deadline = time.monotonic() + float(deadline_s)
+        while True:
+            try:
+                await self.health()
+            except Exception:
+                if time.monotonic() >= deadline:
+                    return False
+                await asyncio.sleep(self._backoff_s)
+            else:
+                return True
+
+    async def new_sub_game(self, session_id: str, grid: tuple, position: tuple | None = None) -> dict:
+        """Start/reset a sub-game session on the server (fresh hidden ``z_0``)."""
+        pos = list(position) if position is not None else None
+        req = {"session_id": session_id, "grid": list(grid), "position": pos}
+        return await self._call("new_sub_game", {"req": req})
+
+    async def request_move(
+        self, session_id: str, tick: int, image: list, scalars: list, legal_mask: list
+    ) -> int:
+        """Send LOCAL obs for one tick; return the agent's chosen action int."""
+        req = {"session_id": session_id, "tick": tick, "image": image}
+        req.update(scalars=scalars, legal_mask=legal_mask)
+        return int((await self._call("request_move", {"req": req}))["action"])
+
+    async def reveal_location(self, session_id: str, requester: str, requester_pos: tuple) -> dict:
+        """Radius-gated location query (evidence-only; never fed to request_move)."""
+        req = {"session_id": session_id, "requester": requester, "requester_pos": list(requester_pos)}
+        return await self._call("reveal_location", {"req": req})
+
+    async def send_final_report(self, report: dict) -> dict:
+        """Cop-only: send the §3.5 report (dry-run at P6); returns the ReportAck."""
+        return await self._call("send_final_report", {"report": report})

@@ -5,37 +5,19 @@ Thin CLI over :mod:`src.mcp.wire_replay`: re-runs every logged sub-game from exa
 spawns and moves/winner/scores against the records — raising loudly on ANY divergence —
 then renders the t00/mid/final god-view PNG per sub-game into
 ``gui.bonus_screenshot_dir`` and prints the verification table + the files written.
-Defaults come from config (newest ``wire_match.log_dir`` log; the git-ignored real draft
-records, else the committed rehearsal records). Run:
+Defaults are resolved as a MATCHING PAIR (see ``select_log_and_records``) — the log and the
+records must describe the same match, which choosing them independently did not guarantee.
+Run:
 ``uv run python scripts/replay_wire_match.py [--log ...] [--records ...] [--out ...]``.
 """
 
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
+from src.mcp._replay_log import select_log_and_records
 from src.mcp.wire_replay import replay_match, save_screens
 from src.utils.config_loader import load_config
-
-
-def _default_log(cfg: dict) -> str:
-    """Return the NEWEST TIMESTAMPED referee JSONL under ``wire_match.log_dir``.
-
-    The referee stamps match logs ``wire_log_<YYYYmmddTHHMMSS>.jsonl``, so the lexicographic
-    max is the newest match; name-tagged fault-injection logs (e.g. ``wire_log_voidtest``)
-    never win the default — pass ``--log`` to replay one of those explicitly.
-    """
-    logs = sorted(Path(cfg["wire_match"]["log_dir"]).glob("wire_log_[0-9]*.jsonl"))
-    if not logs:
-        raise SystemExit(f"no timestamped wire_log under {cfg['wire_match']['log_dir']} — play a match first")
-    return str(logs[-1])
-
-
-def _default_records(cfg: dict) -> str:
-    """Return the real draft records when present, else the committed rehearsal records."""
-    real = Path(cfg["wire_match"]["draft_report"])
-    return str(real if real.exists() else Path(cfg["wire_match"]["rehearsal"]["records"]))
 
 
 def main(argv: list[str] | None = None) -> dict:
@@ -46,8 +28,11 @@ def main(argv: list[str] | None = None) -> dict:
     parser.add_argument("--records", default=None, help="§9.4 sub-game records JSON (default: from config)")
     parser.add_argument("--out", default=None, help="output dir (default: gui.bonus_screenshot_dir)")
     args = parser.parse_args(argv)
-    log = args.log or _default_log(cfg)
-    records = args.records or _default_records(cfg)
+    # Resolved as a PAIR: picking the newest log and the fallback records independently
+    # crashed on every fresh clone (real match log vs rehearsal records).
+    pair_log, pair_records = (None, None) if (args.log and args.records) else select_log_and_records(cfg)
+    log = args.log or str(pair_log)
+    records = args.records or str(pair_records)
     replays = replay_match(cfg, log, records)  # raises ReplayMismatchError on ANY divergence
     print(f"[wire-replay] log:     {log}")
     print(f"[wire-replay] P7 seed schedule from config: {cfg['wire_match']['seeds']}")

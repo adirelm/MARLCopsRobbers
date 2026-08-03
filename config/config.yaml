@@ -347,11 +347,17 @@ wire_match:
                                   #   pair k/k+3 (replaying the pair's base game if already played)
   seeds: [6897, 2531, 1891, 3573, 5224, 2407]  # ORDERED P7 list s1..sN (N >= 6): the first 3 are the
                                   #   pair seeds for (1,4)/(2,5)/(3,6), the rest are spares.
-                                  #   CURRENT VALUES = the LOCAL DRESS-REHEARSAL list (both
-                                  #   endpoints are ours) — MUST be REPLACED by the list frozen
-                                  #   JOINTLY WITH THE PARTNER IN WRITING before the real match;
+                                  #   CURRENT VALUES = the list JOINTLY FROZEN with biu-azri
+                                  #   for the PLAYED §9 match (2026-08-04). THEY chose these
+                                  #   integers (secrets.randbelow, never executed on their side)
+                                  #   and we published the layouts without previewing them — see
+                                  #   README §9a. The prior dress-rehearsal list was
+                                  #   [101,202,303,404,505,606];
                                   #   an empty list makes the referee refuse to start (never defaulted)
   log_dir: "results/wire_match"   # per-request JSONL log — THE shareable §9 fairness artifact
+  # TRACKED, identity-redacted §9.4 body. It is what `scripts/replay_wire_match.py` pairs
+  # with the real match log on a FRESH CLONE, where draft_report below is absent by design.
+  redacted_records: "results/reports/bonus_report.redacted.json"
   draft_report: "results/reports/bonus_draft.real.json"  # draft §9.4 body; *.real.json is
                                   #   git-ignored (it carries real PII once players*.local.yaml exist)
   rehearsal:                      # local dress rehearsal: scripts/serve_wire_agents.py serves the
