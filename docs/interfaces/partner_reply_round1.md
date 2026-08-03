@@ -3,12 +3,36 @@
 Received and recorded: group code, repo, students, endpoint. Your self-test results match
 what our referee expects, including the idempotent re-POST and both 401 cases.
 
-**Still outstanding from your message — both were left as `<<< FILL IN >>>`:**
+**Still outstanding:**
 
-1. **Bearer token** for `https://marl-bonus-adapter.onrender.com`. We cannot call you
-   without it. Private channel, as agreed; we will rotate nothing on your behalf, and we
-   will delete it after the match.
+1. **The bearer token you sent is REJECTED by your own live deployment.** Details and a
+   reproduction below — please re-check and resend.
 2. **Availability window.** Ours is below; send yours and we will pick the overlap.
+
+### Token check — your endpoint rejects the token you sent
+
+We tested the moment it arrived, against the live URL. Your service and auth layer are
+healthy; it is specifically this token value that the running deployment does not accept:
+
+| call | result |
+|---|---|
+| `GET /health` | `200 {"status":"ok","version":"1.00"}` |
+| `POST /new_sub_game` with a deliberately wrong token | `401` (correct) |
+| `POST /new_sub_game` with no `Authorization` header | `401` (correct) |
+| `POST /new_sub_game` with **the token you sent** | `401 {"error":"bearer token invalid or revoked"}` |
+
+To rule out anything on our side we passed the string literally on the command line,
+bypassing our env file entirely — same `401`. The value we hold is 43 characters and its
+`sha256` begins `d06ce58286d8`; check that against what you meant to send, so we can tell
+a transcription problem from a rotation.
+
+Most likely one of: the service redeployed and picked up a different secret than the one
+you tested with, the value in your hosting dashboard differs from the one in your local
+run, or it was rotated after you sent it. Worth resolving now — this exact failure on
+match day reads as a dead endpoint and would burn P8 retries.
+
+When you resend, we will re-run the four checks above and confirm before anything is
+frozen.
 
 **`/health` extra `version` key:** keep it. We check `status == "ok"` and ignore
 additional fields, so it costs nothing and is useful.
