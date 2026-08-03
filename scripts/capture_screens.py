@@ -30,7 +30,7 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
     out_dir.mkdir(parents=True, exist_ok=True)
     pygame.init()
     sdk = MarlSDK(cfg)
-    font = pygame.font.SysFont(None, 24)
+    font = pygame.font.Font(None, 24)  # bundled font -> machine-independent PNGs
     saved: list[str] = []
 
     def _shot(frame: object, name: str, show_radius: bool = False) -> None:

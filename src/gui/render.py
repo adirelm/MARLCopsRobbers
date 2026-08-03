@@ -118,7 +118,7 @@ def run_app(client, width=palette.WINDOW_W, height=palette.WINDOW_H, fps=palette
     """
     pygame.init()
     surface = pygame.display.set_mode((width, height))
-    font = pygame.font.SysFont(None, palette.FONT_PX + 6)
+    font = pygame.font.Font(None, palette.FONT_PX + 6)  # bundled font, not a system scan
     clock = pygame.time.Clock()
     supported = _supported_commands(client)
     frame, paused, show_radius, running = client.reset(), False, False, True

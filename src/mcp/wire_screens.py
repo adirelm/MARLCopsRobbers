@@ -35,7 +35,7 @@ def save_screens(cfg: dict, replays: list[dict], out_dir: str | Path | None = No
     out = Path(cfg["gui"]["bonus_screenshot_dir"] if out_dir is None else out_dir)
     out.mkdir(parents=True, exist_ok=True)
     pygame.init()
-    font, saved = pygame.font.SysFont(None, 24), []
+    font, saved = pygame.font.Font(None, 24), []  # bundled font -> machine-independent PNGs
     for game in replays:
         frames = game["frames"]
         mid = mid_frame_index(frames, int(cfg["mcp"]["observation"]["view_radius"]))

@@ -51,7 +51,7 @@ def _center(view: GridView, row: int, col: int) -> tuple[int, int]:
 def test_execute_plan_handles_all_op_kinds():
     """execute_plan paints background, fill, rect (border), circle, and text ops."""
     surface = pygame.Surface((120, 120))
-    font = pygame.font.SysFont(None, 18)
+    font = pygame.font.Font(None, 18)
     render.execute_plan(
         surface,
         font,
@@ -71,7 +71,7 @@ def test_execute_plan_handles_all_op_kinds():
 def test_render_frame_draws_cop_and_thief_on_their_cells():
     """The cop + thief tokens render in their cell centres (board reserved BELOW the HUD)."""
     surface = pygame.Surface((400, 400))
-    font = pygame.font.SysFont(None, 18)
+    font = pygame.font.Font(None, 18)
     frame = _frame()
     render.render_frame(surface, font, frame)
     view = GridView(400, 400, 5, 5, top_reserved=hud_height(frame))  # the SAME view render_frame uses
