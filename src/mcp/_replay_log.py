@@ -2,8 +2,8 @@
 
 Input: the referee's per-request JSONL log path.
 Output: per-session dicts — spawns, per-tick action pairs, and per-tick GROUND-TRUTH
-request payloads (``your_pos`` / ``barriers_left`` per role) used to verify EVERY replayed
-tick, not just the terminal summary.
+request payloads (``your_pos`` / ``barriers_left`` / the P5 masking fields per role) used to
+verify EVERY replayed tick, not just the terminal summary.
 Setup: none — pure parsing; imported by :mod:`src.mcp.wire_replay`.
 """
 
@@ -57,6 +57,12 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
                 sess["states"].setdefault(tick, {})[role] = {
                     "your_pos": tuple(payload["your_pos"]),
                     "barriers_left": int(payload["barriers_left"]),
+                    # P5 masking fields: kept so the replay can prove the referee actually
+                    # withheld what it was supposed to withhold, not merely that positions
+                    # advanced legally. Without these a log in which the referee fed its own
+                    # agent full board visibility replays perfectly clean.
+                    "opponent_pos": payload.get("opponent_pos"),
+                    "barriers": payload.get("barriers"),
                 }
                 pending[label] = (payload["session_id"], tick, role)
         elif direction == "response" and label in pending:

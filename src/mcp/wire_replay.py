@@ -21,6 +21,7 @@ from src.marl.env.actions import Action
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.env.scorer import Scorer
 from src.mcp._replay_log import ReplayMismatchError, gid_of, ordered_actions, parse_wire_log
+from src.mcp._replay_verify import verify_tick
 from src.mcp.wire_screens import mid_frame_index, save_screens  # noqa: F401 — re-export (150-LOC split)
 
 _MOVES = {a.name.lower(): a for a in (Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT)}
@@ -50,27 +51,6 @@ def _frame(cfg, env, gid, totals, winner, last) -> SpectatorFrame:  # noqa: PLR0
         last_action=action_names,
         max_barriers=int(cfg["game"]["max_barriers"]),
     )
-
-
-def _verify_tick(cfg: dict, sid: str, tick: int, sess: dict, state) -> None:
-    """Check the replayed PRE-MOVE state against the tick's logged request payloads.
-
-    The log carries per-tick ground truth (each role's ``your_pos`` + ``barriers_left``),
-    so a divergence ANYWHERE in a 25-move game is caught at the tick it happens — not
-    only when it survives to the terminal summary (the silent-divergence hole).
-    """
-    truth = sess["states"].get(tick, {})
-    env_pos = {"cop": tuple(state.cop_pos[0]), "thief": tuple(state.thief_pos)}
-    left = int(cfg["game"]["max_barriers"]) - int(state.barriers_used)
-    for role in _ROLES:
-        logged = truth.get(role)
-        if logged is None:
-            raise ReplayMismatchError(f"{sid} tick {tick}: no logged request payload for {role}")
-        if logged["your_pos"] != env_pos[role] or logged["barriers_left"] != left:
-            raise ReplayMismatchError(
-                f"{sid} tick {tick} {role}: logged {logged} != replayed "
-                f"{{'your_pos': {env_pos[role]}, 'barriers_left': {left}}}"
-            )
 
 
 def _seeded_env(cfg: dict, sid: str, sess: dict, gid: int) -> tuple[CopsRobbersEnv, int]:
@@ -115,7 +95,7 @@ def replay_sub_game(cfg: dict, sid: str, sess: dict, record: dict, totals: dict)
             raise ReplayMismatchError(f"{sid}: log continues past the terminal state at tick {tick}")
         if bad := [(role, pair[role]) for role in _ROLES if pair[role] not in _ALLOWED[role]]:
             raise ReplayMismatchError(f"{sid} tick {tick}: illegal logged action(s) {bad}")
-        _verify_tick(cfg, sid, tick, sess, env.state())
+        verify_tick(cfg, sid, tick, sess, env.state())
         joint = {"cop_0": _ALLOWED["cop"][pair["cop"]], "thief": _MOVES[pair["thief"]]}
         _obs, _r, terminated, info = env.step(joint)
         frames.append(_frame(cfg, env, gid, totals, info.get("winner"), pair))

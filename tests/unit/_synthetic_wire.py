@@ -13,6 +13,8 @@ import json
 
 from src.marl.env.actions import Action
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
+from src.marl.env.observation import view_radius
+from src.mcp.wire_referee import mask_payload
 
 _MOVES = (Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT)
 
@@ -47,14 +49,19 @@ def synth_session(cfg: dict, sid: str, seed: int, result_event: bool = False) ->
         for role in ("cop", "thief"):
             mask = info["action_mask"]["cop_0" if role == "cop" else "thief"]
             acts[role] = next(m for m in _MOVES if mask[int(m)])
-            payload = {
-                "session_id": sid,
-                "tick": tick,
-                "your_pos": list(pos[role]),
-                "opponent_pos": None,
-                "barriers": [],
-                "barriers_left": left,
-            }
+            # Built with the REFEREE's own masking rather than hardcoded nulls: a generator
+            # that emits opponent_pos=None everywhere produces logs no honest referee could
+            # have written, and the replay now verifies P5 masking, not just positions.
+            other = "thief" if role == "cop" else "cop"
+            payload = mask_payload(
+                sid,
+                tick,
+                pos[role],
+                pos[other],
+                state.barriers,
+                left,
+                view_radius(state.h, state.w, cfg),
+            )
             lines += [
                 _line("request", f"g-{role}", url="http://x/request_move", payload=payload),
                 _line("response", f"g-{role}", response={"action": acts[role].name.lower()}),
