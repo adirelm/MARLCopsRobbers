@@ -25,3 +25,13 @@ CELL_PX_CAP = 96
 FPS = 30
 MOVE_ANIM_MS = 180
 FONT_PX = 18
+
+# Window size — the SINGLE source. It used to be spelled 720/560 in both
+# ``render.run_app``'s defaults and ``scripts/capture_screens.py``, so a resize would have
+# silently desynced the live app from the committed §7.3 screenshots.
+WINDOW_W = 720
+WINDOW_H = 560
+
+# Breathing room under the board. Without it the letterbox consumed every pixel below the
+# HUD and the board's bottom edge sat flush against the window frame.
+BOARD_MARGIN_PX = 14

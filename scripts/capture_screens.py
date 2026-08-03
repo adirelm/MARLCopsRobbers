@@ -22,6 +22,7 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     import pygame  # noqa: PLC0415 - lazy: pygame is the optional gui extra
 
+    from src.gui import palette  # noqa: PLC0415 - lazy with pygame
     from src.gui.render import render_frame  # noqa: PLC0415 - lazy with pygame
 
     cfg = cfg or load_config()
@@ -33,7 +34,7 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
     saved: list[str] = []
 
     def _shot(frame: object, name: str, show_radius: bool = False) -> None:
-        surface = pygame.Surface((720, 560))
+        surface = pygame.Surface((palette.WINDOW_W, palette.WINDOW_H))
         render_frame(surface, font, frame, show_radius)
         path = out_dir / name
         pygame.image.save(surface, str(path))
@@ -77,6 +78,9 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
         totals={"cop": 20, "thief": 5},
         winner=None,
         last_action={"cop_0": "PLACE_BARRIER", "thief": "LEFT"},
+        # The budget is the POINT of this screenshot — a barrier state that hides how many
+        # remain would document the feature and omit its most useful number.
+        max_barriers=int(cfg["game"]["max_barriers"]),
     )
     _shot(demo, "state_barriers.png")
     pygame.quit()

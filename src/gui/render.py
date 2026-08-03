@@ -66,7 +66,7 @@ def _supported_commands(client) -> frozenset:
     return frozenset(commands)
 
 
-def run_app(client, width=720, height=560, fps=palette.FPS) -> None:
+def run_app(client, width=palette.WINDOW_W, height=palette.WINDOW_H, fps=palette.FPS) -> None:
     """Run the spectator window loop over a state ``client`` (reset/step -> frame).
 
     The CURRENT frame is rendered BEFORE the next step is consumed, so startup /

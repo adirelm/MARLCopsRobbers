@@ -99,4 +99,5 @@ class SpectatorSession:
             totals=dict(self._totals),
             winner=self._winner,
             last_action=self._last_action,
+            max_barriers=int(self._cfg["game"]["max_barriers"]),
         )

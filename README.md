@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (926 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (935 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (926 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (935 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -446,8 +446,9 @@ as §5.3 requires.*
 ![GUI terminal state](results/screenshots/state_terminal.png) ![GUI barriers](results/screenshots/state_barriers.png)
 *GUI states beyond "running": the terminal winner-banner (left — move 25/25 timeout, thief wins 10/5)
 and barrier rendering (right — a hand-set demo state; §5.4's barrier display. The heuristic agents only
-navigate around barriers, so barriers are shown via the real draw path on a set board). The view-radius
-overlay state (`state_view_radius.png`) is referenced from [`docs/UX.md`](docs/UX.md).*
+navigate around barriers, so barriers are shown via the real draw path on a set board). The right-hand
+HUD also reads `Barriers 2/5` — the §3.3 budget, matching the two grey cells drawn on the board. The
+view-radius overlay state (`state_view_radius.png`) is referenced from [`docs/UX.md`](docs/UX.md).*
 
 End-to-end evidence: [`results/subgames/full_match_5x5.redacted.json`](results/subgames/full_match_5x5.redacted.json)
 is a full 6-sub-game §3.5 report (role-only, PII-redacted) produced by `sdk.run_local_match` with FRESH

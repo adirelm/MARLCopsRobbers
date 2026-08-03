@@ -15,9 +15,15 @@ referee internals — enforced by `tests/architecture/test_gui_purity.py`).
 
 ## 1. Visibility of system status
 The HUD always shows **sub-game `i/6`**, **move `k/25`**, live **scores** and
-**totals**, the **last joint action** (e.g. `cop_0: UP, thief: LEFT`), and a
-**winner banner** at terminal. The token positions update every tick; a **capture
-flash** marks the deciding move. → `grid_5x5.png`.
+**totals**, the **barrier budget `placed/5`** (§3.3 — the cop's scarcest resource,
+previously inferable only by counting grey cells), the **last joint action** (e.g.
+`cop_0: UP, thief: LEFT`), and a **winner banner** at terminal. The token positions
+update every tick; a **capture flash** marks the deciding move. → `grid_5x5.png`,
+`state_barriers.png`.
+
+The budget line is **omitted, not zeroed**, by frame sources that genuinely do not know
+it (wire replay). A HUD reading `Barriers 0/0` would assert a fact the source cannot
+support — silence is the honest rendering.
 
 ## 2. Match between system and the real world
 The board is a literal grid with intuitive tokens (cop = blue, thief = red,

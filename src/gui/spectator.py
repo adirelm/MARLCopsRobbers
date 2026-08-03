@@ -31,3 +31,6 @@ class SpectatorFrame:
     winner: str | None
     last_action: dict[str, str] | None
     trace_id: str | None = None  # optional cloud field (None in-proc)
+    # §3.3 per-sub-game barrier budget. 0 = "this frame source does not know it" (replay /
+    # demo frames), which makes the HUD omit the line rather than render a misleading 0/0.
+    max_barriers: int = 0

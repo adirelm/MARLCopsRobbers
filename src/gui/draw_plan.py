@@ -94,10 +94,12 @@ def hud_height(frame: SpectatorFrame) -> int:
 
 
 def build_hud_plan(frame: SpectatorFrame, supported_commands=None) -> list[dict]:
-    """Return the HUD text ops (sub-game / move / scores / totals / last / winner / help).
+    """Return the HUD text ops (sub-game / move / scores / totals / barriers / last / winner / help).
 
     ``supported_commands`` filters the help line per frame-source capability (see
-    :func:`_help_line`); the line COUNT never changes, so ``hud_height`` is unaffected.
+    :func:`_help_line`) WITHOUT changing the line count. The barrier and winner lines do
+    change it — which is exactly why :func:`hud_height` measures this plan instead of
+    hard-coding a row count.
     """
     lines = [
         f"Sub-game {frame.sub_game}/{frame.num_games}",
@@ -105,6 +107,8 @@ def build_hud_plan(frame: SpectatorFrame, supported_commands=None) -> list[dict]
         f"Scores  cop {frame.scores['cop']}  thief {frame.scores['thief']}",
         f"Totals  cop {frame.totals['cop']}  thief {frame.totals['thief']}",
     ]
+    if frame.max_barriers:  # §3.3 budget — omitted when the frame source doesn't know it
+        lines.append(f"Barriers  {len(frame.barriers)}/{frame.max_barriers}")
     if frame.last_action:
         lines.append("Last  " + "  ".join(f"{k}:{v}" for k, v in frame.last_action.items()))
     if frame.winner:
