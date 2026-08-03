@@ -61,30 +61,42 @@ specification: it only reproduces a layout under the referee's own RNG, and we h
 referee, so you could not have verified fairness before the §5 byte-compare. We had
 already amended the brief for this before your message arrived; here is the filled list.
 
-**P7 frozen list — 5×5, one cop vs one thief. Cells are `[row, col]`, 0-indexed, origin top-left.**
+**Who picks the seeds — read this first.** We host the referee, so whoever chooses the
+seeds can preview the layouts they produce before proposing them. That is a real
+cherry-picking surface, and it points at us. **We would rather you pick.** Send any 6+
+integers and we will publish the layouts they resolve to; you then freeze those. If you
+would rather not bother, here is our proposal:
+
+**P7 proposed list — 5×5, one cop vs one thief. Cells are `[row, col]`, 0-indexed, origin top-left.**
 
 | pair | sub-games | seed | cop start | thief start | manhattan |
 |---|---|---|---|---|---|
-| 1 | 1 and 4 | `101` | `[3, 3]` | `[1, 1]` | 4 |
-| 2 | 2 and 5 | `202` | `[4, 4]` | `[2, 2]` | 4 |
-| 3 | 3 and 6 | `303` | `[4, 3]` | `[1, 1]` | 5 |
-| spare 1 | — | `404` | `[0, 0]` | `[3, 1]` | 4 |
-| spare 2 | — | `505` | `[2, 0]` | `[4, 2]` | 4 |
-| spare 3 | — | `606` | `[4, 3]` | `[0, 1]` | 6 |
+| 1 | 1 and 4 | `911` | `[0, 4]` | `[1, 0]` | 5 |
+| 2 | 2 and 5 | `822` | `[0, 3]` | `[2, 2]` | 3 |
+| 3 | 3 and 6 | `733` | `[2, 3]` | `[4, 0]` | 5 |
+| spare 1 | — | `644` | `[3, 2]` | `[1, 0]` | 4 |
+| spare 2 | — | `555` | `[1, 0]` | `[0, 4]` | 5 |
+| spare 3 | — | `466` | `[1, 4]` | `[1, 1]` | 3 |
 
-Read it this way: in sub-game `k` the group playing **cop** starts at the cop cell and the
-group playing **thief** at the thief cell; in the mirror `k+3` the same two cells are used
-with the roles swapped. That is what makes the pair fair. Every layout satisfies P6
-(`manhattan > 2`, so neither side starts inside the other's radius-2 view) — check the
-column yourself rather than taking it from us.
+**Correction to an earlier draft:** a previous version of this reply carried the list
+`101, 202, 303, 404, 505, 606`. Disregard it. Those are our local dress-rehearsal seeds —
+our own agents have already played those exact layouts, which would have handed us prior
+exposure you never had, and our match runner has a tripwire that refuses to start a real
+match on them. We caught it before sending; flagging it so you do not work from a stale
+copy if one reached you.
 
-Verify each `new_sub_game` payload against this table as it arrives: the `your_pos` we
-send you must equal the cell for your role in that sub-game. If it ever does not, stop the
-match and tell us before anything is byte-compared.
+Read the table this way: in sub-game `k` the group playing **cop** starts at the cop cell
+and the group playing **thief** at the thief cell; in the mirror `k+3` the same two cells
+are reused with the roles swapped. That is what makes the pair fair. Every layout
+satisfies P6 (`manhattan > 2`, so neither side starts inside the other's radius-2 view) —
+check the column yourself rather than taking it from us.
 
-**Reply "frozen" on this table and it is binding.** If you would rather we generate a
-different list (for instance one you pick the seeds for), say so now — after we start,
-P7's void amendment is the only thing that may change a layout.
+Verify each `new_sub_game` payload against whichever table we end up freezing: the
+`your_pos` we send you must equal the cell for your role in that sub-game. If it ever does
+not, stop the match and tell us before anything is byte-compared.
+
+**Whichever list we settle on, reply "frozen" and it is binding.** After the first
+sub-game starts, P7's void amendment is the only thing that may change a layout.
 
 ## C3 — referee-log schema up front: ACCEPTED
 

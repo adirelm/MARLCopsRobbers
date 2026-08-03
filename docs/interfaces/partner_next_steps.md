@@ -64,9 +64,12 @@ transcription or rotation issue.
 
 1. **The working token** (private channel).
 2. **Your availability window** — we will pick the overlap with ours.
-3. **"frozen"** on our P7 start-position table (in the full reply), or your own 6+ seeds
-   if you would rather choose them — we will then publish the layouts they resolve to and
-   you freeze those.
+3. **The seed list.** We would rather **you** pick it: we host the referee, so whoever
+   chooses the seeds can preview the layouts first, and that surface points at us. Send any
+   6+ integers and we will publish the layouts they resolve to. If you would rather not,
+   reply "frozen" on the table in our full reply (seeds `911, 822, 733, 644, 555, 466`).
+   Note: an earlier draft listed `101…606` — disregard that, those are our dress-rehearsal
+   seeds and reusing them would give us layouts we have already played.
 4. **Your call on C1 (`stay`)** — we declined, but if you want it we will enable it for
    **both** sides and re-freeze. Your policies, your call.
 
