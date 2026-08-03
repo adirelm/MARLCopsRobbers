@@ -95,10 +95,23 @@ def test_ghost_pupils_track_the_heading() -> None:
 
 
 def test_ghost_pupils_centre_when_there_is_no_heading() -> None:
-    """A guessed gaze would assert a direction the frame does not report."""
-    centred = ghost_eyes(_RECT, None)
-    moving = ghost_eyes(_RECT, "RIGHT")
-    assert [p for _w, p in centred] != [p for _w, p in moving]
+    """A guessed gaze would assert a direction the frame does not report.
+
+    Asserts the pupil sits at the EYE'S OWN CENTRE. An earlier version only checked that
+    the no-heading pupils differed from the RIGHT-heading ones, which would have passed
+    with a default gaze of, say, UP — i.e. it could not catch a guessed direction at all.
+    """
+    for white, pupil in ghost_eyes(_RECT, None):
+        wx, wy, ww, wh = white
+        assert pupil[0] == round(wx + ww / 2)
+        assert pupil[1] == round(wy + wh / 2)
+
+
+def test_ghost_pupils_leave_the_centre_once_there_is_a_heading() -> None:
+    """The complement: with a heading the pupils must actually move off centre."""
+    for white, pupil in ghost_eyes(_RECT, "RIGHT"):
+        wx, wy, ww, wh = white
+        assert (pupil[0], pupil[1]) != (round(wx + ww / 2), round(wy + wh / 2))
 
 
 def test_sprites_scale_with_the_cell() -> None:

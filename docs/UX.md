@@ -3,11 +3,16 @@
 The §5.4 GUI is a **god-view spectator**: it renders the referee's ground-truth
 board (cop, thief, barriers, capture) plus the match HUD, and replays/streams a
 match frame-by-frame. It reads ONLY `SDK.spectator_session()` → `SpectatorFrame`
-(the GUI imports only `src.sdk`, `src.gui`, and `pygame`; never the env / MCP /
-referee internals — enforced by `tests/architecture/test_gui_purity.py`).
+(every `src.*` import inside `src/gui` is on an allow-list — `src.gui`, `src.sdk` and
+`src.utils` (config loading in the `__main__` entrypoint); never the env / MCP / services
+internals. Enforced as an allow-list, not a deny-list, by
+`tests/architecture/test_gui_purity.py`.)
 
-> **Screenshots.** Each heuristic below references a capture under
-> `results/screenshots/` produced by `scripts/capture_screens.py` (headless
+> **Screenshots.** The heuristics with a VISUAL claim (§1, §2, §6, §8, §9) each point at
+> a capture under `results/screenshots/` with a `→`; the behavioural ones (§3 controls, §4
+> consistency, §5 error prevention, §7 transport-agnosticism, §10 documentation) are about
+> what the GUI *does*, not what a still frame shows, so they cite code and tests instead.
+> Captures are produced by `scripts/capture_screens.py` (headless
 > pygame-ce, `SDL_VIDEODRIVER=dummy`). Beyond the §7.3c grid-size matrix
 > (`grid_{2x2,3x3,4x4,5x5}.png` — the running board), it captures the distinct GUI
 > **states** §10.2 asks for: the agent-view overlay (`state_view_radius.png`), the

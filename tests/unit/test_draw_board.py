@@ -10,30 +10,9 @@ from __future__ import annotations
 
 from src.gui import palette
 from src.gui.draw_board import build_board_plan
-from src.gui.spectator import SpectatorFrame
 from src.gui.transform import GridView
-
-_VIEW = GridView(640, 480, 5, 5)
-
-
-def _frame(**over) -> SpectatorFrame:
-    base = {
-        "grid": (5, 5),
-        "cop_positions": ((1, 1),),
-        "thief_position": (4, 4),
-        "barriers": (),
-        "view_radius": 2,
-        "move": 4,
-        "max_moves": 25,
-        "sub_game": 1,
-        "num_games": 6,
-        "scores": {"cop": 0, "thief": 0},
-        "totals": {"cop": 0, "thief": 0},
-        "winner": None,
-        "last_action": {"cop_0": "UP", "thief": "LEFT"},
-        "max_barriers": 5,
-    }
-    return SpectatorFrame(**{**base, **over})
+from tests.unit._board_frames import VIEW as _VIEW
+from tests.unit._board_frames import board_frame as _frame
 
 
 def _thief_token(plan) -> dict:
@@ -119,3 +98,34 @@ def test_sprite_polygons_stay_inside_tiny_cells_too() -> None:
         xs = [p[0] for p in op["points"]]
         ys = [p[1] for p in op["points"]]
         assert max(xs) - min(xs) <= cell and max(ys) - min(ys) <= cell
+
+
+def test_sprites_never_touch_the_grid_lines() -> None:
+    """The inset is what keeps a sprite off its cell border; nothing asserted it before."""
+    plan = build_board_plan(_frame(), _VIEW)
+    cells = {_VIEW.cell_rect(c, r) for r in range(5) for c in range(5)}
+    for op in plan:
+        if op["kind"] != "poly":
+            continue
+        xs = [p[0] for p in op["points"]]
+        ys = [p[1] for p in op["points"]]
+        owner = min(cells, key=lambda cr: abs(cr[0] - min(xs)) + abs(cr[1] - min(ys)))
+        cx, cy, cw, ch = owner
+        assert min(xs) > cx and max(xs) < cx + cw, "sprite touches a vertical grid line"
+        assert min(ys) > cy and max(ys) < cy + ch, "sprite touches a horizontal grid line"
+
+
+def test_capture_rings_grow_outward_and_fade() -> None:
+    """'Concentric shockwave' is a claim about geometry — pin the growth AND the falloff."""
+    rings = [op for op in build_board_plan(_frame(winner="cop"), _VIEW) if op["kind"] == "ring"]
+    widths = [op["rect"][2] for op in rings]
+    alphas = [op["alpha"] for op in rings]
+    assert widths == sorted(widths) and widths[0] < widths[-1], "rings are not concentric"
+    assert alphas == sorted(alphas, reverse=True), "outer rings must fade, not brighten"
+
+
+def test_capture_rings_stay_centred_on_the_same_cell_as_they_grow() -> None:
+    """A ring that grows off-centre reads as a second agent rather than an impact."""
+    rings = [op for op in build_board_plan(_frame(winner="cop"), _VIEW) if op["kind"] == "ring"]
+    centres = {(op["rect"][0] + op["rect"][2] / 2, op["rect"][1] + op["rect"][3] / 2) for op in rings}
+    assert len(centres) == 1

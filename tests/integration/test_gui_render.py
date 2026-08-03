@@ -58,7 +58,6 @@ def test_execute_plan_handles_all_op_kinds():
         [
             {"kind": "background", "color": palette.BG},
             {"kind": "fill", "rect": (10, 10, 30, 30), "color": palette.BARRIER},
-            {"kind": "rect", "rect": (50, 50, 30, 30), "color": palette.CAPTURE_FLASH},
             {"kind": "circle", "rect": (60, 60, 24, 24), "color": palette.COP},
             {"kind": "text", "pos": (4, 4), "text": "hi", "color": palette.TEXT},
         ],

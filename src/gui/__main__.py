@@ -18,7 +18,8 @@ def main() -> None:
     cfg = load_config()
     height, width = cfg["env"]["curriculum"]["stages"][-1]  # the final (largest) curriculum board
     seed = int(cfg["training"]["seeds"][0])
-    session = MarlSDK(cfg).spectator_session(height, width, num_cops=1, seed=seed)  # 1-cop view
+    cops = int(cfg["env"]["num_cops"])  # V3 no-hardcode, and keeps this launcher == scripts/play.py
+    session = MarlSDK(cfg).spectator_session(height, width, num_cops=cops, seed=seed)
     run_app(InProcStateClient(session))
 
 

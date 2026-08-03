@@ -82,8 +82,26 @@ def test_board_still_clears_the_hud() -> None:
 
 
 def test_window_size_has_a_single_source() -> None:
-    """720x560 was duplicated in run_app and capture_screens; palette is now the one source."""
-    assert (palette.WINDOW_W, palette.WINDOW_H) == (720, 560)
+    """720x560 was duplicated in run_app and capture_screens; palette is now the one source.
+
+    Asserts the CONSUMERS read palette. Comparing palette's constants to the literals they
+    already contain is a tautology that stays green while every consumer hardcodes its own
+    numbers — which is the exact bug this guards.
+    """
+    import inspect  # noqa: PLC0415 - only this guard needs it
+    import re  # noqa: PLC0415
+    from pathlib import Path  # noqa: PLC0415
+
+    from src.gui.render import run_app  # noqa: PLC0415
+
+    defaults = inspect.signature(run_app).parameters
+    assert defaults["width"].default == palette.WINDOW_W
+    assert defaults["height"].default == palette.WINDOW_H
+
+    root = Path(__file__).resolve().parents[2]
+    for rel in ("src/gui/render.py", "scripts/capture_screens.py", "src/mcp/wire_screens.py"):
+        text = (root / rel).read_text(encoding="utf-8")
+        assert not re.search(r"\b720\b|\b560\b", text), f"{rel} hardcodes the window size"
 
 
 def test_readme_barrier_caption_matches_the_configured_budget(cfg) -> None:

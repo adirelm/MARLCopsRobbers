@@ -12,30 +12,8 @@ from __future__ import annotations
 
 from src.gui import palette
 from src.gui.draw_board import build_board_plan
-from src.gui.spectator import SpectatorFrame
-from src.gui.transform import GridView
-
-_VIEW = GridView(640, 480, 5, 5)
-
-
-def _frame(**over) -> SpectatorFrame:
-    base = {
-        "grid": (5, 5),
-        "cop_positions": ((1, 1),),
-        "thief_position": (4, 4),
-        "barriers": (),
-        "view_radius": 2,
-        "move": 4,
-        "max_moves": 25,
-        "sub_game": 1,
-        "num_games": 6,
-        "scores": {"cop": 0, "thief": 0},
-        "totals": {"cop": 0, "thief": 0},
-        "winner": None,
-        "last_action": {"cop_0": "UP", "thief": "LEFT"},
-        "max_barriers": 5,
-    }
-    return SpectatorFrame(**{**base, **over})
+from tests.unit._board_frames import VIEW as _VIEW
+from tests.unit._board_frames import board_frame as _frame
 
 
 def _thief_token(plan) -> dict:
@@ -79,3 +57,22 @@ def test_halo_is_drawn_only_in_agent_view() -> None:
     halo = [op for op in build_board_plan(_frame(), _VIEW) if op.get("color") == palette.VIEW_RADIUS]
     assert halo == []
     assert [op for op in build_board_plan(_frame(), _VIEW, True) if op.get("color") == palette.VIEW_RADIUS]
+
+
+def test_an_unseen_thief_with_no_heading_is_still_ghosted() -> None:
+    """The spawn-tick fallback disc must carry the ghosting too.
+
+    Without this the alpha could be dropped from the no-heading branch and every test
+    stayed green, because the other agent-view tests all supply a heading.
+    """
+    plan = build_board_plan(_frame(last_action=None), _VIEW, show_radius=True)
+    discs = [op for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
+    assert discs and all(op.get("alpha") == palette.GHOST_ALPHA for op in discs)
+
+
+def test_a_seen_thief_with_no_heading_is_not_ghosted() -> None:
+    """The complement, so the assertion above cannot pass by ghosting unconditionally."""
+    frame = _frame(cop_positions=((2, 2),), thief_position=(2, 3), last_action=None)
+    plan = build_board_plan(frame, _VIEW, show_radius=True)
+    discs = [op for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
+    assert discs and all(op.get("alpha") is None for op in discs)

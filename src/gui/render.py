@@ -38,13 +38,11 @@ def _paint(target, op, offset) -> None:
     """Draw one shape op onto ``target``, translated by ``offset``."""
     ox, oy = offset
     kind = op["kind"]
-    if kind in ("fill", "rect", "circle", "ring"):
+    if kind in ("fill", "circle", "ring"):
         x, y, w, h = op["rect"]
         box = (x + ox, y + oy, w, h)
         if kind == "fill":
             pygame.draw.rect(target, op["color"], box)
-        elif kind == "rect":
-            pygame.draw.rect(target, op["color"], box, width=palette.GRID_W + 2)
         elif kind == "circle":
             pygame.draw.ellipse(target, op["color"], box)
         else:
@@ -59,7 +57,7 @@ def _paint(target, op, offset) -> None:
 
 
 def execute_plan(surface, font, plan) -> None:
-    """Execute draw ops (background / fill / rect / circle / ring / line / poly / text).
+    """Execute draw ops (background / fill / circle / ring / line / poly / text).
 
     An op carrying ``alpha`` is painted onto a scratch RGBA layer sized to its bounding
     box and blitted — pygame's shape primitives take an opaque colour, so the halo,

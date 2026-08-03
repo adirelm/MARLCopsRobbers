@@ -30,7 +30,6 @@ GRID_W = 1
 TOKEN_INSET = 6
 CELL_PX_CAP = 96
 FPS = 30
-MOVE_ANIM_MS = 180
 FONT_PX = 18
 
 # Window size — the SINGLE source. It used to be spelled 720/560 in both

@@ -1,9 +1,14 @@
-"""Radar/neon effect layer — PURE geometry + epistemic state (no pygame).
+"""Radar layer — PURE epistemic state (no pygame).
 
 The GUI's job is not only to show where the agents ARE (the referee's ground truth) but
 what the cop team KNOWS: its Manhattan knowledge halo, and whether the thief currently
 sits inside it. That distinction is the Dec-POMDP modelling claim (§2.1/§4), so it is
 computed here as testable logic and consumed by :mod:`src.gui.draw_board`.
+
+Heading and character geometry are NOT here — they belong to :mod:`src.gui.sprites`,
+which owns the single heading table (``_HEADING_DEG``). This module deliberately keeps
+no direction table of its own; an earlier arrow-marker helper did, and having two
+representations of the same four headings is exactly the duplication to avoid.
 
 Everything is derived from a single :class:`~src.gui.spectator.SpectatorFrame`, so nothing
 here can drift from the frame being rendered.
@@ -35,30 +40,3 @@ def thief_is_seen(frame: SpectatorFrame) -> bool:
     tr, tc = frame.thief_position
     radius = int(frame.view_radius)
     return any(abs(tr - cr) + abs(tc - cc) <= radius for cr, cc in frame.cop_positions)
-
-
-# Unit direction per movement action; PLACE_BARRIER is absent on purpose (not a direction).
-_DIRECTIONS = {"UP": (0, -1), "DOWN": (0, 1), "LEFT": (-1, 0), "RIGHT": (1, 0)}
-
-
-def facing_wedge(rect: tuple[int, int, int, int], action: str | None) -> tuple | None:
-    """Return triangle points marking the direction ``action`` moved, or ``None``.
-
-    ``None`` for a missing or non-directional action: an arrow on a PLACE_BARRIER tick
-    would assert a movement that did not happen.
-    """
-    step = _DIRECTIONS.get(action or "")
-    if step is None:
-        return None
-    dx, dy = step
-    x, y, w, h = rect
-    cx, cy = x + w / 2, y + h / 2
-    reach, half = w * 0.46, w * 0.22
-    apex = (round(cx + dx * reach), round(cy + dy * reach))
-    # The base is perpendicular to the direction of travel, inset from the token centre.
-    base_x, base_y = cx + dx * half, cy + dy * half
-    return (
-        apex,
-        (round(base_x - dy * half), round(base_y - dx * half)),
-        (round(base_x + dy * half), round(base_y + dx * half)),
-    )
