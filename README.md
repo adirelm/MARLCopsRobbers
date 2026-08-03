@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (979 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (965 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (979 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (965 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -445,9 +445,9 @@ as §5.3 requires.*
 different grid sizes). The sprites follow the arcade maze-chase idiom because its silhouettes map onto
 the roles exactly: the **thief is the pursued**, so it is an open-mouth wedge whose mouth faces its
 direction of travel; the **cops are pursuers**, so they are ghost bodies whose pupils look where they
-are heading. Each character therefore carries its own heading, and a fading tail shows the cells it
-just walked — so a still frame still tells you which way the chase is going. The shapes are original
-geometry from primitives (`src/gui/sprites.py`); no image assets ship with the repo.*
+are heading. Each character therefore carries its own heading, so a still frame still tells you which
+way the chase is going. The shapes are original geometry from primitives (`src/gui/sprites.py`); no
+image assets ship with the repo.*
 
 ![GUI terminal state](results/screenshots/state_terminal.png) ![GUI barriers](results/screenshots/state_barriers.png)
 *GUI states beyond "running": the terminal winner-banner (left — move 25/25 timeout, thief wins 10/5)

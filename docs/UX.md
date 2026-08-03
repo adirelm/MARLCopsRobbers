@@ -21,11 +21,15 @@ The HUD always shows **sub-game `i/6`**, **move `k/25`**, live **scores** and
 previously inferable only by counting grey cells), the **last joint action** (e.g.
 `cop_0: UP, thief: LEFT`), and a **winner banner** at terminal, all on a panel backdrop
 that separates it from the board. On the board itself, status is also **spatial**: each
-sprite **carries its own heading** (see §2), a **fading motion tail** shows the last few
-cells it walked, and a capture is marked by concentric **shockwave rings** on the cop that
-actually closed the distance. → `grid_5x5.png` (heading + tails); the shockwave needs a
-capture, so see a cop-win frame such as `bonus/bonus_sg1_final.png`. `state_barriers.png`
-is a hand-set demo frame with no recorded history, so it deliberately shows no tail.
+sprite **carries its own heading** (see §2), and a capture is marked by concentric
+**shockwave rings** on the cop that actually closed the distance. → `grid_5x5.png`
+(heading); the shockwave needs a capture, so see a cop-win frame such as
+`bonus/bonus_sg1_final.png`.
+
+An earlier revision also drew a fading motion tail behind each agent. It was **removed**:
+heading is already stated twice — by the sprite itself and by the HUD's `Last` line — so
+the tail only added 2-3 cells of history at the cost of small circles that read as game
+entities. Redundant context that costs legibility is worse than no context.
 
 Heading is shown *only* for the four movement actions. `PLACE_BARRIER` consumes the cop's
 move without moving it, so its pupils stay centred rather than claiming travel that never
@@ -86,7 +90,7 @@ let an expert skim or a newcomer step slowly.
 
 ## 8. Aesthetic and minimalist design
 A dark, minimal board: background, a subtle checkerboard, thin neon gridlines, three
-sprite types, and a compact HUD panel. The added layers (halo, tails, rings) are
+sprite types, and a compact HUD panel. The added layers (halo, rings) are
 all **low-alpha context drawn behind or around the tokens** — nothing that competes with
 the two things the viewer is actually tracking. The **agent-view overlay** (key **v**) is
 off by default → `state_view_radius.png`, so the default board stays uncluttered.

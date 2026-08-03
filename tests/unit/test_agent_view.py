@@ -1,9 +1,9 @@
 """Agent view — the board rendering what the COPS KNOW, not what the referee knows.
 
 These are the load-bearing §10.2 assertions: with the overlay on, the cops' Manhattan halo
-is lit and anything they cannot observe (the thief sprite AND the path it walked) is
-dimmed; with it off the board is the plain god view. Getting this backwards would make
-every agent-view screenshot claim the opposite of the Dec-POMDP model it illustrates.
+is lit and a thief they cannot observe is dimmed; with it off the board is the plain god
+view. Getting this backwards would make every agent-view screenshot claim the opposite of
+the Dec-POMDP model it illustrates.
 
 Split from test_draw_board.py at the 150-LOC cap; board mechanics stay there.
 """
@@ -79,44 +79,3 @@ def test_halo_is_drawn_only_in_agent_view() -> None:
     halo = [op for op in build_board_plan(_frame(), _VIEW) if op.get("color") == palette.VIEW_RADIUS]
     assert halo == []
     assert [op for op in build_board_plan(_frame(), _VIEW, True) if op.get("color") == palette.VIEW_RADIUS]
-
-
-def test_an_unseen_thief_s_trail_fades_with_it() -> None:
-    """Agent view must be consistent: a bright path under a ghosted thief still leaks its route.
-
-    The cops cannot see the thief, so they did not watch it walk that path either — the
-    tail has to dim with the sprite, exactly as the sprite's own mouth does.
-    """
-    trails = {"thief": ((0, 0), (0, 1))}
-    god = build_board_plan(_frame(), _VIEW, trails=trails)
-    agent = build_board_plan(_frame(), _VIEW, show_radius=True, trails=trails)
-
-    def tail(plan):
-        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
-
-    assert tail(agent) and all(a < b for a, b in zip(tail(agent), tail(god), strict=True))
-
-
-def test_a_seen_thief_keeps_a_full_strength_trail() -> None:
-    """Inside the halo the cops DO observe it, so dimming the tail would understate them."""
-    frame = _frame(cop_positions=((2, 2),), thief_position=(2, 3))
-    trails = {"thief": ((2, 1), (2, 2))}
-    god = build_board_plan(frame, _VIEW, trails=trails)
-    agent = build_board_plan(frame, _VIEW, show_radius=True, trails=trails)
-
-    def tail(plan):
-        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
-
-    assert tail(agent) == tail(god)
-
-
-def test_the_cop_trail_is_never_dimmed() -> None:
-    """The cops always know their own path — dimming it would be nonsense."""
-    trails = {"cop_0": ((0, 0), (0, 1)), "thief": ((4, 4),)}
-    god = build_board_plan(_frame(), _VIEW, trails=trails)
-    agent = build_board_plan(_frame(), _VIEW, show_radius=True, trails=trails)
-
-    def tail(plan):
-        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.COP]
-
-    assert tail(agent) == tail(god)

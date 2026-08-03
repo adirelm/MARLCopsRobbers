@@ -1,9 +1,9 @@
 """Board draw ops — the neon/radar board layer (PURE; no pygame).
 
-Split out of :mod:`src.gui.draw_plan` when the board grew a knowledge halo, motion
-trails, facing wedges and capture shockwaves (the 150-LOC cap). Ops are emitted
-back-to-front: background, checkerboard, grid lines, halo, barriers, trails, tokens,
-wedges, shockwave.
+Split out of :mod:`src.gui.draw_plan` when the board grew a knowledge halo and arcade
+character sprites (the 150-LOC cap). Ops are emitted
+back-to-front: background, checkerboard, grid lines, halo, barriers, characters,
+capture rings.
 
 The one op with modelling meaning rather than decoration is the halo + ghosted thief:
 together they render what the COP TEAM KNOWS, not just where the pieces are. See
@@ -78,42 +78,7 @@ def _grid_lines(view: GridView, rows: int, cols: int) -> list[dict]:
     return ops
 
 
-def _trail_ops(
-    view: GridView, trails: dict, rows: int, cols: int, thief_alpha: int | None = None
-) -> list[dict]:
-    """Return fading tail ops for every agent, oldest cell faintest.
-
-    ``thief_alpha`` dims the THIEF's tail in agent view when the cops cannot see it: they
-    did not watch it walk that path either, so a full-strength route under a ghosted
-    sprite would leak knowledge the sprite itself is careful not to claim. The cops' own
-    tails are never dimmed — they always know where they have been.
-
-    Cells outside the board are skipped rather than raising: a trail is decoration, and a
-    stale entry must never crash the window.
-    """
-    ops: list[dict] = []
-    for agent, cells in sorted(trails.items()):
-        is_thief = agent == "thief"
-        color = palette.THIEF if is_thief else palette.COP
-        dim = (thief_alpha / 255) if (is_thief and thief_alpha is not None) else 1.0
-        for index, (r, c) in enumerate(cells):
-            if not (0 <= r < rows and 0 <= c < cols):
-                continue
-            fade = (index + 1) / (len(cells) + 1)  # oldest faintest+smallest, newest strongest
-            ops.append(
-                _token(
-                    view.cell_rect(c, r),
-                    color,
-                    alpha=max(1, int(palette.TRAIL_ALPHA * fade * dim)),
-                    scale=palette.TRAIL_SCALE * fade,
-                )
-            )
-    return ops
-
-
-def build_board_plan(
-    frame: SpectatorFrame, view: GridView, show_radius: bool = False, trails: dict | None = None
-) -> list[dict]:
+def build_board_plan(frame: SpectatorFrame, view: GridView, show_radius: bool = False) -> list[dict]:
     """Return the ordered board draw ops for one frame (back-to-front).
 
     ``show_radius`` switches on the AGENT-VIEW reading of the board: the cops' knowledge
@@ -145,7 +110,6 @@ def build_board_plan(
     ]
     # Ghost the thief only in agent view: in god view its position is simply known.
     unseen = palette.GHOST_ALPHA if (show_radius and not thief_is_seen(frame)) else None
-    ops += _trail_ops(view, trails or {}, rows, cols, thief_alpha=unseen)
 
     last = frame.last_action or {}
     tr, tc = frame.thief_position

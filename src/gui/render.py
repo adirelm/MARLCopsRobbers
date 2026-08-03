@@ -17,7 +17,6 @@ except ImportError:  # pragma: no cover - pygame optional
 
 from src.gui import palette
 from src.gui.draw_plan import build_board_plan, build_hud_plan, hud_height
-from src.gui.effects import TrailTracker
 from src.gui.input_map import bindings, command_for
 from src.gui.transform import GridView
 
@@ -64,7 +63,7 @@ def execute_plan(surface, font, plan) -> None:
 
     An op carrying ``alpha`` is painted onto a scratch RGBA layer sized to its bounding
     box and blitted — pygame's shape primitives take an opaque colour, so the halo,
-    trails, ghost and shockwave could not be translucent any other way. The layer is
+    ghost and capture rings could not be translucent any other way. The layer is
     per-op and box-sized rather than window-sized, so the cost scales with the shape.
     """
     for op in plan:
@@ -85,16 +84,15 @@ def execute_plan(surface, font, plan) -> None:
             surface.blit(layer, (x, y))
 
 
-def render_frame(surface, font, frame, show_radius=False, supported_commands=None, trails=None) -> None:  # noqa: PLR0913 - one arg per render input
+def render_frame(surface, font, frame, show_radius=False, supported_commands=None) -> None:
     """Render one SpectatorFrame to ``surface`` — the board letterboxed BELOW the HUD strip.
 
     ``supported_commands`` (optional) filters the HUD help line to what the frame
     source can honestly do (see :func:`_supported_commands`); ``None`` shows all keys.
-    ``trails`` (optional) is the per-agent motion tail from :class:`~src.gui.effects.TrailTracker`.
     """
     rows, cols = frame.grid
     view = GridView(surface.get_width(), surface.get_height(), cols, rows, top_reserved=hud_height(frame))
-    execute_plan(surface, font, build_board_plan(frame, view, show_radius, trails))
+    execute_plan(surface, font, build_board_plan(frame, view, show_radius))
     execute_plan(surface, font, build_hud_plan(frame, supported_commands, width=surface.get_width()))
 
 
@@ -123,7 +121,6 @@ def run_app(client, width=palette.WINDOW_W, height=palette.WINDOW_H, fps=palette
     font = pygame.font.SysFont(None, palette.FONT_PX + 6)
     clock = pygame.time.Clock()
     supported = _supported_commands(client)
-    tracker = TrailTracker(palette.TRAIL_LEN)
     frame, paused, show_radius, running = client.reset(), False, False, True
     while running:
         for event in pygame.event.get():
@@ -133,8 +130,7 @@ def run_app(client, width=palette.WINDOW_W, height=palette.WINDOW_H, fps=palette
                 running, paused, show_radius, frame, fps = _handle_key(
                     event, client, running, paused, show_radius, frame, fps
                 )
-        tracker.observe(frame)
-        render_frame(surface, font, frame, show_radius, supported, _trails(tracker, frame))
+        render_frame(surface, font, frame, show_radius, supported)
         pygame.display.flip()
         clock.tick(fps)
         if running and not paused:
@@ -161,9 +157,3 @@ def _handle_key(event, client, running, paused, show_radius, frame, fps):  # noq
     elif command == "slow_down":
         fps = max(fps - _FPS_STEP, _FPS_MIN)
     return running, paused, show_radius, frame, fps
-
-
-def _trails(tracker, frame) -> dict:
-    """Per-agent motion tails for ``frame``, keyed the way ``draw_board`` expects."""
-    agents = [f"cop_{i}" for i in range(len(frame.cop_positions))] + ["thief"]
-    return {agent: tracker.trail(agent) for agent in agents}

@@ -54,33 +54,6 @@ def test_grid_lattice_covers_every_boundary() -> None:
     assert len(lines) == 12
 
 
-def test_trail_dots_are_smaller_than_the_token_they_follow() -> None:
-    """Full-size tail dots read as extra agents on the board — the whole point of scaling."""
-    plan = build_board_plan(_frame(), _VIEW, trails={"cop_0": ((0, 0), (0, 1))})
-    circles = [op for op in plan if op["color"] == palette.COP and op["kind"] == "circle"]
-    token = max(circles, key=lambda op: op["rect"][2])
-    assert all(op["rect"][2] < token["rect"][2] for op in circles if op is not token)
-
-
-def test_trail_fades_from_oldest_to_newest() -> None:
-    """The tail must read directionally, so alpha has to increase along it."""
-    plan = build_board_plan(_frame(), _VIEW, trails={"cop_0": ((0, 0), (0, 1), (0, 2))})
-    alphas = [op["alpha"] for op in plan if op["kind"] == "circle" and op.get("alpha") is not None]
-    assert alphas == sorted(alphas) and len(alphas) == 3
-
-
-def test_no_trail_ops_without_a_tracker() -> None:
-    """Frames rendered without history must not invent a path."""
-    plan = build_board_plan(_frame(), _VIEW)
-    assert not [op for op in plan if op["kind"] == "circle" and op.get("alpha") is not None]
-
-
-def test_offboard_trail_cells_are_skipped_not_raised() -> None:
-    """A stale tail entry is decoration — it must never crash the window."""
-    plan = build_board_plan(_frame(), _VIEW, trails={"cop_0": ((9, 9), (0, 1))})
-    assert plan  # no ValueError from cell_rect
-
-
 def test_shockwave_only_on_a_cop_win() -> None:
     """Rings mark a capture; drawing them on a timeout would announce the wrong winner."""
     assert not [op for op in build_board_plan(_frame(), _VIEW) if op["kind"] == "ring"]
@@ -132,7 +105,7 @@ def test_sprites_survive_cells_smaller_than_the_inset() -> None:
     """
     for window in (720, 200, 80, 40, 20):
         view = GridView(window, window, 5, 5)
-        plan = build_board_plan(_frame(), view, show_radius=True, trails={"thief": ((0, 0), (0, 1))})
+        plan = build_board_plan(_frame(), view, show_radius=True)
         bad = [op for op in plan if "rect" in op and (op["rect"][2] <= 0 or op["rect"][3] <= 0)]
         assert not bad, f"window {window}px (cell {view.cell_px}px) emitted {bad[:2]}"
 

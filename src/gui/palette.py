@@ -47,9 +47,6 @@ BOARD_MARGIN_PX = 14
 # behind the tokens, and anything that competes with them hurts the thing being watched.
 HALO_ALPHA = 46  # the cops' Manhattan knowledge disk
 GHOST_ALPHA = 105  # the thief while OUTSIDE that disk (drawn, but visibly unknown)
-TRAIL_ALPHA = 110  # trail CEILING: each dot gets a fraction of this, so none reaches it
 SHOCKWAVE_ALPHA = 150  # capture rings
 
-TRAIL_LEN = 4  # cells retained per agent (including the current one)
-TRAIL_SCALE = 0.62  # trail size CEILING as a fraction of a token; each dot scales below it
 SHOCKWAVE_RINGS = 3  # concentric rings drawn on the capturing cop

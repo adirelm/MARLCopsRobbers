@@ -23,8 +23,7 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
     import pygame  # noqa: PLC0415 - lazy: pygame is the optional gui extra
 
     from src.gui import palette  # noqa: PLC0415 - lazy with pygame
-    from src.gui.effects import TrailTracker  # noqa: PLC0415 - lazy with pygame
-    from src.gui.render import _trails, render_frame  # noqa: PLC0415 - lazy with pygame
+    from src.gui.render import render_frame  # noqa: PLC0415 - lazy with pygame
 
     cfg = cfg or load_config()
     out_dir = Path(cfg["gui"]["screenshot_dir"])
@@ -34,10 +33,9 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
     font = pygame.font.SysFont(None, 24)
     saved: list[str] = []
 
-    def _shot(frame: object, name: str, show_radius: bool = False, tracker=None) -> None:
+    def _shot(frame: object, name: str, show_radius: bool = False) -> None:
         surface = pygame.Surface((palette.WINDOW_W, palette.WINDOW_H))
-        trails = _trails(tracker, frame) if tracker is not None else None
-        render_frame(surface, font, frame, show_radius, trails=trails)
+        render_frame(surface, font, frame, show_radius)
         path = out_dir / name
         pygame.image.save(surface, str(path))
         saved.append(str(path))
@@ -47,25 +45,20 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
 
     def _running(size: int) -> object:  # a mid-run frame (3 heuristic moves in)
         session = sdk.spectator_session(size, size, num_cops=cops, seed=seed)
-        tracker = TrailTracker(palette.TRAIL_LEN)
         frame = session.reset()
-        tracker.observe(frame)
         for _ in range(3):
             frame = session.step()
-            tracker.observe(frame)
-        return session, frame, tracker
+        return session, frame
 
     for size in cfg["gui"]["screenshot_sizes"]:  # §7.3c: the running board at each grid size
-        _, running_frame, running_trails = _running(size)
-        _shot(running_frame, f"grid_{size}x{size}.png", tracker=running_trails)
+        _shot(_running(size)[1], f"grid_{size}x{size}.png")
 
     # §10.2: the distinct STATES beyond "running" (captured at the graded 5x5 stage).
-    session, frame, tracker = _running(5)
-    _shot(frame, "state_view_radius.png", show_radius=True, tracker=tracker)  # the 'v' agent view
+    session, frame = _running(5)
+    _shot(frame, "state_view_radius.png", show_radius=True)  # the 'v' agent view
     while frame.winner is None and frame.move < frame.max_moves:
         frame = session.step()
-        tracker.observe(frame)
-    _shot(frame, "state_terminal.png", tracker=tracker)  # the terminal winner-banner state
+    _shot(frame, "state_terminal.png")  # the terminal winner-banner state
 
     # §5.4 barrier rendering: heuristics only navigate around barriers (never place), so
     # this is a hand-set demo state exercising the real barrier draw path (draw_board).
