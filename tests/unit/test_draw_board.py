@@ -152,3 +152,44 @@ def test_each_cop_is_drawn_as_a_body_plus_two_eyes() -> None:
     assert len([op for op in plan if op["kind"] == "poly" and op["color"] == palette.COP]) == 2
     assert len([op for op in plan if op.get("color") == palette.EYE_WHITE]) == 4
     assert len([op for op in plan if op.get("color") == palette.EYE_PUPIL]) == 4
+
+
+def test_an_unseen_thief_s_trail_fades_with_it() -> None:
+    """Agent view must be consistent: a bright path under a ghosted thief still leaks its route.
+
+    The cops cannot see the thief, so they did not watch it walk that path either — the
+    tail has to dim with the sprite, exactly as the sprite's own mouth does.
+    """
+    trails = {"thief": ((0, 0), (0, 1))}
+    god = build_board_plan(_frame(), _VIEW, trails=trails)
+    agent = build_board_plan(_frame(), _VIEW, show_radius=True, trails=trails)
+
+    def tail(plan):
+        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
+
+    assert tail(agent) and all(a < b for a, b in zip(tail(agent), tail(god), strict=True))
+
+
+def test_a_seen_thief_keeps_a_full_strength_trail() -> None:
+    """Inside the halo the cops DO observe it, so dimming the tail would understate them."""
+    frame = _frame(cop_positions=((2, 2),), thief_position=(2, 3))
+    trails = {"thief": ((2, 1), (2, 2))}
+    god = build_board_plan(frame, _VIEW, trails=trails)
+    agent = build_board_plan(frame, _VIEW, show_radius=True, trails=trails)
+
+    def tail(plan):
+        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
+
+    assert tail(agent) == tail(god)
+
+
+def test_the_cop_trail_is_never_dimmed() -> None:
+    """The cops always know their own path — dimming it would be nonsense."""
+    trails = {"cop_0": ((0, 0), (0, 1)), "thief": ((4, 4),)}
+    god = build_board_plan(_frame(), _VIEW, trails=trails)
+    agent = build_board_plan(_frame(), _VIEW, show_radius=True, trails=trails)
+
+    def tail(plan):
+        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.COP]
+
+    assert tail(agent) == tail(god)

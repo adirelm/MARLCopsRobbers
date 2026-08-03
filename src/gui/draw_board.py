@@ -43,7 +43,7 @@ def _sprite_rect(rect: tuple) -> tuple:
 
 
 def _grid_lines(view: GridView, rows: int, cols: int) -> list[dict]:
-    """Return the neon lattice ops — one line per interior row/column boundary."""
+    """Return the neon lattice ops — one line per row/column boundary, outer edges included."""
     x0, y0 = view.cell_rect(0, 0)[:2]
     width, height = view.cell_px * cols, view.cell_px * rows
     ops = [
@@ -67,15 +67,24 @@ def _grid_lines(view: GridView, rows: int, cols: int) -> list[dict]:
     return ops
 
 
-def _trail_ops(view: GridView, trails: dict, rows: int, cols: int) -> list[dict]:
+def _trail_ops(
+    view: GridView, trails: dict, rows: int, cols: int, thief_alpha: int | None = None
+) -> list[dict]:
     """Return fading tail ops for every agent, oldest cell faintest.
+
+    ``thief_alpha`` dims the THIEF's tail in agent view when the cops cannot see it: they
+    did not watch it walk that path either, so a full-strength route under a ghosted
+    sprite would leak knowledge the sprite itself is careful not to claim. The cops' own
+    tails are never dimmed — they always know where they have been.
 
     Cells outside the board are skipped rather than raising: a trail is decoration, and a
     stale entry must never crash the window.
     """
     ops: list[dict] = []
     for agent, cells in sorted(trails.items()):
-        color = palette.THIEF if agent == "thief" else palette.COP
+        is_thief = agent == "thief"
+        color = palette.THIEF if is_thief else palette.COP
+        dim = (thief_alpha / 255) if (is_thief and thief_alpha is not None) else 1.0
         for index, (r, c) in enumerate(cells):
             if not (0 <= r < rows and 0 <= c < cols):
                 continue
@@ -84,7 +93,7 @@ def _trail_ops(view: GridView, trails: dict, rows: int, cols: int) -> list[dict]
                 _token(
                     view.cell_rect(c, r),
                     color,
-                    alpha=int(palette.TRAIL_ALPHA * fade),
+                    alpha=max(1, int(palette.TRAIL_ALPHA * fade * dim)),
                     scale=palette.TRAIL_SCALE * fade,
                 )
             )
@@ -142,12 +151,12 @@ def build_board_plan(
         {"kind": "fill", "rect": view.cell_rect(bc, br), "color": palette.BARRIER}
         for br, bc in frame.barriers
     ]
-    ops += _trail_ops(view, trails or {}, rows, cols)
+    # Ghost the thief only in agent view: in god view its position is simply known.
+    unseen = palette.GHOST_ALPHA if (show_radius and not thief_is_seen(frame)) else None
+    ops += _trail_ops(view, trails or {}, rows, cols, thief_alpha=unseen)
 
     last = frame.last_action or {}
     tr, tc = frame.thief_position
-    # Ghost the thief only in agent view: in god view its position is simply known.
-    unseen = palette.GHOST_ALPHA if (show_radius and not thief_is_seen(frame)) else None
     ops += pursued_ops(_sprite_rect(view.cell_rect(tc, tr)), last.get("thief"), unseen)
     for index, (cr, cc) in enumerate(frame.cop_positions):
         ops += pursuer_ops(_sprite_rect(view.cell_rect(cc, cr)), last.get(f"cop_{index}"))

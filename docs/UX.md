@@ -9,9 +9,11 @@ referee internals — enforced by `tests/architecture/test_gui_purity.py`).
 > **Screenshots.** Each heuristic below references a capture under
 > `results/screenshots/` produced by `scripts/capture_screens.py` (headless
 > pygame-ce, `SDL_VIDEODRIVER=dummy`). Beyond the §7.3c grid-size matrix
-> (`grid_{2x2,3x3,4x4,5x5}.png` — the running board), it captures the two distinct
-> GUI **states** §10.2 asks for: the view-radius overlay (`state_view_radius.png`)
-> and the terminal winner-banner (`state_terminal.png`).
+> (`grid_{2x2,3x3,4x4,5x5}.png` — the running board), it captures the distinct GUI
+> **states** §10.2 asks for: the agent-view overlay (`state_view_radius.png`), the
+> terminal winner-banner (`state_terminal.png`), and barrier rendering
+> (`state_barriers.png`). The §9.3 wire-match replay adds 18 more under
+> `results/screenshots/bonus/`.
 
 ## 1. Visibility of system status
 The HUD always shows **sub-game `i/6`**, **move `k/25`**, live **scores** and
@@ -21,7 +23,9 @@ previously inferable only by counting grey cells), the **last joint action** (e.
 that separates it from the board. On the board itself, status is also **spatial**: each
 sprite **carries its own heading** (see §2), a **fading motion tail** shows the last few
 cells it walked, and a capture is marked by concentric **shockwave rings** on the cop that
-actually closed the distance. → `grid_5x5.png`, `state_barriers.png`.
+actually closed the distance. → `grid_5x5.png` (heading + tails); the shockwave needs a
+capture, so see a cop-win frame such as `bonus/bonus_sg1_final.png`. `state_barriers.png`
+is a hand-set demo frame with no recorded history, so it deliberately shows no tail.
 
 Heading is shown *only* for the four movement actions. `PLACE_BARRIER` consumes the cop's
 move without moving it, so its pupils stay centred rather than claiming travel that never
@@ -54,7 +58,8 @@ assets ship with this repo, so the GUI has no binary dependencies to license or 
 
 ## 3. User control and freedom
 The spectator is fully controllable: **space** pauses/resumes, **+/-** change
-playback speed, **n** advances to the next sub-game, **r** resets, **esc** quits.
+playback speed, **n**/**return** advance to the next sub-game, **r** resets, **v** toggles
+the agent view (§8a), **esc** quits.
 Pausing then stepping lets the user inspect any position; nothing auto-commits.
 
 ## 4. Consistency and standards

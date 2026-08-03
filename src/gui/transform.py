@@ -3,7 +3,7 @@
 PURE math (no pygame): maps a ``(cols, rows)`` board to centered square cell rects
 inside a window. Cells are square and capped at ``CELL_PX_CAP``; the board is
 letterboxed (centered) in the leftover space, so 2x2..5x5 all render crisply with
-one view. The renderer (grid_view, pygame) consumes these plain ``(x, y, w, h)``
+one view. The renderer (``render``, pygame) consumes these plain ``(x, y, w, h)``
 rects — keeping the geometry testable headless.
 """
 

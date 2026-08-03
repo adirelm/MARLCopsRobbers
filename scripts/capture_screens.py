@@ -18,7 +18,7 @@ from src.utils.config_loader import load_config
 
 
 def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires pygame
-    """Render + save the running grid-size matrix + the two distinct GUI states; return the paths."""
+    """Render + save the running grid-size matrix + the three GUI states; return the paths."""
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     import pygame  # noqa: PLC0415 - lazy: pygame is the optional gui extra
 
@@ -68,7 +68,7 @@ def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires p
     _shot(frame, "state_terminal.png", tracker=tracker)  # the terminal winner-banner state
 
     # §5.4 barrier rendering: heuristics only navigate around barriers (never place), so
-    # this is a hand-set demo state exercising the real barrier draw path (draw_plan).
+    # this is a hand-set demo state exercising the real barrier draw path (draw_board).
     from src.gui.spectator import SpectatorFrame  # noqa: PLC0415 - lazy with pygame
 
     demo = SpectatorFrame(

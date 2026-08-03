@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (974 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (977 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (974 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (977 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -457,7 +457,7 @@ HUD also reads `Barriers 2/5` — the §3.3 budget, matching the two grey cells 
 
 ![GUI agent view](results/screenshots/state_view_radius.png)
 *The **agent view** (key `v`): the board stops showing the referee's knowledge and starts showing the
-cops'. The lit Manhattan diamond is their view radius, and the thief — here 6 cells away, far outside
+cops'. The lit Manhattan diamond is their view radius, and the thief — here 4 cells away (radius 2), far outside
 it — is drawn **ghosted**, mouth and all. The spectator still sees where it is; the render makes plain
 that the cops do not. That is the §2.1/§4 Dec-POMDP partial observability, shown rather than asserted
 (the halo is the true diamond, not a bounding square, which would overstate what the agents observe).
