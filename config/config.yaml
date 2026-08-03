@@ -345,7 +345,7 @@ wire_match:
                                   #   SAME seed; only after this many CONSECUTIVE voids of one
                                   #   sub-game does the next unused spare seed replace s_k for the
                                   #   pair k/k+3 (replaying the pair's base game if already played)
-  seeds: [101, 202, 303, 404, 505, 606]  # ORDERED P7 list s1..sN (N >= 6): the first 3 are the
+  seeds: [6897, 2531, 1891, 3573, 5224, 2407]  # ORDERED P7 list s1..sN (N >= 6): the first 3 are the
                                   #   pair seeds for (1,4)/(2,5)/(3,6), the rest are spares.
                                   #   CURRENT VALUES = the LOCAL DRESS-REHEARSAL list (both
                                   #   endpoints are ours) — MUST be REPLACED by the list frozen
@@ -367,9 +367,9 @@ wire_match:
       thief_url: "http://127.0.0.1:8103" #   DISTINCT ports (brief §2 allows per-role services)
       token_env: "WIRE_GROUP_1_TOKEN"
     group_2:
-      name: "partner-group"       # replaced by the partner's exact 8-char group code
-      cop_url: "http://127.0.0.1:8102"
-      thief_url: "http://127.0.0.1:8104"
+      name: "biu-azri"
+      cop_url: "https://marl-bonus-adapter.onrender.com"
+      thief_url: "https://marl-bonus-adapter.onrender.com"
       token_env: "WIRE_GROUP_2_TOKEN"
 
 # The our-side brief-§2 HTTP adapter (src/mcp/wire_agent.py) binds to this host;

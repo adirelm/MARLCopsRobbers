@@ -12,7 +12,7 @@ import json
 import pytest
 
 from src.mcp.wire_replay import ReplayMismatchError, parse_wire_log, replay_match, replay_sub_game
-from tests.unit._replay_fixtures import rehearsal_paths
+from tests.unit._replay_fixtures import rehearsal_cfg, rehearsal_paths
 
 _ZERO = {"cop": 0, "thief": 0}
 
@@ -31,7 +31,8 @@ def test_parse_finds_exactly_six_sessions_with_spawns_and_contiguous_ticks():
         assert all(set(pair) == {"cop", "thief"} for pair in sess["actions"].values())
 
 
-def test_replay_match_verifies_all_six_games_against_records(cfg):
+def test_replay_match_verifies_all_six_games_against_records():
+    cfg = rehearsal_cfg()
     log, records_path = rehearsal_paths()
     replays = replay_match(cfg, log, records_path)
     records = {r["id"]: r for r in json.loads(records_path.read_text(encoding="utf-8"))["sub_games"]}
@@ -43,7 +44,8 @@ def test_replay_match_verifies_all_six_games_against_records(cfg):
         assert len(game["frames"]) == game["moves"] + 1  # spawn frame + one per tick
 
 
-def test_replay_frames_carry_spawn_and_terminal_hud(cfg):
+def test_replay_frames_carry_spawn_and_terminal_hud():
+    cfg = rehearsal_cfg()
     log, records_path = rehearsal_paths()
     game = replay_match(cfg, log, records_path)[0]
     first, last = game["frames"][0], game["frames"][-1]
@@ -52,7 +54,8 @@ def test_replay_frames_carry_spawn_and_terminal_hud(cfg):
     assert set(last.last_action) == {"cop_0", "thief"}
 
 
-def test_p7_pair_mapping_shares_seed_between_k_and_k_plus_3(cfg):
+def test_p7_pair_mapping_shares_seed_between_k_and_k_plus_3():
+    cfg = rehearsal_cfg()
     log, records_path = rehearsal_paths()
     replays = replay_match(cfg, log, records_path)
     for k in range(3):
@@ -85,7 +88,8 @@ def test_tampered_record_winner_raises(cfg):
         replay_sub_game(cfg, "sg-0", sess, record, dict(_ZERO))
 
 
-def test_illegal_thief_action_and_gapped_ticks_raise(cfg):
+def test_illegal_thief_action_and_gapped_ticks_raise():
+    cfg = rehearsal_cfg()
     log, records_path = rehearsal_paths()
     record = _first_record(records_path)
     sess = parse_wire_log(log)["sg-0"]
@@ -102,7 +106,8 @@ def test_illegal_thief_action_and_gapped_ticks_raise(cfg):
         replay_sub_game(cfg, "sg-0", partial, record, dict(_ZERO))
 
 
-def test_records_session_count_mismatch_raises(cfg, tmp_path):
+def test_records_session_count_mismatch_raises(tmp_path):
+    cfg = rehearsal_cfg()
     log, records_path = rehearsal_paths()
     body = json.loads(records_path.read_text(encoding="utf-8"))
     body["sub_games"] = body["sub_games"][:5]  # drop one record: 6 sessions vs 5 records
@@ -112,7 +117,8 @@ def test_records_session_count_mismatch_raises(cfg, tmp_path):
         replay_match(cfg, log, short)
 
 
-def test_committed_void_path_log_replays_via_last_hello(cfg):
+def test_committed_void_path_log_replays_via_last_hello():
+    cfg = rehearsal_cfg()
     """The REAL referee void log (a voided sub-game 2 + its same-seed replay) verifies cleanly."""
     log, records_path = rehearsal_paths()
     void_log = log.parent / "wire_log_voidtest.jsonl"
@@ -156,7 +162,8 @@ def test_void_re_hello_supersedes_earlier_run(tmp_path):
     assert sess["actions"] == {}  # the voided run's moves are gone
 
 
-def test_midgame_tamper_in_25_move_game_is_caught_at_the_tick(cfg):
+def test_midgame_tamper_in_25_move_game_is_caught_at_the_tick():
+    cfg = rehearsal_cfg()
     """The silent-divergence hole, pinned: flip ONE mid-game action of the 25-move sg-2.
 
     Terminal-summary checking alone can miss a divergence that wanders back to the same

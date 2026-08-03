@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from src.mcp.wire_replay import mid_frame_index, replay_match, save_screens
-from tests.unit._replay_fixtures import frame, rehearsal_paths
+from tests.unit._replay_fixtures import frame, rehearsal_cfg, rehearsal_paths
 
 _MIN_PNG_BYTES = 3000  # "non-trivial": a blank/failed surface saves far smaller
 
@@ -32,7 +32,8 @@ def test_mid_pick_falls_back_to_middle_tick():
     assert mid_frame_index([frame(), frame(move=1)], radius=2) in (0, 1)  # tiny game stays in range
 
 
-def test_save_screens_writes_18_nontrivial_pngs(cfg, tmp_path):
+def test_save_screens_writes_18_nontrivial_pngs(tmp_path):
+    cfg = rehearsal_cfg()
     pytest.importorskip("pygame")
     log, records_path = rehearsal_paths()
     replays = replay_match(cfg, log, records_path)
