@@ -80,4 +80,12 @@ sub-game immediately before the real match in the same session.
 
 Nothing else is open. Once 1 and 2 land we run the conformance game and then the match.
 
-Our availability: **<<< FILL IN: your window >>>**
+Our availability: **we are flexible — you pick the slot.** The match is short: our recorded
+cloud run took 4m29s for all six sub-games, and most of that was a single free-tier wake-up.
+Add the conformance game and the whole session is ~15 minutes. Your service is always-on and
+our referee drives everything, so what we actually need is a window where one human on each
+side can answer if something breaks, and then do the byte-compare and send the two emails —
+call it 30 minutes, not an evening.
+
+**Propose any slot in the next 48 hours (Asia/Jerusalem) and we will take it.** If you would
+rather we name one: **Sun–Thu, 20:00–23:00 Asia/Jerusalem** suits us any day this week.

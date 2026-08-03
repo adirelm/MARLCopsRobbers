@@ -63,7 +63,8 @@ transcription or rotation issue.
 ## Step 2 — Reply with four things
 
 1. **The working token** (private channel).
-2. **Your availability window** — we will pick the overlap with ours.
+2. **Your availability window.** Ours: we are flexible — propose any slot in the next
+   48 hours (Asia/Jerusalem) and we will take it. The whole session is ~15 minutes.
 3. **The seed list.** We would rather **you** pick it: we host the referee, so whoever
    chooses the seeds can preview the layouts first, and that surface points at us. Send any
    6+ integers and we will publish the layouts they resolve to. If you would rather not,
