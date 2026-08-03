@@ -21,9 +21,11 @@ previously inferable only by counting grey cells), the **last joint action** (e.
 update every tick; a **capture flash** marks the deciding move. → `grid_5x5.png`,
 `state_barriers.png`.
 
-The budget line is **omitted, not zeroed**, by frame sources that genuinely do not know
-it (wire replay). A HUD reading `Barriers 0/0` would assert a fact the source cannot
-support — silence is the honest rendering.
+Both frame sources that exist — the live spectator session and the §9.3 wire replay —
+carry the budget, so every rendered screenshot shows it. The field nonetheless defaults
+to "unknown", and the HUD then **omits the line rather than zeroing it**: a hand-built or
+future frame source that lacks the budget would otherwise render `Barriers 0/0`, asserting
+a fact it cannot support. Silence is the honest rendering.
 
 ## 2. Match between system and the real world
 The board is a literal grid with intuitive tokens (cop = blue, thief = red,

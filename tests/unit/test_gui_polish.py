@@ -101,3 +101,20 @@ def test_readme_barrier_caption_matches_the_configured_budget(cfg) -> None:
     for placed, cap in claims:
         assert int(cap) == budget, f"README says /{cap}, config says /{budget}"
         assert int(placed) <= budget, "caption claims more barriers placed than the budget allows"
+
+
+def test_every_real_frame_source_carries_the_barrier_budget(cfg) -> None:
+    """Both shipping frame sources must set max_barriers — the default is for the unknown case.
+
+    The §9.3 wire replay was missed on the first pass: it reads cfg for max_moves and
+    num_games, so it always COULD supply the budget, and its 18 committed screenshots
+    would otherwise render a HUD different from the §7.3 ones.
+    """
+    import inspect  # noqa: PLC0415 - only this guard needs it
+
+    from src.mcp import wire_replay  # noqa: PLC0415
+    from src.services import spectator as spectator_service  # noqa: PLC0415
+
+    for module in (wire_replay, spectator_service):
+        src = inspect.getsource(module)
+        assert "max_barriers=" in src, f"{module.__name__} builds frames without the budget"

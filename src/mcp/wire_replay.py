@@ -48,6 +48,7 @@ def _frame(cfg, env, gid, totals, winner, last) -> SpectatorFrame:  # noqa: PLR0
         totals=dict(totals),
         winner=winner,
         last_action=action_names,
+        max_barriers=int(cfg["game"]["max_barriers"]),
     )
 
 
