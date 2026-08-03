@@ -29,7 +29,9 @@ def save_screens(cfg: dict, replays: list[dict], out_dir: str | Path | None = No
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     import pygame  # noqa: PLC0415 - lazy: pygame is the optional gui extra
 
-    from src.gui.render import render_frame  # noqa: PLC0415 - lazy with pygame
+    from src.gui import palette  # noqa: PLC0415 - lazy with pygame
+    from src.gui.effects import TrailTracker  # noqa: PLC0415 - lazy with pygame
+    from src.gui.render import _trails, render_frame  # noqa: PLC0415 - lazy with pygame
 
     out = Path(cfg["gui"]["bonus_screenshot_dir"] if out_dir is None else out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -40,8 +42,13 @@ def save_screens(cfg: dict, replays: list[dict], out_dir: str | Path | None = No
         mid = mid_frame_index(frames, int(cfg["mcp"]["observation"]["view_radius"]))
         picks = (("t00", 0), ("mid", mid), ("final", len(frames) - 1))
         for tag, idx in picks:
-            surface = pygame.Surface((720, 560))
-            render_frame(surface, font, frames[idx])
+            # Replay the run-up so the tail shown is the path actually walked to this tick,
+            # not an empty trail on a mid-game screenshot.
+            tracker = TrailTracker(palette.TRAIL_LEN)
+            for frame in frames[: idx + 1]:
+                tracker.observe(frame)
+            surface = pygame.Surface((palette.WINDOW_W, palette.WINDOW_H))
+            render_frame(surface, font, frames[idx], trails=_trails(tracker, frames[idx]))
             path = out / f"bonus_sg{game['gid']}_{tag}.png"
             pygame.image.save(surface, str(path))
             saved.append(path)

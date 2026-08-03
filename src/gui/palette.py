@@ -8,15 +8,20 @@ a test asserts this module imports nothing from config. RGB triples are 0-255.
 
 from __future__ import annotations
 
-BG = (18, 18, 24)
-GRID_LINE = (60, 60, 72)
-CHECKER = (26, 26, 34)
-COP = (80, 160, 255)
-THIEF = (255, 90, 90)
-BARRIER = (140, 140, 150)
+BG = (12, 12, 18)
+GRID_LINE = (46, 50, 74)
+CHECKER = (22, 22, 30)
+# Cop/thief stay recognisably BLUE and RED — the HUD legend and the README/UX captions
+# name those hues, so a shift to e.g. cyan/magenta would make committed prose false.
+# They are only pushed brighter, for the neon read against the darker background.
+COP = (90, 180, 255)
+THIEF = (255, 80, 110)
+BARRIER = (150, 150, 168)
 CAPTURE_FLASH = (255, 230, 120)
-VIEW_RADIUS = (70, 120, 90)
-TEXT = (230, 230, 235)
+VIEW_RADIUS = (70, 190, 235)
+TEXT = (232, 232, 240)
+HUD_PANEL = (16, 16, 24)
+HUD_RULE = (52, 56, 82)
 
 # Geometry / timing (pixels / fps / ms).
 GRID_W = 1
@@ -35,3 +40,14 @@ WINDOW_H = 560
 # Breathing room under the board. Without it the letterbox consumed every pixel below the
 # HUD and the board's bottom edge sat flush against the window frame.
 BOARD_MARGIN_PX = 14
+
+# Alpha levels (0-255) for the radar/neon layers. Kept low: every one of these is CONTEXT
+# behind the tokens, and anything that competes with them hurts the thing being watched.
+HALO_ALPHA = 46  # the cops' Manhattan knowledge disk
+GHOST_ALPHA = 105  # the thief while OUTSIDE that disk (drawn, but visibly unknown)
+TRAIL_ALPHA = 110  # newest trail cell; older ones fade linearly toward zero
+SHOCKWAVE_ALPHA = 150  # capture rings
+
+TRAIL_LEN = 4  # cells retained per agent (including the current one)
+TRAIL_SCALE = 0.62  # newest trail dot as a fraction of a token; older ones shrink further
+SHOCKWAVE_RINGS = 3  # concentric rings drawn on the capturing cop

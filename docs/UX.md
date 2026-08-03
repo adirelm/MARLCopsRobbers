@@ -17,9 +17,15 @@ referee internals — enforced by `tests/architecture/test_gui_purity.py`).
 The HUD always shows **sub-game `i/6`**, **move `k/25`**, live **scores** and
 **totals**, the **barrier budget `placed/5`** (§3.3 — the cop's scarcest resource,
 previously inferable only by counting grey cells), the **last joint action** (e.g.
-`cop_0: UP, thief: LEFT`), and a **winner banner** at terminal. The token positions
-update every tick; a **capture flash** marks the deciding move. → `grid_5x5.png`,
+`cop_0: UP, thief: LEFT`), and a **winner banner** at terminal, all on a panel backdrop
+that separates it from the board. On the board itself, status is also **spatial**: each
+token carries a **facing wedge** in its direction of travel, a **fading motion tail**
+shows the last few cells it walked, and a capture is marked by concentric **shockwave
+rings** on the cop that actually closed the distance. → `grid_5x5.png`,
 `state_barriers.png`.
+
+A wedge is drawn *only* for the four movement actions. `PLACE_BARRIER` consumes the
+cop's move without moving it, so an arrow there would assert travel that never happened.
 
 Both frame sources that exist — the live spectator session and the §9.3 wire replay —
 carry the budget, so every rendered screenshot shows it. The field nonetheless defaults
@@ -60,10 +66,29 @@ renderer drives a local in-proc session, a recorded **replay**, or a Stage-2
 let an expert skim or a newcomer step slowly.
 
 ## 8. Aesthetic and minimalist design
-A dark, minimal board: background, a subtle checkerboard, thin gridlines, three
-token types, and a compact HUD. An optional **view-radius overlay** (key **v**,
-off by default → `state_view_radius.png`) is available for teaching partial
-observability but never clutters the default view.
+A dark, minimal board: background, a subtle checkerboard, thin neon gridlines, three
+token types, and a compact HUD panel. The added layers (halo, tails, wedges, rings) are
+all **low-alpha context drawn behind or around the tokens** — nothing that competes with
+the two things the viewer is actually tracking. The **agent-view overlay** (key **v**) is
+off by default → `state_view_radius.png`, so the default board stays uncluttered.
+
+### 8a. Agent view — rendering what the cops KNOW
+This is the one visual that carries modelling meaning rather than styling. Pressing **v**
+switches the board from the referee's god view to the cop team's epistemic state:
+
+| | god view (default) | agent view (**v**) |
+|---|---|---|
+| Cells | uniform board | the cops' **Manhattan knowledge halo** is lit |
+| Thief inside the halo | solid | solid — it is genuinely observed |
+| Thief outside the halo | solid | **ghosted**, wedge ghosted with it |
+
+The halo is the UNION over cops (under CTDE the team is one decision-maker at training
+time), and it is the true Manhattan **diamond**, not a bounding square — a square would
+overstate what the agents observe by the corners. The ghosting is the honest part: the
+spectator still sees where the thief IS, but is shown plainly that the cops do not.
+This makes the Dec-POMDP partial observability of §2.1/§4 legible in one keypress
+instead of only as a claim in prose. Logic + tests: `src/gui/effects.py`,
+`tests/unit/test_gui_effects.py`, `tests/unit/test_draw_board.py`.
 
 ## 9. Help users recognize, diagnose, and recover from errors
 A terminal sub-game shows an explicit **winner banner** (cop capture vs thief

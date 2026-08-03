@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (936 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (964 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (936 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (964 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -441,14 +441,23 @@ endpoints: a valid RS256 token → 200; a bad token, a missing token, and a **wr
 as §5.3 requires.*
 
 ![F3 GUI 2×2](results/screenshots/grid_2x2.png) ![F3 GUI 3×3](results/screenshots/grid_3x3.png) ![F3 GUI 4×4](results/screenshots/grid_4x4.png) ![F3 GUI 5×5](results/screenshots/grid_5x5.png)
-*F3 — Pygame god-view spectator at 2×2 / 3×3 / 4×4 / 5×5 (the mandatory §7.3c GUI screenshots at different grid sizes).*
+*F3 — Pygame god-view spectator at 2×2 / 3×3 / 4×4 / 5×5 (the mandatory §7.3c GUI screenshots at
+different grid sizes). Each token carries a facing wedge in its direction of travel and a fading tail
+of the cells it just walked, so a still frame still shows which way the chase is going.*
 
 ![GUI terminal state](results/screenshots/state_terminal.png) ![GUI barriers](results/screenshots/state_barriers.png)
 *GUI states beyond "running": the terminal winner-banner (left — move 25/25 timeout, thief wins 10/5)
 and barrier rendering (right — a hand-set demo state; §5.4's barrier display. The heuristic agents only
 navigate around barriers, so barriers are shown via the real draw path on a set board). The right-hand
-HUD also reads `Barriers 2/5` — the §3.3 budget, matching the two grey cells drawn on the board. The
-view-radius overlay state (`state_view_radius.png`) is referenced from [`docs/UX.md`](docs/UX.md).*
+HUD also reads `Barriers 2/5` — the §3.3 budget, matching the two grey cells drawn on the board.*
+
+![GUI agent view](results/screenshots/state_view_radius.png)
+*The **agent view** (key `v`): the board stops showing the referee's knowledge and starts showing the
+cops'. The lit Manhattan diamond is their view radius, and the thief — here 6 cells away, far outside
+it — is drawn **ghosted**, wedge and all. The spectator still sees where it is; the render makes plain
+that the cops do not. That is the §2.1/§4 Dec-POMDP partial observability, shown rather than asserted
+(the halo is the true diamond, not a bounding square, which would overstate what the agents observe).
+Full rationale + the god-view/agent-view table: [`docs/UX.md` §8a](docs/UX.md).*
 
 End-to-end evidence: [`results/subgames/full_match_5x5.redacted.json`](results/subgames/full_match_5x5.redacted.json)
 is a full 6-sub-game §3.5 report (role-only, PII-redacted) produced by `sdk.run_local_match` with FRESH

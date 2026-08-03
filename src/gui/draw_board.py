@@ -1,0 +1,167 @@
+"""Board draw ops — the neon/radar board layer (PURE; no pygame).
+
+Split out of :mod:`src.gui.draw_plan` when the board grew a knowledge halo, motion
+trails, facing wedges and capture shockwaves (the 150-LOC cap). Ops are emitted
+back-to-front: background, checkerboard, grid lines, halo, barriers, trails, tokens,
+wedges, shockwave.
+
+The one op with modelling meaning rather than decoration is the halo + ghosted thief:
+together they render what the COP TEAM KNOWS, not just where the pieces are. See
+:mod:`src.gui.effects`.
+"""
+
+from __future__ import annotations
+
+from src.gui import palette
+from src.gui.effects import facing_wedge, halo_cells, thief_is_seen
+from src.gui.spectator import SpectatorFrame
+from src.gui.transform import GridView
+
+
+def _token(rect: tuple, color: tuple, alpha: int | None = None, scale: float = 1.0) -> dict:
+    """Return an inset filled-circle token op centred in ``rect``.
+
+    ``scale`` shrinks the circle about the cell centre. Trail dots use it: at full token
+    size a four-cell tail reads as four agents on the board rather than as one agent's path.
+    """
+    x, y, w, h = rect
+    inset = palette.TOKEN_INSET
+    dx, dy = (w - 2 * inset) * (1 - scale) / 2, (h - 2 * inset) * (1 - scale) / 2
+    box = (x + inset + dx, y + inset + dy, (w - 2 * inset) * scale, (h - 2 * inset) * scale)
+    op = {"kind": "circle", "rect": tuple(round(v) for v in box), "color": color}
+    if alpha is not None:
+        op["alpha"] = alpha
+    return op
+
+
+def _grid_lines(view: GridView, rows: int, cols: int) -> list[dict]:
+    """Return the neon lattice ops — one line per interior row/column boundary."""
+    x0, y0 = view.cell_rect(0, 0)[:2]
+    width, height = view.cell_px * cols, view.cell_px * rows
+    ops = [
+        {
+            "kind": "line",
+            "start": (x0, y0 + r * view.cell_px),
+            "end": (x0 + width, y0 + r * view.cell_px),
+            "color": palette.GRID_LINE,
+        }
+        for r in range(rows + 1)
+    ]
+    ops += [
+        {
+            "kind": "line",
+            "start": (x0 + c * view.cell_px, y0),
+            "end": (x0 + c * view.cell_px, y0 + height),
+            "color": palette.GRID_LINE,
+        }
+        for c in range(cols + 1)
+    ]
+    return ops
+
+
+def _trail_ops(view: GridView, trails: dict, rows: int, cols: int) -> list[dict]:
+    """Return fading tail ops for every agent, oldest cell faintest.
+
+    Cells outside the board are skipped rather than raising: a trail is decoration, and a
+    stale entry must never crash the window.
+    """
+    ops: list[dict] = []
+    for agent, cells in sorted(trails.items()):
+        color = palette.THIEF if agent == "thief" else palette.COP
+        for index, (r, c) in enumerate(cells):
+            if not (0 <= r < rows and 0 <= c < cols):
+                continue
+            fade = (index + 1) / (len(cells) + 1)  # oldest faintest+smallest, newest strongest
+            ops.append(
+                _token(
+                    view.cell_rect(c, r),
+                    color,
+                    alpha=int(palette.TRAIL_ALPHA * fade),
+                    scale=palette.TRAIL_SCALE * fade,
+                )
+            )
+    return ops
+
+
+def _shockwave(view: GridView, frame: SpectatorFrame) -> list[dict]:
+    """Return concentric capture rings on the CAPTURING cop (nearest the thief)."""
+    tr, tc = frame.thief_position
+    cr, cc = min(frame.cop_positions, key=lambda pos: abs(pos[0] - tr) + abs(pos[1] - tc))
+    x, y, w, h = view.cell_rect(cc, cr)
+    ops = []
+    for ring in range(palette.SHOCKWAVE_RINGS):
+        grow = int(w * 0.18 * ring)
+        ops.append(
+            {
+                "kind": "ring",
+                "rect": (x - grow, y - grow, w + 2 * grow, h + 2 * grow),
+                "color": palette.CAPTURE_FLASH,
+                "alpha": max(20, palette.SHOCKWAVE_ALPHA - ring * 45),
+            }
+        )
+    return ops
+
+
+def build_board_plan(
+    frame: SpectatorFrame, view: GridView, show_radius: bool = False, trails: dict | None = None
+) -> list[dict]:
+    """Return the ordered board draw ops for one frame (back-to-front).
+
+    ``show_radius`` switches on the AGENT-VIEW reading of the board: the cops' knowledge
+    halo is drawn, and the thief is ghosted whenever it sits outside that halo — i.e. the
+    board shows what the cops know. With it off the board is the plain god view.
+    """
+    rows, cols = frame.grid
+    ops: list[dict] = [{"kind": "background", "color": palette.BG}]
+    ops += [
+        {"kind": "fill", "rect": view.cell_rect(c, r), "color": palette.CHECKER}
+        for r in range(rows)
+        for c in range(cols)
+        if (r + c) % 2
+    ]
+    ops += _grid_lines(view, rows, cols)
+    if show_radius:
+        ops += [
+            {
+                "kind": "fill",
+                "rect": view.cell_rect(c, r),
+                "color": palette.VIEW_RADIUS,
+                "alpha": palette.HALO_ALPHA,
+            }
+            for r, c in halo_cells(frame)
+        ]
+    ops += [
+        {"kind": "fill", "rect": view.cell_rect(bc, br), "color": palette.BARRIER}
+        for br, bc in frame.barriers
+    ]
+    ops += _trail_ops(view, trails or {}, rows, cols)
+
+    tr, tc = frame.thief_position
+    # Ghost the thief only in agent view: in god view its position is simply known.
+    ghost = palette.GHOST_ALPHA if (show_radius and not thief_is_seen(frame)) else None
+    ops.append(_token(view.cell_rect(tc, tr), palette.THIEF, alpha=ghost))
+    ops += [_token(view.cell_rect(cc, cr), palette.COP) for cr, cc in frame.cop_positions]
+    ops += _wedges(frame, view, thief_alpha=ghost)
+    if frame.winner == "cop":
+        ops += _shockwave(view, frame)
+    return ops
+
+
+def _wedges(frame: SpectatorFrame, view: GridView, thief_alpha: int | None = None) -> list[dict]:
+    """Return the facing wedge for every agent whose last action was a move.
+
+    ``thief_alpha`` carries the thief's ghosting: a solid arrow over a faded token would
+    claim the cops know which way an unseen thief just moved.
+    """
+    last = frame.last_action or {}
+    pairs = [(f"cop_{i}", pos, palette.COP, None) for i, pos in enumerate(frame.cop_positions)]
+    pairs.append(("thief", frame.thief_position, palette.THIEF, thief_alpha))
+    ops = []
+    for key, (r, c), color, alpha in pairs:
+        points = facing_wedge(view.cell_rect(c, r), last.get(key))
+        if points:
+            op = {"kind": "poly", "points": points, "color": color}
+            if alpha is not None:
+                op["alpha"] = alpha
+            ops.append(op)
+    return ops

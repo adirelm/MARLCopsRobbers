@@ -1,19 +1,18 @@
-"""Draw-plan builders — the PURE rendering logic (T7.4). No pygame.
+"""HUD draw-plan builders — the PURE rendering logic (T7.4). No pygame.
 
-Turn a :class:`SpectatorFrame` (+ :class:`GridView`) into an ordered list of draw
-OPS — board (back-to-front: background, checkerboard, barriers, optional
-view-radius overlay for EVERY cop, thief, cops, capture flash on the CAPTURING cop)
-and HUD (sub-game / move / scores / last action / winner). The thin pygame executor
-(``src/gui/render.py``) just runs the ops, so WHICH cells/tokens/colours/text are
-drawn is testable headless.
+Turn a :class:`SpectatorFrame` into the ordered HUD draw OPS (panel, sub-game / move /
+scores / totals / barrier budget / last action / winner / help). The BOARD ops live in
+:mod:`src.gui.draw_board` (split at the 150-LOC cap) and are re-exported here so callers
+keep a single import. The thin pygame executor (``src/gui/render.py``) just runs the ops,
+so WHICH cells/tokens/colours/text are drawn is testable headless.
 """
 
 from __future__ import annotations
 
 from src.gui import palette
+from src.gui.draw_board import build_board_plan  # noqa: F401 — re-export (150-LOC split)
 from src.gui.input_map import bindings
 from src.gui.spectator import SpectatorFrame
-from src.gui.transform import GridView
 
 # Short HUD labels for the help line (§10.2 Nielsen 6: recognition over recall).
 _CMD_SHORT = {
@@ -42,64 +41,29 @@ def _help_line(supported_commands=None) -> str:
     return "Keys  " + "  ".join(parts)
 
 
-def _token(rect: tuple, color: tuple) -> dict:
-    """Return an inset filled-circle token op centred in ``rect``."""
-    x, y, w, h = rect
-    inset = palette.TOKEN_INSET
-    return {"kind": "circle", "rect": (x + inset, y + inset, w - 2 * inset, h - 2 * inset), "color": color}
-
-
-def build_board_plan(frame: SpectatorFrame, view: GridView, show_radius: bool = False) -> list[dict]:
-    """Return the ordered board draw ops for one frame (back-to-front)."""
-    rows, cols = frame.grid
-    ops: list[dict] = [{"kind": "background", "color": palette.BG}]
-    ops += [
-        {"kind": "fill", "rect": view.cell_rect(c, r), "color": palette.CHECKER}
-        for r in range(rows)
-        for c in range(cols)
-        if (r + c) % 2
-    ]
-    x0, y0 = view.cell_rect(0, 0)[:2]
-    board = (x0, y0, view.cell_px * cols, view.cell_px * rows)
-    ops.append({"kind": "rect", "rect": board, "color": palette.CHECKER})  # board outline (2x2 legibility)
-    ops += [
-        {"kind": "fill", "rect": view.cell_rect(bc, br), "color": palette.BARRIER}
-        for br, bc in frame.barriers
-    ]
-    if show_radius:  # EVERY cop's Manhattan view disk (radius = frame.view_radius), clipped to the grid
-        ops += [
-            {"kind": "rect", "rect": view.cell_rect(c, r), "color": palette.VIEW_RADIUS}
-            for r in range(rows)
-            for c in range(cols)
-            if any(abs(r - cr) + abs(c - cc) <= frame.view_radius for cr, cc in frame.cop_positions)
-        ]
-    tr, tc = frame.thief_position
-    ops.append(_token(view.cell_rect(tc, tr), palette.THIEF))
-    ops += [_token(view.cell_rect(cc, cr), palette.COP) for cr, cc in frame.cop_positions]
-    if frame.winner == "cop":
-        # Flash the CAPTURING cop — the one nearest the thief (same-cell capture: distance
-        # 0; swap capture: distance 1) — not blindly cop 0 (wave-2 finding G6).
-        cr, cc = min(frame.cop_positions, key=lambda pos: abs(pos[0] - tr) + abs(pos[1] - tc))
-        ops.append({"kind": "rect", "rect": view.cell_rect(cc, cr), "color": palette.CAPTURE_FLASH})
-    return ops
-
-
 def hud_height(frame: SpectatorFrame) -> int:
     """Pixel height of the HUD strip for ``frame`` — the board's ``top_reserved`` value.
 
     Derived from the actual HUD plan so board reservation can never drift from what
     :func:`build_hud_plan` draws (the round-4 audit found text painted over tokens).
+    Counts TEXT ops only: the panel/rule ops are backdrop for the same strip, and
+    counting them would reserve phantom rows and shrink the board.
     """
-    return 8 + len(build_hud_plan(frame)) * (palette.FONT_PX + 4) + 2
+    rows = sum(1 for op in build_hud_plan(frame) if op["kind"] == "text")
+    return 8 + rows * (palette.FONT_PX + 4) + 2
 
 
-def build_hud_plan(frame: SpectatorFrame, supported_commands=None) -> list[dict]:
-    """Return the HUD text ops (sub-game / move / scores / totals / barriers / last / winner / help).
+def build_hud_plan(frame: SpectatorFrame, supported_commands=None, width: int | None = None) -> list[dict]:
+    """Return the HUD ops (sub-game / move / scores / totals / barriers / last / winner / help).
 
     ``supported_commands`` filters the help line per frame-source capability (see
     :func:`_help_line`) WITHOUT changing the line count. The barrier and winner lines do
     change it — which is exactly why :func:`hud_height` measures this plan instead of
     hard-coding a row count.
+
+    ``width`` (the window width) adds the panel backdrop + separator rule behind the text.
+    It is optional so the HUD stays computable without a surface, which is what lets
+    :func:`hud_height` call this before any window exists.
     """
     lines = [
         f"Sub-game {frame.sub_game}/{frame.num_games}",
@@ -115,7 +79,15 @@ def build_hud_plan(frame: SpectatorFrame, supported_commands=None) -> list[dict]
         lines.append(f"WINNER: {frame.winner.upper()}")
     lines.append(_help_line(supported_commands))  # persistent key-bindings help (§10.2 Nielsen 6 + 10)
     lines.append("Legend  cop=blue  thief=red  barrier=grey")  # token legend (own line — fits 720px)
-    return [
+    text_ops = [
         {"kind": "text", "pos": (8, 8 + i * (palette.FONT_PX + 4)), "text": t, "color": palette.TEXT}
         for i, t in enumerate(lines)
     ]
+    if width is None:
+        return text_ops
+    strip = 8 + len(lines) * (palette.FONT_PX + 4) + 2
+    panel = [
+        {"kind": "fill", "rect": (0, 0, width, strip), "color": palette.HUD_PANEL},
+        {"kind": "line", "start": (0, strip - 1), "end": (width, strip - 1), "color": palette.HUD_RULE},
+    ]
+    return panel + text_ops  # backdrop first — the text must land on top of it

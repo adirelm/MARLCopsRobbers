@@ -56,7 +56,10 @@ def _run(client, monkeypatch) -> list[tuple[int, int]]:
     """Run the real run_app loop; return the (move, resets-so-far) of every rendered frame."""
     rendered: list[tuple[int, int]] = []
 
-    def recorder(surface, font, frame, show_radius=False, supported_commands=None):
+    def recorder(surface, font, frame, *_args, **_kwargs):
+        # Deliberately arity-agnostic: this test pins the loop's ORDERING, not
+        # render_frame's signature. A fixed stub broke when the renderer gained a
+        # `trails` argument, failing a test that has nothing to do with trails.
         rendered.append((frame.move, client.resets))
 
     monkeypatch.setattr(render, "render_frame", recorder)
