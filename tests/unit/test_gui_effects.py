@@ -4,11 +4,13 @@ These helpers exist so the GUI can render what the COP KNOWS (its Manhattan know
 halo, and a ghosted thief when the thief is outside it) rather than only what the
 referee knows. That distinction is the Dec-POMDP modelling claim (§2.1/§4), so it is
 worth testing as logic, not eyeballing as decoration.
+
+Heading and character geometry live in ``test_gui_sprites.py``.
 """
 
 from __future__ import annotations
 
-from src.gui.effects import TrailTracker, facing_wedge, halo_cells, thief_is_seen
+from src.gui.effects import TrailTracker, halo_cells, thief_is_seen
 from src.gui.spectator import SpectatorFrame
 
 
@@ -64,27 +66,6 @@ def test_thief_seen_by_any_cop() -> None:
     """One cop in range is enough — the team shares observations at execution boundaries."""
     frame = _frame(cop_positions=((4, 4), (0, 1)), thief_position=(0, 0))
     assert thief_is_seen(frame)
-
-
-def test_facing_wedge_points_the_way_the_token_moved() -> None:
-    """An UP move puts the wedge apex above the token's centre."""
-    rect = (100, 100, 40, 40)
-    up = facing_wedge(rect, "UP")
-    assert up is not None
-    assert min(y for _x, y in up) < 120  # apex above centre
-
-
-def test_facing_wedge_is_direction_specific() -> None:
-    """Each of the four moves yields a distinct wedge."""
-    rect = (0, 0, 40, 40)
-    wedges = {name: facing_wedge(rect, name) for name in ("UP", "DOWN", "LEFT", "RIGHT")}
-    assert len({tuple(sorted(w)) for w in wedges.values()}) == 4
-
-
-def test_non_directional_actions_have_no_wedge() -> None:
-    """PLACE_BARRIER is not a direction — drawing an arrow would assert movement."""
-    assert facing_wedge((0, 0, 40, 40), "PLACE_BARRIER") is None
-    assert facing_wedge((0, 0, 40, 40), None) is None
 
 
 def test_trail_records_where_each_agent_came_from() -> None:

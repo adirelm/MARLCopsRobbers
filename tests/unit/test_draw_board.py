@@ -37,7 +37,13 @@ def _frame(**over) -> SpectatorFrame:
 
 
 def _thief_token(plan) -> dict:
-    """The full-size thief circle (trail dots are smaller, so size disambiguates)."""
+    """The thief's own sprite: the pac wedge (a poly), or the fallback disc if it has no heading.
+
+    Trail dots are also THIEF-coloured circles, so the fallback picks the largest.
+    """
+    wedge = [op for op in plan if op["kind"] == "poly" and op["color"] == palette.THIEF]
+    if wedge:
+        return wedge[0]
     circles = [op for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
     return max(circles, key=lambda op: op["rect"][2])
 
@@ -59,11 +65,11 @@ def test_agent_view_keeps_a_seen_thief_solid() -> None:
     assert _thief_token(build_board_plan(frame, _VIEW, show_radius=True)).get("alpha") is None
 
 
-def test_the_ghosted_thief_s_wedge_fades_with_it() -> None:
-    """A solid arrow on a faded token would claim the cops know an unseen thief's heading."""
+def test_the_whole_unseen_thief_sprite_fades_not_just_part_of_it() -> None:
+    """Ghosting must apply to the sprite the viewer actually sees — the wedge itself."""
     plan = build_board_plan(_frame(), _VIEW, show_radius=True)
-    wedge = next(op for op in plan if op["kind"] == "poly" and op["color"] == palette.THIEF)
-    assert wedge["alpha"] == palette.GHOST_ALPHA
+    thief_ops = [op for op in plan if op["color"] == palette.THIEF and op["kind"] == "poly"]
+    assert thief_ops and all(op["alpha"] == palette.GHOST_ALPHA for op in thief_ops)
 
 
 def test_halo_is_drawn_only_in_agent_view() -> None:
@@ -122,8 +128,27 @@ def test_shockwave_marks_the_capturing_cop_not_cop_zero() -> None:
     assert rings[0]["rect"][:2] == near[:2]
 
 
-def test_place_barrier_draws_no_direction_arrow() -> None:
-    """Placing a barrier consumes the move — an arrow would assert travel that never happened."""
-    frame = _frame(last_action={"cop_0": "PLACE_BARRIER", "thief": "LEFT"})
-    wedges = [op for op in build_board_plan(frame, _VIEW) if op["kind"] == "poly"]
-    assert [op["color"] for op in wedges] == [palette.THIEF]
+def test_a_barrier_placing_cop_has_centred_pupils() -> None:
+    """PLACE_BARRIER consumes the move without moving the cop — its gaze must not claim travel."""
+    placing = _frame(last_action={"cop_0": "PLACE_BARRIER", "thief": "LEFT"})
+    moving = _frame(last_action={"cop_0": "RIGHT", "thief": "LEFT"})
+    pupils = [
+        [op["rect"] for op in build_board_plan(f, _VIEW) if op.get("color") == palette.EYE_PUPIL]
+        for f in (placing, moving)
+    ]
+    assert pupils[0] and pupils[0] != pupils[1]
+
+
+def test_a_thief_without_a_heading_falls_back_to_a_plain_disc() -> None:
+    """At spawn there is no direction, so a mouth would invent one."""
+    plan = build_board_plan(_frame(last_action=None), _VIEW)
+    assert not [op for op in plan if op["kind"] == "poly" and op["color"] == palette.THIEF]
+    assert _thief_token(plan)["kind"] == "circle"
+
+
+def test_each_cop_is_drawn_as_a_body_plus_two_eyes() -> None:
+    """One ghost silhouette and two eyes (white + pupil) per cop — no more, no fewer."""
+    plan = build_board_plan(_frame(cop_positions=((1, 1), (3, 1))), _VIEW)
+    assert len([op for op in plan if op["kind"] == "poly" and op["color"] == palette.COP]) == 2
+    assert len([op for op in plan if op.get("color") == palette.EYE_WHITE]) == 4
+    assert len([op for op in plan if op.get("color") == palette.EYE_PUPIL]) == 4

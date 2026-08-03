@@ -19,13 +19,13 @@ The HUD always shows **sub-game `i/6`**, **move `k/25`**, live **scores** and
 previously inferable only by counting grey cells), the **last joint action** (e.g.
 `cop_0: UP, thief: LEFT`), and a **winner banner** at terminal, all on a panel backdrop
 that separates it from the board. On the board itself, status is also **spatial**: each
-token carries a **facing wedge** in its direction of travel, a **fading motion tail**
-shows the last few cells it walked, and a capture is marked by concentric **shockwave
-rings** on the cop that actually closed the distance. → `grid_5x5.png`,
-`state_barriers.png`.
+sprite **carries its own heading** (see §2), a **fading motion tail** shows the last few
+cells it walked, and a capture is marked by concentric **shockwave rings** on the cop that
+actually closed the distance. → `grid_5x5.png`, `state_barriers.png`.
 
-A wedge is drawn *only* for the four movement actions. `PLACE_BARRIER` consumes the
-cop's move without moving it, so an arrow there would assert travel that never happened.
+Heading is shown *only* for the four movement actions. `PLACE_BARRIER` consumes the cop's
+move without moving it, so its pupils stay centred rather than claiming travel that never
+happened; a thief with no heading yet (the spawn tick) is drawn as a closed disc.
 
 Both frame sources that exist — the live spectator session and the §9.3 wire replay —
 carry the budget, so every rendered screenshot shows it. The field nonetheless defaults
@@ -34,9 +34,23 @@ future frame source that lacks the budget would otherwise render `Barriers 0/0`,
 a fact it cannot support. Silence is the honest rendering.
 
 ## 2. Match between system and the real world
-The board is a literal grid with intuitive tokens (cop = blue, thief = red,
-barrier = grey block), Manhattan movement, and a plain-language HUD — no internal
-jargon (no `z_t`, no Q-values, no tensor shapes are ever shown). → `grid_3x3.png`.
+The board is a literal grid with Manhattan movement and a plain-language HUD — no
+internal jargon (no `z_t`, no Q-values, no tensor shapes are ever shown). → `grid_3x3.png`.
+
+The two sprites borrow the **arcade maze-chase idiom**, whose silhouettes happen to map
+exactly onto this game's roles — which is why they were chosen over abstract discs:
+
+| Role | Sprite | How it reads |
+|---|---|---|
+| **Thief** (pursued) | red open-mouth wedge | the **mouth faces its direction of travel** |
+| **Cop** (pursuer) | blue ghost body | the **pupils look where it is heading** |
+| Barrier | grey block | an impassable wall |
+
+Because each character encodes its own heading, the separate arrow marker an earlier
+revision drew beside every token was **removed** rather than kept alongside — two
+indicators of one fact is clutter, and the redundant one had to go. Shapes are original
+geometry built from primitives (`src/gui/sprites.py`), not third-party artwork: no image
+assets ship with this repo, so the GUI has no binary dependencies to license or vendor.
 
 ## 3. User control and freedom
 The spectator is fully controllable: **space** pauses/resumes, **+/-** change
@@ -67,7 +81,7 @@ let an expert skim or a newcomer step slowly.
 
 ## 8. Aesthetic and minimalist design
 A dark, minimal board: background, a subtle checkerboard, thin neon gridlines, three
-token types, and a compact HUD panel. The added layers (halo, tails, wedges, rings) are
+sprite types, and a compact HUD panel. The added layers (halo, tails, rings) are
 all **low-alpha context drawn behind or around the tokens** — nothing that competes with
 the two things the viewer is actually tracking. The **agent-view overlay** (key **v**) is
 off by default → `state_view_radius.png`, so the default board stays uncluttered.
@@ -80,7 +94,7 @@ switches the board from the referee's god view to the cop team's epistemic state
 |---|---|---|
 | Cells | uniform board | the cops' **Manhattan knowledge halo** is lit |
 | Thief inside the halo | solid | solid — it is genuinely observed |
-| Thief outside the halo | solid | **ghosted**, wedge ghosted with it |
+| Thief outside the halo | solid | **ghosted** — the whole sprite, mouth included |
 
 The halo is the UNION over cops (under CTDE the team is one decision-maker at training
 time), and it is the true Manhattan **diamond**, not a bounding square — a square would
@@ -88,7 +102,8 @@ overstate what the agents observe by the corners. The ghosting is the honest par
 spectator still sees where the thief IS, but is shown plainly that the cops do not.
 This makes the Dec-POMDP partial observability of §2.1/§4 legible in one keypress
 instead of only as a claim in prose. Logic + tests: `src/gui/effects.py`,
-`tests/unit/test_gui_effects.py`, `tests/unit/test_draw_board.py`.
+`src/gui/sprites.py`, `tests/unit/test_gui_effects.py`, `tests/unit/test_gui_sprites.py`,
+`tests/unit/test_draw_board.py`.
 
 ## 9. Help users recognize, diagnose, and recover from errors
 A terminal sub-game shows an explicit **winner banner** (cop capture vs thief

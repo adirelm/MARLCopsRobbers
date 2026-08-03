@@ -13,8 +13,9 @@ together they render what the COP TEAM KNOWS, not just where the pieces are. See
 from __future__ import annotations
 
 from src.gui import palette
-from src.gui.effects import facing_wedge, halo_cells, thief_is_seen
+from src.gui.effects import halo_cells, thief_is_seen
 from src.gui.spectator import SpectatorFrame
+from src.gui.sprites import pursued_ops, pursuer_ops
 from src.gui.transform import GridView
 
 
@@ -32,6 +33,13 @@ def _token(rect: tuple, color: tuple, alpha: int | None = None, scale: float = 1
     if alpha is not None:
         op["alpha"] = alpha
     return op
+
+
+def _sprite_rect(rect: tuple) -> tuple:
+    """Shrink a cell rect by the token inset so a sprite never touches the grid lines."""
+    x, y, w, h = rect
+    inset = palette.TOKEN_INSET
+    return (x + inset, y + inset, w - 2 * inset, h - 2 * inset)
 
 
 def _grid_lines(view: GridView, rows: int, cols: int) -> list[dict]:
@@ -136,32 +144,13 @@ def build_board_plan(
     ]
     ops += _trail_ops(view, trails or {}, rows, cols)
 
+    last = frame.last_action or {}
     tr, tc = frame.thief_position
     # Ghost the thief only in agent view: in god view its position is simply known.
-    ghost = palette.GHOST_ALPHA if (show_radius and not thief_is_seen(frame)) else None
-    ops.append(_token(view.cell_rect(tc, tr), palette.THIEF, alpha=ghost))
-    ops += [_token(view.cell_rect(cc, cr), palette.COP) for cr, cc in frame.cop_positions]
-    ops += _wedges(frame, view, thief_alpha=ghost)
+    unseen = palette.GHOST_ALPHA if (show_radius and not thief_is_seen(frame)) else None
+    ops += pursued_ops(_sprite_rect(view.cell_rect(tc, tr)), last.get("thief"), unseen)
+    for index, (cr, cc) in enumerate(frame.cop_positions):
+        ops += pursuer_ops(_sprite_rect(view.cell_rect(cc, cr)), last.get(f"cop_{index}"))
     if frame.winner == "cop":
         ops += _shockwave(view, frame)
-    return ops
-
-
-def _wedges(frame: SpectatorFrame, view: GridView, thief_alpha: int | None = None) -> list[dict]:
-    """Return the facing wedge for every agent whose last action was a move.
-
-    ``thief_alpha`` carries the thief's ghosting: a solid arrow over a faded token would
-    claim the cops know which way an unseen thief just moved.
-    """
-    last = frame.last_action or {}
-    pairs = [(f"cop_{i}", pos, palette.COP, None) for i, pos in enumerate(frame.cop_positions)]
-    pairs.append(("thief", frame.thief_position, palette.THIEF, thief_alpha))
-    ops = []
-    for key, (r, c), color, alpha in pairs:
-        points = facing_wedge(view.cell_rect(c, r), last.get(key))
-        if points:
-            op = {"kind": "poly", "points": points, "color": color}
-            if alpha is not None:
-                op["alpha"] = alpha
-            ops.append(op)
     return ops
