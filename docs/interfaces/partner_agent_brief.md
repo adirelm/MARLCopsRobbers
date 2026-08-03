@@ -42,9 +42,23 @@ proposed conventions — confirm them, or counter-propose BEFORE the seeds are f
 | P3 | Illegal move | moving off-board or into a barrier resolves to **stay** (not a fault). A cop `place_barrier` with `barriers_left: 0`, or while standing on a cell that is already a barrier, likewise resolves to **stay** — not a fault, and no budget is consumed |
 | P4 | Barrier semantics | a barrier blocks BOTH sides from *entering*; the agent standing on it may still leave |
 | P5 | Observability | partial, **Manhattan radius 2**: you receive the opponent's position only when `manhattan(you, opponent) ≤ 2`, else `null`; barrier cells are reported only within radius 2 of your position |
-| P6 | Start positions | seeded random with `manhattan(cop, thief) > 2` (spawned outside view range) |
-| P7 | Seed schedule + void replay | we jointly agree an ORDERED list of **6+ seeds** `s1..sN` in writing before the match. Sub-game `k` and its mirror `k+3` both use `s_k` (k = 1..3), so both groups play cop and thief from identical layouts. **Voids:** a technically-voided sub-game (P8) is replayed immediately — SAME sub-game, SAME `session_id`, SAME seed — a transient fault never changes the layout either group prepared for. Only after **3 consecutive voids of the same sub-game** does the next unused spare seed (`s4`, `s5`, …) permanently replace `s_k` **for the whole pair k and k+3**; if the pair's other game already completed on the replaced seed, it is re-queued and replayed first, so the mirror pair always shares one seed. If every spare is exhausted, the match is called off and rescheduled (no forfeit claims) |
+| P6 | Start positions | seeded random with `manhattan(cop, thief) > 2` (spawned outside view range). **The frozen list carries the LITERAL start-position pairs, not only the seeds** — see P7 |
+| P7 | Seed schedule + void replay | we jointly agree an ORDERED list of **6+ seeds** `s1..sN` in writing before the match. Sub-game `k` and its mirror `k+3` both use `s_k` (k = 1..3), so both groups play cop and thief from identical layouts. **Voids:** a technically-voided sub-game (P8) is replayed immediately — SAME sub-game, SAME `session_id`, SAME seed — a transient fault never changes the layout either group prepared for. Only after **3 consecutive voids of the same sub-game** does the next unused spare seed (`s4`, `s5`, …) permanently replace `s_k` **for the whole pair k and k+3**; if the pair's other game already completed on the replaced seed, it is re-queued and replayed first, so the mirror pair always shares one seed. If every spare is exhausted, the match is called off and rescheduled (no forfeit claims). **A seed is an index, not a specification:** it only reproduces a layout under the referee's own RNG, so you cannot re-derive our start positions from an integer. The frozen list therefore records, for each pair `k`, the seed AND the literal `cop=[r,c] thief=[r,c]` it resolves to — published by us before the match and checkable against the `your_pos` you receive in `new_sub_game`. That makes the §5 byte-compare mechanical instead of a matter of trust |
 | P8 | Fault definition | per-move timeout **10 s**, one identical re-POST, then void (§3.7 replay); malformed response (unknown action string, thief sending `place_barrier`) → one retry, then void. Retries are per fault layer (a malformed reply retried once may itself get one transport re-POST), so a single tick sees at most a handful of identical POSTs — idempotency makes them harmless; persistent no-show → match called off, no forfeit claims |
+
+**Frozen-list format (P7).** We send this filled in before the match; you check each
+`new_sub_game` payload against it as it arrives:
+
+| pair | sub-games | seed | cop start | thief start |
+|---|---|---|---|---|
+| 1 | 1 and 4 | `s1` | `[r,c]` | `[r,c]` |
+| 2 | 2 and 5 | `s2` | `[r,c]` | `[r,c]` |
+| 3 | 3 and 6 | `s3` | `[r,c]` | `[r,c]` |
+| spares | — | `s4, s5, …` | `[r,c]` | `[r,c]` |
+
+Every pair satisfies P6 (`manhattan(cop, thief) > 2`); verify that yourself rather than taking
+it on trust. Sub-game `k` and its mirror `k+3` start from the identical layout with the roles
+swapped, which is what makes the match fair.
 
 Coordinate convention (used everywhere below): cells are `[row, col]`, 0-indexed,
 origin **top-left**. `up = row−1, down = row+1, left = col−1, right = col+1`.
@@ -134,7 +148,9 @@ def new_sub_game(req: dict, authorization: str = Header("", alias="Authorization
 @app.post("/request_move")
 def request_move(req: dict, authorization: str = Header("", alias="Authorization")):
     _auth(authorization)
-    session = SESSIONS[req["session_id"]]
+    session = SESSIONS.get(req["session_id"])
+    if session is None:  # out-of-order call -> a clear error, never a 500
+        raise HTTPException(409, "unknown session — call /new_sub_game first")
     if req["tick"] in session["answers"]:          # idempotent re-POST
         return session["answers"][req["tick"]]
     session["answers"][req["tick"]] = {"action": my_policy(session, req)}
@@ -147,6 +163,14 @@ local + a tunnel (e.g. `ngrok http 8080`), or we meet on one network. Uptime is 
 needed for the match window.
 
 ### Self-test before you send us the URLs
+
+Run the three calls **in order, in one shell session**. `/request_move` for a `session_id`
+that never had a `/new_sub_game` is *supposed* to fail, so an "unknown session" error there
+means the first call did not land — not that your adapter is broken. That error is in fact
+the correct behaviour, and it proves your auth passed: a bad token returns 401 before any
+session lookup happens.
+
+**bash / macOS / Linux:**
 
 ```bash
 curl -s https://<your-host>/health
@@ -164,6 +188,21 @@ curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer wrong" 
   -H "Content-Type: application/json" -d '{}' https://<your-host>/new_sub_game
 # -> 401
 ```
+
+**Windows PowerShell** — `curl` there is an alias for `Invoke-WebRequest`, `\` is not a line
+continuation, and single-quoted JSON is not passed through, so the block above does NOT run
+as written. Use `curl.exe` with escaped quotes, one line per call:
+
+```powershell
+$t = "<your-token>"; $b = "https://<your-host>"
+
+curl.exe -s "$b/health"
+curl.exe -s -X POST -H "Authorization: Bearer $t" -H "Content-Type: application/json" -d '{\"session_id\":\"selftest\",\"grid\":[5,5],\"your_role\":\"thief\",\"your_pos\":[4,4],\"max_moves\":25}' "$b/new_sub_game"
+curl.exe -s -X POST -H "Authorization: Bearer $t" -H "Content-Type: application/json" -d '{\"session_id\":\"selftest\",\"tick\":0,\"your_pos\":[4,4],\"opponent_pos\":null,\"barriers\":[],\"barriers_left\":5}' "$b/request_move"
+```
+
+Expect `{"status":"ok"}`, then `{"ok":true}`, then `{"action":"..."}`. Repeat the last call
+unchanged — the SAME action must come back, which is the idempotency requirement.
 
 ---
 
