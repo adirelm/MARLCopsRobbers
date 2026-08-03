@@ -95,8 +95,9 @@ def ghost_eyes(rect: tuple[int, int, int, int], action: str | None) -> tuple:
     eyes = []
     for side in (-1, 1):
         eye_cx = x + w / 2 + side * w * 0.19
-        white = (round(eye_cx - white_r), round(eye_cy - white_r), round(2 * white_r), round(2 * white_r))
-        pupil = (round(eye_cx + gaze[0] * shift), round(eye_cy + gaze[1] * shift), round(pupil_r))
+        size = max(1, round(2 * white_r))
+        white = (round(eye_cx - white_r), round(eye_cy - white_r), size, size)
+        pupil = (round(eye_cx + gaze[0] * shift), round(eye_cy + gaze[1] * shift), max(1, round(pupil_r)))
         eyes.append((white, pupil))
     return tuple(eyes)
 
@@ -121,4 +122,23 @@ def pursuer_ops(rect: tuple, action: str | None) -> list[dict]:
     for white, (px, py, pr) in ghost_eyes(rect, action):
         ops.append({"kind": "circle", "rect": white, "color": palette.EYE_WHITE})
         ops.append({"kind": "circle", "rect": (px - pr, py - pr, 2 * pr, 2 * pr), "color": palette.EYE_PUPIL})
+    return ops
+
+
+def capture_rings(view, frame) -> list[dict]:
+    """Return concentric capture rings on the CAPTURING cop (nearest the thief)."""
+    tr, tc = frame.thief_position
+    cr, cc = min(frame.cop_positions, key=lambda pos: abs(pos[0] - tr) + abs(pos[1] - tc))
+    x, y, w, h = view.cell_rect(cc, cr)
+    ops = []
+    for ring in range(palette.SHOCKWAVE_RINGS):
+        grow = int(w * 0.18 * ring)
+        ops.append(
+            {
+                "kind": "ring",
+                "rect": (x - grow, y - grow, w + 2 * grow, h + 2 * grow),
+                "color": palette.CAPTURE_FLASH,
+                "alpha": max(20, palette.SHOCKWAVE_ALPHA - ring * 45),
+            }
+        )
     return ops

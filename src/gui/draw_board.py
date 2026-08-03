@@ -15,7 +15,7 @@ from __future__ import annotations
 from src.gui import palette
 from src.gui.effects import halo_cells, thief_is_seen
 from src.gui.spectator import SpectatorFrame
-from src.gui.sprites import pursued_ops, pursuer_ops
+from src.gui.sprites import capture_rings, pursued_ops, pursuer_ops
 from src.gui.transform import GridView
 
 
@@ -26,19 +26,30 @@ def _token(rect: tuple, color: tuple, alpha: int | None = None, scale: float = 1
     size a four-cell tail reads as four agents on the board rather than as one agent's path.
     """
     x, y, w, h = rect
-    inset = palette.TOKEN_INSET
-    dx, dy = (w - 2 * inset) * (1 - scale) / 2, (h - 2 * inset) * (1 - scale) / 2
-    box = (x + inset + dx, y + inset + dy, (w - 2 * inset) * scale, (h - 2 * inset) * scale)
+    inset = _inset_px(w, h)
+    inner_w, inner_h = w - 2 * inset, h - 2 * inset
+    dx, dy = inner_w * (1 - scale) / 2, inner_h * (1 - scale) / 2
+    box = (x + inset + dx, y + inset + dy, max(1, inner_w * scale), max(1, inner_h * scale))
     op = {"kind": "circle", "rect": tuple(round(v) for v in box), "color": color}
     if alpha is not None:
         op["alpha"] = alpha
     return op
 
 
+def _inset_px(w: int, h: int) -> int:
+    """The gap to leave around a sprite, CLAMPED so it can never consume the cell.
+
+    ``TOKEN_INSET`` is a fixed 6px, which goes negative once a cell drops under ~12px
+    (reachable through GridView, which is public geometry). A tiny sprite is fine; an
+    inside-out rect is not.
+    """
+    return max(0, min(palette.TOKEN_INSET, (min(w, h) - 2) // 2))
+
+
 def _sprite_rect(rect: tuple) -> tuple:
     """Shrink a cell rect by the token inset so a sprite never touches the grid lines."""
     x, y, w, h = rect
-    inset = palette.TOKEN_INSET
+    inset = _inset_px(w, h)
     return (x + inset, y + inset, w - 2 * inset, h - 2 * inset)
 
 
@@ -100,25 +111,6 @@ def _trail_ops(
     return ops
 
 
-def _shockwave(view: GridView, frame: SpectatorFrame) -> list[dict]:
-    """Return concentric capture rings on the CAPTURING cop (nearest the thief)."""
-    tr, tc = frame.thief_position
-    cr, cc = min(frame.cop_positions, key=lambda pos: abs(pos[0] - tr) + abs(pos[1] - tc))
-    x, y, w, h = view.cell_rect(cc, cr)
-    ops = []
-    for ring in range(palette.SHOCKWAVE_RINGS):
-        grow = int(w * 0.18 * ring)
-        ops.append(
-            {
-                "kind": "ring",
-                "rect": (x - grow, y - grow, w + 2 * grow, h + 2 * grow),
-                "color": palette.CAPTURE_FLASH,
-                "alpha": max(20, palette.SHOCKWAVE_ALPHA - ring * 45),
-            }
-        )
-    return ops
-
-
 def build_board_plan(
     frame: SpectatorFrame, view: GridView, show_radius: bool = False, trails: dict | None = None
 ) -> list[dict]:
@@ -161,5 +153,5 @@ def build_board_plan(
     for index, (cr, cc) in enumerate(frame.cop_positions):
         ops += pursuer_ops(_sprite_rect(view.cell_rect(cc, cr)), last.get(f"cop_{index}"))
     if frame.winner == "cop":
-        ops += _shockwave(view, frame)
+        ops += capture_rings(view, frame)
     return ops

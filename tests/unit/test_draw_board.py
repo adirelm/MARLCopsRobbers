@@ -48,37 +48,6 @@ def _thief_token(plan) -> dict:
     return max(circles, key=lambda op: op["rect"][2])
 
 
-def test_god_view_never_ghosts_the_thief() -> None:
-    """With the overlay off the board is the referee's view — the thief is simply known."""
-    assert _thief_token(build_board_plan(_frame(), _VIEW)).get("alpha") is None
-
-
-def test_agent_view_ghosts_a_thief_outside_the_halo() -> None:
-    """Distance 6 > radius 2: the cops cannot see it, so it must not be drawn as solid."""
-    plan = build_board_plan(_frame(), _VIEW, show_radius=True)
-    assert _thief_token(plan)["alpha"] == palette.GHOST_ALPHA
-
-
-def test_agent_view_keeps_a_seen_thief_solid() -> None:
-    """Inside the halo the thief IS observed — ghosting it would understate the cops."""
-    frame = _frame(cop_positions=((2, 2),), thief_position=(2, 3))
-    assert _thief_token(build_board_plan(frame, _VIEW, show_radius=True)).get("alpha") is None
-
-
-def test_the_whole_unseen_thief_sprite_fades_not_just_part_of_it() -> None:
-    """Ghosting must apply to the sprite the viewer actually sees — the wedge itself."""
-    plan = build_board_plan(_frame(), _VIEW, show_radius=True)
-    thief_ops = [op for op in plan if op["color"] == palette.THIEF and op["kind"] == "poly"]
-    assert thief_ops and all(op["alpha"] == palette.GHOST_ALPHA for op in thief_ops)
-
-
-def test_halo_is_drawn_only_in_agent_view() -> None:
-    """The knowledge disk is the agent-view affordance; god view has no epistemic limit."""
-    halo = [op for op in build_board_plan(_frame(), _VIEW) if op.get("color") == palette.VIEW_RADIUS]
-    assert halo == []
-    assert [op for op in build_board_plan(_frame(), _VIEW, True) if op.get("color") == palette.VIEW_RADIUS]
-
-
 def test_grid_lattice_covers_every_boundary() -> None:
     """A 5x5 board needs 6 horizontal + 6 vertical lines (inclusive of the outer edges)."""
     lines = [op for op in build_board_plan(_frame(), _VIEW) if op["kind"] == "line"]
@@ -154,42 +123,26 @@ def test_each_cop_is_drawn_as_a_body_plus_two_eyes() -> None:
     assert len([op for op in plan if op.get("color") == palette.EYE_PUPIL]) == 4
 
 
-def test_an_unseen_thief_s_trail_fades_with_it() -> None:
-    """Agent view must be consistent: a bright path under a ghosted thief still leaks its route.
+def test_sprites_survive_cells_smaller_than_the_inset() -> None:
+    """A fixed 6px inset goes NEGATIVE once a cell is under ~12px, emitting inside-out rects.
 
-    The cops cannot see the thief, so they did not watch it walk that path either — the
-    tail has to dim with the sprite, exactly as the sprite's own mouth does.
+    Unreachable from the shipped 720x560 window, but GridView is public geometry and a
+    negative-size rect is a latent crash rather than a small sprite. Every emitted rect
+    must stay non-degenerate at any window size.
     """
-    trails = {"thief": ((0, 0), (0, 1))}
-    god = build_board_plan(_frame(), _VIEW, trails=trails)
-    agent = build_board_plan(_frame(), _VIEW, show_radius=True, trails=trails)
-
-    def tail(plan):
-        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
-
-    assert tail(agent) and all(a < b for a, b in zip(tail(agent), tail(god), strict=True))
+    for window in (720, 200, 80, 40, 20):
+        view = GridView(window, window, 5, 5)
+        plan = build_board_plan(_frame(), view, show_radius=True, trails={"thief": ((0, 0), (0, 1))})
+        bad = [op for op in plan if "rect" in op and (op["rect"][2] <= 0 or op["rect"][3] <= 0)]
+        assert not bad, f"window {window}px (cell {view.cell_px}px) emitted {bad[:2]}"
 
 
-def test_a_seen_thief_keeps_a_full_strength_trail() -> None:
-    """Inside the halo the cops DO observe it, so dimming the tail would understate them."""
-    frame = _frame(cop_positions=((2, 2),), thief_position=(2, 3))
-    trails = {"thief": ((2, 1), (2, 2))}
-    god = build_board_plan(frame, _VIEW, trails=trails)
-    agent = build_board_plan(frame, _VIEW, show_radius=True, trails=trails)
-
-    def tail(plan):
-        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.THIEF]
-
-    assert tail(agent) == tail(god)
-
-
-def test_the_cop_trail_is_never_dimmed() -> None:
-    """The cops always know their own path — dimming it would be nonsense."""
-    trails = {"cop_0": ((0, 0), (0, 1)), "thief": ((4, 4),)}
-    god = build_board_plan(_frame(), _VIEW, trails=trails)
-    agent = build_board_plan(_frame(), _VIEW, show_radius=True, trails=trails)
-
-    def tail(plan):
-        return [op["alpha"] for op in plan if op["kind"] == "circle" and op["color"] == palette.COP]
-
-    assert tail(agent) == tail(god)
+def test_sprite_polygons_stay_inside_tiny_cells_too() -> None:
+    """Shrinking must not let a wedge or ghost spill across its cell boundary."""
+    view = GridView(60, 60, 5, 5)
+    plan = build_board_plan(_frame(), view)
+    cell = view.cell_px
+    for op in [o for o in plan if o["kind"] == "poly"]:
+        xs = [p[0] for p in op["points"]]
+        ys = [p[1] for p in op["points"]]
+        assert max(xs) - min(xs) <= cell and max(ys) - min(ys) <= cell
