@@ -20,8 +20,18 @@ def cfg():
 
 
 def test_rehearsal_mode_passes_the_guards(cfg):
-    """Placeholder group_2 == rehearsal: rehearsal seeds + no partner file are fine."""
-    _real_match_guards(cfg)  # must not raise
+    """Placeholder group_2 == rehearsal: rehearsal seeds + no partner file are fine.
+
+    Builds the rehearsal shape EXPLICITLY instead of assuming the live config still has
+    it. Once the real §9 match was played, config legitimately names a real partner, and
+    the guard then demands the git-ignored players.partner.local.yaml — which exists on a
+    developer machine and never in CI. The test passed locally and failed in CI for a
+    reason that had nothing to do with the guard it covers.
+    """
+    rehearsal = copy.deepcopy(cfg)
+    rehearsal["wire_match"]["groups"]["group_2"]["name"] = "partner-group"
+    rehearsal["wire_match"]["seeds"] = list(_REHEARSAL_SEEDS)
+    _real_match_guards(rehearsal)  # must not raise
 
 
 def test_real_match_refuses_rehearsal_seeds(cfg):
