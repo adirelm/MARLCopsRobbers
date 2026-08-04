@@ -68,9 +68,9 @@ def test_main_without_send_performs_no_egress(draft_cfg, capsys) -> None:
     assert "mutual_agreement=False" in out and "compare subject" in out
 
 
-def test_sending_without_agreement_is_refused(draft_cfg) -> None:
+def test_sending_without_agreement_is_refused(real_draft_cfg) -> None:
     """REGRESSION: emailing before the byte-compare scores BOTH groups zero under §9.3."""
     from src.reporting.bonus_send import send_bonus_report  # noqa: PLC0415
 
     with pytest.raises(ValueError, match="mutual_agreement must be EXACTLY True"):
-        send_bonus_report(draft_cfg, load_draft(draft_cfg), sender=object())
+        send_bonus_report(real_draft_cfg, load_draft(real_draft_cfg), sender=object())
