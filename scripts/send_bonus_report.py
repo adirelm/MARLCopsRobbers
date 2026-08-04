@@ -41,8 +41,25 @@ def compare_digest(report: dict) -> tuple[int, str]:
 
 
 def load_draft(cfg: dict, agreed: bool = False) -> dict:
-    """Load the referee's draft; ``agreed`` flips ``mutual_agreement`` to True."""
-    report = json.loads(Path(cfg["wire_match"]["draft_report"]).read_text(encoding="utf-8"))
+    """Load the referee's draft; ``agreed`` flips ``mutual_agreement`` to True.
+
+    Falls back to the TRACKED redacted body when the git-ignored real draft is absent, which
+    is what a fresh clone gets. The config comment already promised this contract and the
+    replay tool already honoured it; this one read ``draft_report`` unconditionally and
+    tracebacked with a raw FileNotFoundError — the same shape as the fresh-clone blocker
+    found earlier, so it is fixed the same way rather than left as the last instance.
+    """
+    for key in ("draft_report", "redacted_records"):
+        path = Path(cfg["wire_match"][key])
+        if path.exists():
+            if key != "draft_report":
+                print(f"[send_bonus] real draft absent — using the tracked {path}")
+            report = json.loads(path.read_text(encoding="utf-8"))
+            break
+    else:
+        raise SystemExit(
+            f"no bonus draft found: neither {cfg['wire_match']['draft_report']} nor the tracked copy"
+        )
     if agreed:
         report["mutual_agreement"] = True
     return report

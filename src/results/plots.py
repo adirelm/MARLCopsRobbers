@@ -1,7 +1,8 @@
 """Matplotlib figure builders for F1/F2/F5/F6 (T10.2; Agg headless).
 
-Each function reads the aggregated run records and writes ONE PNG. Styling literals
-(dpi / fontsize / alpha / figsize) are LOCAL to this rendering module (CLAUDE.md §4). F1,
+Each function reads the aggregated run records and writes ONE PNG. Styling literals stay
+in the rendering layer rather than config (CLAUDE.md §4); the ones SHARED with
+:mod:`src.results.plots_extra` live in :mod:`src.results._plot_io`. F1,
 F1b and F2 are two-panel per-AGENT mean±SE curves with a shaded SE band per algorithm; F5
 is a final-capture bar with SE whiskers; F6 is capture rate across curriculum stages (board
 size AND team size vary together). All regenerate deterministically from ``results/runs/``
@@ -18,26 +19,10 @@ matplotlib.use("Agg")  # headless backend — must precede pyplot import
 
 import matplotlib.pyplot as plt
 
+from src.results._plot_io import FIGSIZE, WIDE_FIGSIZE, algorithms, save_figure
 from src.results.aggregate import curve, final_by_algorithm, final_by_grid
 
-_DPI = 300  # V3 §9.3 "high resolution" — print-quality raster for every figure
-_FIGSIZE = (7.0, 4.5)
 _BAND_ALPHA = 0.2
-
-
-def _algorithms(records: list[dict]) -> list[str]:
-    """Sorted distinct algorithm names present in the records."""
-    return sorted({rec["algorithm"] for rec in records})
-
-
-def _save(fig: object, out_path: str | Path) -> Path:
-    """Tight-layout, save at ``_DPI``, close, and return the path (parent dirs created)."""
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=_DPI)
-    plt.close(fig)
-    return out_path
 
 
 def plot_two_agent_panels(  # noqa: PLR0913 — records + metric + stage + 2 panel specs + path
@@ -56,10 +41,10 @@ def plot_two_agent_panels(  # noqa: PLR0913 — records + metric + stage + 2 pan
     ``metric_by_panel`` overrides ``metric`` per role — the return curves plot a DIFFERENT
     column per agent (``cop_return`` / ``thief_return``) rather than one shared metric.
     """
-    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.2))
+    fig, axes = plt.subplots(1, 2, figsize=WIDE_FIGSIZE)
     for ax, (role, title, ylabel, transform) in zip(axes, panels, strict=True):
         column = (metric_by_panel or {}).get(role, metric)
-        for algorithm in _algorithms(records):
+        for algorithm in algorithms(records):
             rounds, mean, se = curve(records, column, algorithm, stage, role=role)
             if not rounds:
                 continue
@@ -74,7 +59,7 @@ def plot_two_agent_panels(  # noqa: PLR0913 — records + metric + stage + 2 pan
         ax.set_title(title)
         ax.legend()
     fig.suptitle(suptitle)
-    return _save(fig, out_path)
+    return save_figure(fig, out_path)
 
 
 def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str | Path, last_k: int) -> Path:
@@ -85,7 +70,7 @@ def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str 
     stats = final_by_algorithm(records, metric, stage, last_k)
     algos = list(stats)
     grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
-    fig, ax = plt.subplots(figsize=_FIGSIZE)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.bar(
         [a.upper() for a in algos],
         [stats[a][0] for a in algos],
@@ -94,7 +79,7 @@ def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str 
     )
     ax.set_ylabel("final capture rate")
     ax.set_title(f"IQL vs VDN vs QMIX — final capture rate ({grid}x{grid} board)")
-    return _save(fig, out_path)
+    return save_figure(fig, out_path)
 
 
 def plot_scaling(records: list[dict], metric: str, out_path: str | Path, last_k: int) -> Path:
@@ -104,8 +89,8 @@ def plot_scaling(records: list[dict], metric: str, out_path: str | Path, last_k:
     size together (the 4x4 stage trains a 2-cop team), so this is a per-stage
     curve, NOT an isolated board-size scaling experiment.
     """
-    fig, ax = plt.subplots(figsize=_FIGSIZE)
-    for algorithm in _algorithms(records):
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    for algorithm in algorithms(records):
         by_grid = final_by_grid(records, metric, algorithm, last_k)
         grids = sorted(by_grid)
         ax.errorbar(
@@ -121,13 +106,13 @@ def plot_scaling(records: list[dict], metric: str, out_path: str | Path, last_k:
     ax.set_title("Capture rate across curriculum stages (board size AND team size vary)")
     ax.set_xticks(grids)  # integer parameter — no fractional ticks
     ax.legend()
-    return _save(fig, out_path)
+    return save_figure(fig, out_path)
 
 
 def plot_sensitivity(stats: dict, xlabel: str, title: str, out_path: str | Path) -> Path:
     """§9 sensitivity: capture rate vs a swept parameter value (mean±SE), one line."""
     values = sorted(stats)
-    fig, ax = plt.subplots(figsize=_FIGSIZE)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.errorbar(
         values,
         [stats[v][0] for v in values],
@@ -140,7 +125,7 @@ def plot_sensitivity(stats: dict, xlabel: str, title: str, out_path: str | Path)
     ax.set_title(title)
     if all(float(v).is_integer() for v in values):
         ax.set_xticks(values)  # integer parameter — no fractional ticks
-    return _save(fig, out_path)
+    return save_figure(fig, out_path)
 
 
 def plot_minimax_q(history: list[dict], out_path: str | Path, escape_floor: float | None = None) -> Path:
@@ -152,7 +137,7 @@ def plot_minimax_q(history: list[dict], out_path: str | Path, escape_floor: floa
     cannot corner an equal-speed evader, so the minimax value settles near the escape floor.
     """
     episodes = [row["episode"] for row in history]
-    fig, ax = plt.subplots(figsize=_FIGSIZE)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.plot(episodes, [row["capture_rate"] for row in history], marker="o", label="cop capture rate")
     ax.plot(episodes, [row["ref_value"] for row in history], marker="s", label="game value (ref state)")
     ax.axhline(0.0, color="gray", linewidth=0.8, linestyle=":")
@@ -168,4 +153,4 @@ def plot_minimax_q(history: list[dict], out_path: str | Path, escape_floor: floa
     ax.set_ylabel("capture rate / game value")
     ax.set_title("Minimax-Q convergence — 3x3 cop-vs-thief (zero-sum equilibrium)")
     ax.legend()
-    return _save(fig, out_path)
+    return save_figure(fig, out_path)
