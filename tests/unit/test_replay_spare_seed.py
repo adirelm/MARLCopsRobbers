@@ -64,7 +64,7 @@ def test_each_spare_is_billed_separately() -> None:
     cfg = load_config()
     pair, spares, needed = _seeds(cfg)
     played = [pair[2], spares[0], spares[1]]
-    with pytest.raises(ReplayMismatchError, match="2 SPARE seed"):
+    with pytest.raises(ReplayMismatchError, match="SPARE #2 of the P7 order"):
         verify_escalation_budget(cfg, played, 2 * needed - 1)
     assert verify_escalation_budget(cfg, played, 2 * needed) == 2
 

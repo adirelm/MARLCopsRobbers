@@ -5,12 +5,15 @@ Output: per-session dicts — spawns, per-tick action pairs, and per-tick GROUND
 request payloads (``your_pos`` / ``barriers_left`` / the P5 masking fields per role) used to
 verify EVERY replayed tick, not just the terminal summary.
 Setup: none — pure parsing; imported by :mod:`src.mcp.wire_replay`.
+Artifact PAIRING (which log goes with which records) lives in :mod:`src.mcp._replay_pair`.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+
+from src.mcp._replay_pair import select_log_and_records  # noqa: F401 — re-export (150-LOC split)
 
 _ROLES = ("cop", "thief")
 
@@ -26,7 +29,7 @@ def _new_session() -> dict:
     result event reached the file before that session's requests raised KeyError on the
     first void re-hello instead of verifying the match.
     """
-    return {"spawns": {}, "actions": {}, "states": {}, "voids": 0, "void_attempts": []}
+    return {"spawns": {}, "actions": {}, "states": {}, "voids": 0, "void_attempts": [], "posts": {}}
 
 
 def gid_of(session_id: str) -> int:
@@ -34,7 +37,7 @@ def gid_of(session_id: str) -> int:
     return int(session_id.rsplit("-", 1)[1]) + 1
 
 
-def parse_wire_log(path: str | Path) -> dict[str, dict]:
+def parse_wire_log(path: str | Path, cfg_retries: int = 1) -> dict[str, dict]:
     """Parse the JSONL log into per-session spawns + per-tick actions AND ground truth.
 
     Returns ``{sid: {"spawns": {role: pos}, "actions": {tick: {role: str}},
@@ -73,34 +76,31 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
                     # of text. wire_replay now verifies each retained attempt against a real
                     # seeded env before it will spend it, which is what makes the price real.
                     #
-                    # Under-counting is still the safe direction: it only makes a spare
-                    # HARDER to justify.
+                    # NOTE: under-counting is NOT simply "the safe direction" any more. It
+                    # was, before verify_session_voids existed; now a missed void also evades
+                    # the per-session re-roll cap, which is exactly what the silent
+                    # last-write-wins hole above exploited.
                     if sess["states"]:
                         sess["voids"] += 1
                         sess["void_attempts"].append(
                             {"spawns": dict(sess["spawns"]), "states": dict(sess["states"])}
                         )
-                    sess["spawns"], sess["actions"], sess["states"] = {}, {}, {}
+                    sess["spawns"], sess["actions"], sess["states"], sess["posts"] = {}, {}, {}, {}
                 sess["spawns"][role] = pos
             else:
                 tick, role = int(payload["tick"]), label.rsplit("-", 1)[1]
-                sess["states"].setdefault(tick, {})[role] = {
-                    "your_pos": tuple(payload["your_pos"]),
-                    "barriers_left": int(payload["barriers_left"]),
-                    # P5 masking fields: kept so the replay can prove the referee actually
-                    # withheld what it was supposed to withhold, not merely that positions
-                    # advanced legally. Without these a log in which the referee fed its own
-                    # agent full board visibility replays perfectly clean.
-                    # Copied only when PRESENT: the verifier now treats absence as a
-                    # malformed log, so turning a missing key into None here would silently
-                    # re-open the bypass it closes.
-                    **{k: payload[k] for k in ("opponent_pos", "barriers") if k in payload},
-                }
+                _record_move_request(sess, payload, tick, role, int(cfg_retries))
                 pending[label] = (payload["session_id"], tick, role)
         elif direction == "response" and label in pending:
             sid, tick, role = pending.pop(label)
             if isinstance(reply := entry.get("response"), dict) and isinstance(reply.get("action"), str):
-                sessions[sid]["actions"].setdefault(tick, {})[role] = reply["action"]
+                prior = sessions[sid]["actions"].setdefault(tick, {}).get(role)
+                if prior is not None and prior != reply["action"]:
+                    raise ReplayMismatchError(
+                        f"{sid} tick {tick} {role}: two different actions logged ({prior!r} then "
+                        f"{reply['action']!r}) with no re-hello — that is a re-attempt, not a retry"
+                    )
+                sessions[sid]["actions"][tick][role] = reply["action"]
         elif direction == "result" and isinstance(sub := entry.get("sub_game"), dict):
             if "session_id" in sub and "seed" in sub:  # the referee's EXACT per-run seed (last wins)
                 sess = sessions.setdefault(sub["session_id"], _new_session())
@@ -113,6 +113,40 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
     return sessions
 
 
+def _record_move_request(sess: dict, payload: dict, tick: int, role: str, retries: int) -> None:
+    """Store one request_move as ground truth, refusing a second ATTEMPT at the same tick.
+
+    P8 allows re-POSTING the SAME body; it does not allow a second attempt. Both used to land
+    in a last-write-wins dict, so a referee could re-roll a sub-game 21 times without emitting
+    a single hello — every abandoned attempt silently collapsed into the surviving one, no
+    void claimed, nothing to count, replay clean. Verified: two different actions logged for
+    one (tick, role) left voids=0 and kept only the last.
+
+    Raises:
+        ReplayMismatchError: On more posts than P8 permits, or a differing re-POST body.
+    """
+    posts = sess["posts"].setdefault((tick, role), [])
+    posts.append(json.dumps(payload, sort_keys=True))
+    if len(posts) > 1 + retries:
+        raise ReplayMismatchError(
+            f"{payload['session_id']} tick {tick} {role}: {len(posts)} request_move posts, "
+            f"but P8 allows at most {1 + retries} (one re-POST)"
+        )
+    if len(set(posts)) > 1:
+        raise ReplayMismatchError(
+            f"{payload['session_id']} tick {tick} {role}: request_move re-POSTED with a "
+            f"DIFFERENT body — P8 permits an identical retry, not a re-attempt"
+        )
+    sess["states"].setdefault(tick, {})[role] = {
+        "your_pos": tuple(payload["your_pos"]),
+        "barriers_left": int(payload["barriers_left"]),
+        # P5 masking fields: kept so the replay can prove the referee actually withheld what
+        # it was supposed to withhold. Copied only when PRESENT — the verifier treats absence
+        # as a malformed log, so turning a missing key into None would re-open that bypass.
+        **{k: payload[k] for k in ("opponent_pos", "barriers") if k in payload},
+    }
+
+
 def ordered_actions(sid: str, sess: dict) -> list[dict[str, str]]:
     """Return the session's action pairs ordered by tick; raise on gaps/missing roles."""
     ticks = sorted(sess["actions"])
@@ -123,51 +157,3 @@ def ordered_actions(sid: str, sess: dict) -> list[dict[str, str]]:
         if set(pair) != set(_ROLES):
             raise ReplayMismatchError(f"{sid} tick {tick}: roles {sorted(pair)} != ['cop', 'thief']")
     return pairs
-
-
-def select_log_and_records(cfg: dict) -> tuple[Path, Path]:
-    """Return a log and records that describe the SAME match — never a mismatched pair.
-
-    Choosing them independently is a real bug we shipped: the log default took the newest
-    timestamped file while the records default fell back to the committed REHEARSAL records
-    whenever the git-ignored real draft was absent. On any fresh clone that pairs the real
-    §9 match log with rehearsal records, and the README's documented replay command dies
-    with ReplayMismatchError before printing anything.
-
-    Preference order: the git-ignored real draft (local only), then the TRACKED redacted
-    §9.4 body, then the rehearsal records. The redacted copy is what makes a fresh clone
-    work at all — it masks both student blocks and both repo URLs but keeps ``sub_games``
-    intact, so a grader who clones the public repo replays the REAL graded match rather
-    than being handed rehearsal records the config's seed list can no longer verify.
-
-    Matching on (id, winner, moves) rather than on filenames means adding more logs later
-    cannot silently re-pair them.
-
-    Raises:
-        SystemExit: When no committed log matches any available records file.
-    """
-    log_dir = Path(cfg["wire_match"]["log_dir"])
-    logs = sorted(log_dir.glob("wire_log_[0-9]*.jsonl"), reverse=True)  # newest first
-    candidates = [
-        Path(cfg["wire_match"]["draft_report"]),  # local real draft (git-ignored: carries PII)
-        Path(cfg["wire_match"]["redacted_records"]),  # TRACKED — what a fresh clone gets
-        Path(cfg["wire_match"]["rehearsal"]["records"]),
-    ]
-    for records in candidates:
-        if not records.exists():
-            continue
-        want = [
-            (g["id"], g["winner"], g["moves"])
-            for g in json.loads(records.read_text(encoding="utf-8"))["sub_games"]
-        ]
-        for log in logs:
-            results = [
-                json.loads(line)["sub_game"]
-                for line in log.read_text(encoding="utf-8").splitlines()
-                if line.strip() and json.loads(line).get("direction") == "result"
-            ]
-            if [(r["id"], r["winner"], r["moves"]) for r in results] == want:
-                return log, records
-    raise SystemExit(
-        f"no log under {log_dir} matches any available records — pass --log and --records explicitly"
-    )

@@ -37,14 +37,23 @@ def verify_escalation_budget(cfg: dict, seeds_played: list[int], total_voids: in
         ReplayMismatchError: When the log cannot afford the spares it claims to have used.
     """
     pairs = int(cfg["game"]["num_games"]) // 2
-    spares = {int(s) for s in cfg["wire_match"]["seeds"][pairs:]}
+    spare_list = [int(s) for s in cfg["wire_match"]["seeds"][pairs:]]
     needed = int(cfg["wire_match"]["max_void_replays"])
-    used = len({int(s) for s in seeds_played if int(s) in spares})
-    if total_voids < needed * used:
+    reached = [spare_list.index(int(s)) for s in seeds_played if int(s) in spare_list]
+    # Billed by the HIGHEST spare index reached, not by how many distinct spares appear.
+    # SeedSchedule consumes spares strictly IN ORDER, so the 2nd spare costs two escalations
+    # and the 3rd costs three. Counting distinct spares priced every spare at one escalation,
+    # which handed the referee a free CHOICE of layout for the price of the cheapest one —
+    # seed shopping, exactly what this is here to stop. Measured: the frozen base seed is
+    # unwinnable for the cop, spare #1 likewise, but spares #2/#3 are not, and all three cost
+    # the same 3 voids.
+    used = len(set(reached))
+    owed = needed * (max(reached) + 1) if reached else 0
+    if total_voids < owed:
         raise ReplayMismatchError(
-            f"match resolved {used} SPARE seed(s), which P7 grants only after {needed} "
-            f"consecutive voids each, but the log shows {total_voids} void re-hello(s) "
-            f"in total — the escalation was never paid for"
+            f"match reached SPARE #{max(reached) + 1} of the P7 order, which costs {owed} "
+            f"consecutive voids (spares are consumed in order), but the log shows "
+            f"{total_voids} void re-hello(s) in total — the escalation was never paid for"
         )
     # ...and a match-wide CEILING. Note this bound is GENEROUS on purpose: the real tightening
     # is per-session (verify_session_voids), and a tight match-wide formula turned out to
@@ -82,13 +91,20 @@ def verify_session_voids(cfg: dict, sid: str, voids: int, seed: int) -> None:
     """
     needed = int(cfg["wire_match"]["max_void_replays"])
     pairs = int(cfg["game"]["num_games"]) // 2
-    if seed in {int(s) for s in cfg["wire_match"]["seeds"][pairs:]}:
-        return
-    if voids >= needed:
+    spare_list = [int(s) for s in cfg["wire_match"]["seeds"][pairs:]]
+    # Exempting spare-seed sessions entirely re-opened the very hole this function was written
+    # to close: a sub-game the attacker first escalated then had NO per-session bound at all,
+    # so 27 undisclosed replays of the deciding sub-game passed. The cap scales with WHICH
+    # spare was reached — reaching spare #n costs n escalations, plus at most needed-1
+    # non-escalating voids before the run that finally succeeded.
+    index = spare_list.index(int(seed)) + 1 if int(seed) in spare_list else 0
+    cap = needed * index + (needed - 1)
+    if voids > cap:
+        where = f"SPARE #{index}" if index else f"BASE seed {seed}"
         raise ReplayMismatchError(
-            f"{sid}: {voids} void re-hello(s) but the sub-game still resolved to its BASE seed "
-            f"{seed} — P7 forces a spare after {needed} consecutive voids, so this describes "
-            f"re-rolling one layout rather than escalating"
+            f"{sid}: {voids} void re-hello(s) on a sub-game that resolved to its {where}, but "
+            f"P7 forces escalation every {needed} consecutive voids, so at most {cap} are "
+            f"reachable — the rest describe re-rolling one layout"
         )
 
 
