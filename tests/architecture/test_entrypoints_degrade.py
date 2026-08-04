@@ -109,3 +109,25 @@ def test_every_committed_matplotlib_figure_is_at_the_current_dpi() -> None:
         if height not in allowed:
             stale.append(f"{png.name} is {width}x{height}, expected height in {sorted(allowed)}")
     assert not stale, f"figures rendered at a stale DPI (current DPI={DPI}): {stale}"
+
+
+def test_every_script_with_a_main_parses_argv() -> None:
+    """The entrypoint class was only HALF closed — this file pinned two surfaces, not the rule.
+
+    A fresh-clone audit found ``scripts/plot_minimax_q.py --help`` silently starting its real
+    job and still running ten minutes later, and ``sensitivity_sweep.py --help`` doing the
+    same and dirtying a tracked file on the way. Both are README-documented. Pinning two
+    examples of a class and calling it closed is how the third instance survives, so this
+    sweeps EVERY script instead of naming them.
+
+    argparse alone is enough — importing it and calling ``parse_args`` gives ``--help`` and
+    rejects unknown flags, which is the whole contract being asserted.
+    """
+    scripts = sorted(Path(__file__).resolve().parents[2].joinpath("scripts").glob("*.py"))
+    assert scripts, "no scripts found — the sweep would pass vacuously"
+    missing = [
+        path.name
+        for path in scripts
+        if "def main(" in (text := path.read_text(encoding="utf-8")) and "argparse" not in text
+    ]
+    assert not missing, f"scripts with a main() that ignore argv, so `--help` starts the real job: {missing}"

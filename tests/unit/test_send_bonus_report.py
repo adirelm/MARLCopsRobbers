@@ -18,6 +18,21 @@ def _draft_exists(cfg) -> bool:
 
 @pytest.fixture
 def draft_cfg():
+    """Config for the body-shape assertions — the TRACKED redacted copy is enough for them.
+
+    These used to skip whenever the git-ignored real draft was absent, i.e. on CI and on any
+    fresh clone. The skip itself is right for PII-dependent assertions, but it took the
+    others with it: compare_digest — the §9.3 byte-compare both groups exchanged, published
+    in the README as 1261 bytes / b15848a2… — is referenced only from this file, and scripts/
+    is outside --cov=src, so its canonical-key-order and identity-free assertions executed
+    NOWHERE on CI. load_draft already falls back to the tracked body, so they can just run.
+    """
+    return load_config()
+
+
+@pytest.fixture
+def real_draft_cfg():
+    """Config for assertions that genuinely need the git-ignored REAL draft (PII present)."""
     cfg = load_config()
     if not _draft_exists(cfg):
         pytest.skip("git-ignored real draft absent (CI) — never assert a PII artifact exists")

@@ -8,6 +8,7 @@ interrupted by a Drive .git hiccup just resumes. Run: ``uv run python scripts/ru
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -22,8 +23,15 @@ def main(
     cfg: dict | None = None,
     algorithms: list[str] | None = None,
     stages: list[int] | None = None,
+    argv: list[str] | None = None,
 ) -> Path:
     """Run the full (algorithm x seed x stage) matrix; append per-round records; return the path."""
+    # argparse alone gives --help. Without it this script IGNORED argv and a documented
+    # `--help` silently started the real job — one ran 10 minutes before being killed.
+    # Same class as the GUI entrypoint hang, which this half of the sweep had missed.
+    argparse.ArgumentParser(
+        description="Run the full training matrix behind F1/F2/F5/F6 (takes HOURS)"
+    ).parse_args(argv or [])
     cfg = cfg or load_config()
     algorithms = algorithms or _ALGORITHMS
     stages = stages if stages is not None else list(range(len(cfg["env"]["curriculum"]["stages"])))
@@ -48,5 +56,4 @@ def main(
 
 
 if __name__ == "__main__":
-    selected = [int(s) for s in sys.argv[1:]] or None  # CLI: `run_results.py 0 1 2`
-    main(stages=selected)
+    main(argv=sys.argv[1:])  # stages come from argv via main's own parser (a bare int() crashed on --help)

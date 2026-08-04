@@ -10,6 +10,7 @@ pygame-ce (``SDL_VIDEODRIVER=dummy``). Run: ``uv run --extra gui python scripts/
 
 from __future__ import annotations
 
+import argparse
 import os
 from pathlib import Path
 
@@ -17,8 +18,14 @@ from src.sdk.sdk import MarlSDK
 from src.utils.config_loader import load_config
 
 
-def main(cfg: dict | None = None) -> list[str]:  # pragma: no cover - requires pygame
+def main(cfg: dict | None = None, argv: list[str] | None = None) -> list[str]:  # pragma: no cover
     """Render + save the running grid-size matrix + the three GUI states; return the paths."""
+    # argparse alone gives --help. Without it this script IGNORED argv and a documented
+    # `--help` silently started the real job — one ran 10 minutes before being killed.
+    # Same class as the GUI entrypoint hang, which this half of the sweep had missed.
+    argparse.ArgumentParser(description="Capture the GUI state screenshots used in README 7.3").parse_args(
+        argv
+    )
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     import pygame  # noqa: PLC0415 - lazy: pygame is the optional gui extra
 

@@ -18,6 +18,7 @@ Setup: needs ``GMAIL_SENDER`` / ``GMAIL_APP_PASSWORD`` for ``--send``.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import sys
@@ -60,13 +61,26 @@ def load_draft(cfg: dict, agreed: bool = False) -> dict:
         raise SystemExit(
             f"no bonus draft found: neither {cfg['wire_match']['draft_report']} nor the tracked copy"
         )
-    if agreed:
-        report["mutual_agreement"] = True
+    # Set UNCONDITIONALLY from the flag. `if agreed: ... = True` only ever raised it, so a
+    # body that already recorded true — which the tracked fallback does — passed straight
+    # through and printed mutual_agreement=True with no flag, inverting the documented
+    # invariant on exactly the path a fresh clone hits.
+    report["mutual_agreement"] = bool(agreed)
     return report
 
 
-def main(cfg: dict | None = None, agreed: bool = False, send: bool = False) -> dict:
+def main(
+    cfg: dict | None = None, agreed: bool = False, send: bool = False, argv: list[str] | None = None
+) -> dict:
     """Print the report's decisive facts; with ``send`` perform the real gated egress."""
+    # argparse alone gives --help and rejects unknown flags. argv=None means NOT a
+    # CLI call, so an in-process main() never parses the caller's sys.argv.
+    # Without this the parser read pytest's argv and every such test died.
+    # script IGNORED argv, so a documented `--help` started the real job.
+    parser = argparse.ArgumentParser(description="Print or send the 9.4 bonus report")
+    parser.add_argument("--agreed", action="store_true")
+    parser.add_argument("--send", action="store_true")
+    parser.parse_args(argv or [])
     cfg = cfg or load_config()
     report = load_draft(cfg, agreed=agreed)
     length, digest = compare_digest(report)
@@ -84,4 +98,4 @@ def main(cfg: dict | None = None, agreed: bool = False, send: bool = False) -> d
 
 
 if __name__ == "__main__":
-    main(agreed="--agreed" in sys.argv, send="--send" in sys.argv)
+    main(agreed="--agreed" in sys.argv, send="--send" in sys.argv, argv=sys.argv[1:])

@@ -11,7 +11,9 @@ Manual (real sockets; the P7 seed list must be filled first), not a CI gate:
 
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -69,8 +71,16 @@ def _real_match_guards(cfg: dict) -> None:
         )
 
 
-def main() -> dict:
+def main(argv: list[str] | None = None) -> dict:
     """Health-check, play the match, write the draft §9.4 JSON, print the artifacts."""
+    # argparse alone gives --help and rejects unknown flags. argv=None means NOT a
+    # CLI call, so an in-process main() never parses the caller's sys.argv.
+    # Without this the parser read pytest's argv and every such test died.
+    # script IGNORED argv, so a documented `--help` started the real job.
+    parser = argparse.ArgumentParser(
+        description="Play the 9 inter-group wire match as referee (live network)"
+    )
+    parser.parse_args(argv or [])
     cfg = load_config()
     wire = cfg["wire_match"]
     _real_match_guards(cfg)
@@ -93,4 +103,4 @@ def main() -> dict:
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

@@ -12,8 +12,10 @@ Run:  uv run --with python-docx --with pyyaml python scripts/make_cover_sheet.py
 
 from __future__ import annotations
 
+import argparse
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import docx
@@ -48,8 +50,14 @@ def _append(paragraph: object, value: str) -> None:
         paragraph.add_run("   " + value)
 
 
-def main() -> Path:
+def main(argv: list[str] | None = None) -> Path:
     """Fill the template from players.local.yaml + convert to a git-ignored PDF."""
+    # argparse alone gives --help and rejects unknown flags. argv=None means NOT a
+    # CLI call, so an in-process main() never parses the caller's sys.argv.
+    # Without this the parser read pytest's argv and every such test died.
+    # script IGNORED argv, so a documented `--help` started the real job.
+    parser = argparse.ArgumentParser(description="Build the git-ignored Moodle cover sheet (local only)")
+    parser.parse_args(argv or [])
     players = yaml.safe_load((_ROOT / "players.local.yaml").read_text(encoding="utf-8"))
     student = players["students"][0]
     name_parts = str(student["full_name"]).split()
@@ -86,4 +94,4 @@ def main() -> Path:
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

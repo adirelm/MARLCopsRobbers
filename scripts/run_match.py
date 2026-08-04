@@ -10,6 +10,7 @@ Uses placeholder players unless players.local.yaml is present. Run:
 
 from __future__ import annotations
 
+import argparse
 import sys
 
 from src.reporting.players import load_players
@@ -17,8 +18,15 @@ from src.sdk.sdk import MarlSDK
 from src.utils.config_loader import load_config
 
 
-def main(cfg: dict | None = None, send: bool = False) -> dict:
+def main(cfg: dict | None = None, send: bool = False, argv: list[str] | None = None) -> dict:
     """Run the full local match; print §3.5 totals + dry-run ack. ``send`` emails for real."""
+    # argparse alone gives --help and rejects unknown flags. argv=None means NOT a
+    # CLI call, so an in-process main() never parses the caller's sys.argv.
+    # Without this the parser read pytest's argv and every such test died.
+    # script IGNORED argv, so a documented `--help` started the real job.
+    parser = argparse.ArgumentParser(description="Play the graded 3.5 match over the two MCP servers")
+    parser.add_argument("--send", action="store_true")
+    parser.parse_args(argv or [])
     cfg = cfg or load_config()
     sdk = MarlSDK(cfg)
     seed = int(cfg["training"]["seeds"][0])
@@ -31,4 +39,4 @@ def main(cfg: dict | None = None, send: bool = False) -> dict:
 
 
 if __name__ == "__main__":
-    main(send="--send" in sys.argv)
+    main(send="--send" in sys.argv, argv=sys.argv[1:])

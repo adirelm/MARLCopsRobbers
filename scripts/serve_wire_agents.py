@@ -14,6 +14,7 @@ a CI gate::
 
 from __future__ import annotations
 
+import argparse
 import sys
 import time
 
@@ -24,9 +25,17 @@ from src.utils.config_loader import load_config
 def main(argv: list[str] | None = None) -> None:
     """Start the requested groups' wire agents and serve until interrupted."""
     cfg = load_config()
-    args = list(sys.argv[1:] if argv is None else argv)
-    conformance = "--conformance" in args  # brief §2: scripted test agent, NOT the lineup
-    keys = [a for a in args if not a.startswith("--")] or local_group_keys(cfg)
+    # A real parser, replacing a hand-rolled `"--x" in args` scan. Same accepted input, but
+    # --help now works and an unknown flag ERRORS instead of being silently ignored — a typo'd
+    # --conformanse used to start the MATCH LINEUP while the operator believed otherwise.
+    parser = argparse.ArgumentParser(description="Serve this group's §9 wire agents")
+    parser.add_argument("groups", nargs="*", help="group keys to serve (default: local groups)")
+    parser.add_argument(
+        "--conformance", action="store_true", help="serve the scripted test agent, NOT the lineup"
+    )
+    parsed = parser.parse_args(argv or [])
+    conformance = parsed.conformance  # brief §2: scripted test agent, NOT the lineup
+    keys = parsed.groups or local_group_keys(cfg)
     if not keys:
         raise SystemExit(
             "no serveable groups: pass group keys or point wire_match.groups URLs at the rehearsal host"
@@ -49,4 +58,4 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

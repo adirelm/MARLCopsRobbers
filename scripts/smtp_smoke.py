@@ -8,14 +8,19 @@ survives). Run with ``GMAIL_SENDER`` + ``GMAIL_APP_PASSWORD`` set in the env:
 
 from __future__ import annotations
 
+import argparse
 import os
+import sys
 
 from src.reporting.mailer import GmailMailer
 from src.utils.config_loader import load_config
 
 
-def main(cfg: dict | None = None) -> None:  # pragma: no cover - requires creds + network
+def main(cfg: dict | None = None, argv: list[str] | None = None) -> None:  # pragma: no cover
     """Send one self-addressed test email to validate the App Password path."""
+    # argparse alone gives --help and rejects unknown flags. Without it this script IGNORED
+    # argv, so a documented `--help` would have sent a real email instead of printing usage.
+    argparse.ArgumentParser(description="Live SMTP credential smoke test (needs .env)").parse_args(argv or [])
     cfg = cfg or load_config()
     sender_addr = os.environ["GMAIL_SENDER"]
     GmailMailer(cfg).send(
@@ -27,4 +32,4 @@ def main(cfg: dict | None = None) -> None:  # pragma: no cover - requires creds 
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

@@ -16,6 +16,7 @@ Run: ``uv run python scripts/send_cloud_report.py [--send]``.
 
 from __future__ import annotations
 
+import argparse
 import datetime
 import json
 import sys
@@ -50,8 +51,15 @@ def build_cloud_report(cfg: dict, record_path: Path = _RECORD) -> dict:
     return report
 
 
-def main(cfg: dict | None = None, send: bool = False) -> dict:
+def main(cfg: dict | None = None, send: bool = False, argv: list[str] | None = None) -> dict:
     """Print the cloud match's §3.5 totals; ``send`` performs the real (idempotent) egress."""
+    # argparse alone gives --help and rejects unknown flags. argv=None means NOT a
+    # CLI call, so an in-process main() never parses the caller's sys.argv.
+    # Without this the parser read pytest's argv and every such test died.
+    # script IGNORED argv, so a documented `--help` started the real job.
+    parser = argparse.ArgumentParser(description="Print or send the 3.5 cloud match report")
+    parser.add_argument("--send", action="store_true")
+    parser.parse_args(argv or [])
     cfg = cfg or load_config()
     report = build_cloud_report(cfg)
     games = report["sub_games"]
@@ -71,4 +79,4 @@ def main(cfg: dict | None = None, send: bool = False) -> dict:
 
 
 if __name__ == "__main__":
-    main(send="--send" in sys.argv)
+    main(send="--send" in sys.argv, argv=sys.argv[1:])

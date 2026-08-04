@@ -9,6 +9,8 @@ training processes at once (the compute-governance rule):
 
 from __future__ import annotations
 
+import argparse
+import sys
 from pathlib import Path
 
 from src.results.plots import plot_sensitivity
@@ -20,11 +22,25 @@ _STAGE_4X4 = 2
 _VALUES = [1, 2]
 
 
-def main(cfg: dict | None = None) -> Path:
+def main(cfg: dict | None = None, argv: list[str] | None = None) -> Path:
     """Sweep the 4x4 view radius across a bounded seed set; write the JSONL + figure."""
+    # argparse alone gives --help; argv=None means NOT a CLI call, so an in-process
+    # main() never parses the caller's sys.argv. Without the parser this script
+    # documented `--help` silently started the real job — one of these ran 10
+    # minutes before being killed. Same class as the GUI entrypoint hang.
+    argparse.ArgumentParser(
+        description="Run the §9 view-radius sensitivity sweep and render its figure"
+    ).parse_args(argv or [])
     cfg = cfg or load_config()
     seeds = [int(s) for s in cfg["training"]["seeds"][:3]]  # 3 seeds give SE bars; compute-bounded
     out = Path(cfg["paths"]["runs_dir"]) / "sensitivity_view_radius.jsonl"
+    # TRUNCATE first: run_sensitivity appends, so re-running doubled the tracked file every
+    # time and left `git status` dirty after a command the README calls idempotent. The
+    # figure never drifted because aggregate_sensitivity de-dupes on
+    # (param, value, algorithm, seed, stage) keeping the last — which is precisely why this
+    # went unnoticed. The docstring always said "writes".
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("", encoding="utf-8")
     records = run_sensitivity(MarlSDK, cfg, _VALUES, seeds, _STAGE_4X4, out)
     figure = Path(cfg["paths"]["figures_dir"]) / "sensitivity_view_radius.png"
     plot_sensitivity(
@@ -38,4 +54,4 @@ def main(cfg: dict | None = None) -> Path:
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

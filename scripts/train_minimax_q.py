@@ -7,12 +7,21 @@ Thin wrapper over the SDK (§4); all tunables come from ``config.yaml`` ``minima
 
 from __future__ import annotations
 
+import argparse
+import sys
+
 from src.sdk.sdk import MarlSDK
 from src.utils.config_loader import load_config
 
 
-def main(cfg: dict | None = None, seed: int | None = None) -> list[dict]:
+def main(cfg: dict | None = None, seed: int | None = None, argv: list[str] | None = None) -> list[dict]:
     """Train tabular Minimax-Q via the SDK and print the final-window summary."""
+    # argparse alone gives --help and rejects unknown flags. argv=None means NOT a
+    # CLI call, so an in-process main() never parses the caller's sys.argv.
+    # Without this the parser read pytest's argv and every such test died.
+    # script IGNORED argv, so a documented `--help` started the real job.
+    parser = argparse.ArgumentParser(description="Train the tabular Minimax-Q baseline")
+    parser.parse_args(argv or [])
     cfg = cfg or load_config()
     seed = int(cfg["training"]["seeds"][0]) if seed is None else seed
     history = MarlSDK(cfg).run_minimax_q_baseline(seed)
@@ -25,4 +34,4 @@ def main(cfg: dict | None = None, seed: int | None = None) -> list[dict]:
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

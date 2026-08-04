@@ -7,6 +7,8 @@ maximin LP); run manually like ``scripts/train_iql_baseline.py``. Deterministic 
 
 from __future__ import annotations
 
+import argparse
+import sys
 from pathlib import Path
 
 from src.results.plots import plot_minimax_q
@@ -14,8 +16,15 @@ from src.sdk.sdk import MarlSDK
 from src.utils.config_loader import load_config
 
 
-def main(cfg: dict | None = None, seed: int | None = None) -> Path:
+def main(cfg: dict | None = None, seed: int | None = None, argv: list[str] | None = None) -> Path:
     """Train Minimax-Q via the SDK, plot the convergence curves, return the figure path."""
+    # argparse alone gives --help; argv=None means NOT a CLI call, so an in-process
+    # main() never parses the caller's sys.argv. Without the parser this script
+    # documented `--help` silently started the real job — one of these ran 10
+    # minutes before being killed. Same class as the GUI entrypoint hang.
+    argparse.ArgumentParser(
+        description="Train the tabular Minimax-Q baseline and render figure F7"
+    ).parse_args(argv or [])
     cfg = cfg or load_config()
     seed = int(cfg["training"]["seeds"][0]) if seed is None else seed
     history = MarlSDK(cfg).run_minimax_q_baseline(seed)
@@ -30,4 +39,4 @@ def main(cfg: dict | None = None, seed: int | None = None) -> Path:
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

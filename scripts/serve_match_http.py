@@ -11,12 +11,14 @@ ports free), not a CI gate (real sockets/subprocesses):
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import logging
 import os
 import secrets
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -69,8 +71,14 @@ async def _play(cfg: dict, urls: dict, tokens: dict) -> dict:
         return await MatchRunner(Referee(cfg, grid, grid, num_cops), games, seed).play_match(cop, thief)
 
 
-def main() -> dict:
+def main(argv: list[str] | None = None) -> dict:
     """Serve both roles over HTTP, play the match over the wire, print the comms proof."""
+    # argparse alone gives --help and rejects unknown flags. argv=None means NOT a
+    # CLI call, so an in-process main() never parses the caller's sys.argv.
+    # Without this the parser read pytest's argv and every such test died.
+    # script IGNORED argv, so a documented `--help` started the real job.
+    parser = argparse.ArgumentParser(description="Serve both agent servers over real localhost HTTP")
+    parser.parse_args(argv or [])
     cfg = load_config()
     m = cfg["mcp"]
     host, path = m["host"], m["path"]
@@ -115,4 +123,4 @@ def main() -> dict:
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

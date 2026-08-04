@@ -14,6 +14,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import sys
 
 from src.mcp._replay_log import select_log_and_records
 from src.mcp.wire_replay import replay_match, save_screens
@@ -27,7 +28,7 @@ def main(argv: list[str] | None = None) -> dict:
     parser.add_argument("--log", default=None, help="referee JSONL log (default: newest in log_dir)")
     parser.add_argument("--records", default=None, help="§9.4 sub-game records JSON (default: from config)")
     parser.add_argument("--out", default=None, help="output dir (default: gui.bonus_screenshot_dir)")
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv or [])
     # Resolved as a PAIR: picking the newest log and the fallback records independently
     # crashed on every fresh clone (real match log vs rehearsal records).
     pair_log, pair_records = (None, None) if (args.log and args.records) else select_log_and_records(cfg)
@@ -52,4 +53,4 @@ def main(argv: list[str] | None = None) -> dict:
 
 
 if __name__ == "__main__":
-    main()
+    main(argv=sys.argv[1:])

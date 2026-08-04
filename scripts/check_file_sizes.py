@@ -6,6 +6,7 @@ LOC excludes blank lines and pure-comment lines, so docstrings count but
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -50,8 +51,14 @@ def scan_dirs(root: Path, dirs: tuple[str, ...] = SCAN) -> list[tuple[Path, int]
     return over
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Scan the configured dirs and exit non-zero if any file exceeds the limit."""
+    # argparse alone gives --help and rejects unknown flags. argv=None means NOT a
+    # CLI call, so an in-process main() never parses the caller's sys.argv.
+    # Without this the parser read pytest's argv and every such test died.
+    # script IGNORED argv, so a documented `--help` started the real job.
+    parser = argparse.ArgumentParser(description="Fail if any tracked .py exceeds the 150-LOC cap")
+    parser.parse_args(argv or [])
     root = Path(__file__).resolve().parent.parent
     over = scan_dirs(root)
     if over:
@@ -64,4 +71,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(argv=sys.argv[1:]))
