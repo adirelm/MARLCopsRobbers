@@ -19,7 +19,7 @@ from src.mcp._replay_log import ReplayMismatchError, parse_wire_log
 from src.mcp._replay_verify import verify_escalation_budget
 from src.mcp.wire_replay import replay_match
 from src.utils.config_loader import load_config
-from tests.unit._synthetic_wire import synth_session
+from tests.unit._synthetic_wire import records_body, synth_session
 
 
 def _seeds(cfg) -> tuple[list[int], list[int], int]:
@@ -95,7 +95,7 @@ def test_the_budget_is_match_wide_because_escalation_re_seeds_the_mirror(tmp_pat
     log = tmp_path / "wire_log_mirror.jsonl"
     log.write_text("\n".join(lines) + "\n", encoding="utf-8")
     recs = tmp_path / "records_mirror.json"
-    recs.write_text(json.dumps({"sub_games": records}), encoding="utf-8")
+    recs.write_text(json.dumps(records_body(cfg, records)), encoding="utf-8")
 
     replays = replay_match(cfg, log, recs, full_match=False)  # must NOT raise
     assert [r["seed"] for r in replays] == [spares[0], spares[0]]

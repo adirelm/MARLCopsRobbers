@@ -18,11 +18,17 @@ from pathlib import Path
 
 from src.gui.spectator import SpectatorFrame
 from src.marl.env.actions import Action
-from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.env.scorer import Scorer
 from src.mcp._replay_log import ReplayMismatchError, gid_of, ordered_actions, parse_wire_log
-from src.mcp._replay_records import verify_record_scores, verify_record_structure, verify_result_event
-from src.mcp._replay_verify import verify_escalation_budget, verify_tick
+from src.mcp._replay_outcome import verify_body_metadata, verify_published_outcome
+from src.mcp._replay_records import (
+    agreed_group_names,
+    verify_record_scores,
+    verify_record_structure,
+    verify_result_event,
+)
+from src.mcp._replay_seed import seeded_env, verify_void_attempts
+from src.mcp._replay_verify import verify_escalation_budget, verify_session_voids, verify_tick
 from src.mcp.wire_screens import mid_frame_index, save_screens  # noqa: F401 — re-export (150-LOC split)
 
 _MOVES = {a.name.lower(): a for a in (Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT)}
@@ -54,45 +60,12 @@ def _frame(cfg, env, gid, totals, winner, last) -> SpectatorFrame:  # noqa: PLR0
     )
 
 
-def _seeded_env(cfg: dict, sid: str, sess: dict, gid: int) -> tuple[CopsRobbersEnv, int]:
-    """Return the env + seed for ``sid``, spawn-verified against BOTH logged hellos.
-
-    PRIMARY source: the seed the referee RECORDED in the session's JSONL ``result`` event
-    — exact, and still cross-checked against the logged spawns (the authoritative tamper
-    guard). FALLBACK, for logs predating seed events only: s_k then the spares in order
-    by spawn match — ambiguous in principle, because distinct seeds can collide on the
-    (cop, thief) spawn pair (~1/396 per candidate on the 5x5 board), so a decoy spare
-    earlier in the order could silently win; the recorded seed removes that risk.
-    """
-    seeds, grid = [int(s) for s in cfg["wire_match"]["seeds"]], int(cfg["game"]["grid_size"])
-    pairs = int(cfg["game"]["num_games"]) // 2
-    allowed = (seeds[(gid - 1) % pairs], *seeds[pairs:])  # P7: s_k or a spare — nothing else is legal
-    recorded = sess.get("seed")
-    if recorded is not None and recorded not in allowed:
-        raise ReplayMismatchError(
-            f"{sid}: recorded result seed {recorded} is neither s_k nor a spare in {seeds}"
-        )
-    # A spare must be PAID FOR by logged voids — but that bill is settled MATCH-wide in
-    # replay_match (verify_escalation_budget), not here: escalation re-seeds the pair
-    # k/k+3, so one half can legitimately show a spare with no voids of its own.
-    for seed in allowed if recorded is None else (recorded,):
-        env = CopsRobbersEnv(cfg, h=grid, w=grid, num_cops=1)
-        env.reset(seed=seed)
-        state = env.state()
-        spawn_of = {"cop": tuple(state.cop_pos[0]), "thief": tuple(state.thief_pos)}
-        if all(sess["spawns"].get(role) == spawn_of[role] for role in _ROLES):
-            return env, seed
-    raise ReplayMismatchError(
-        f"{sid}: logged spawns {sess['spawns']} match neither s_k nor any spare seed in {seeds}"
-        if recorded is None
-        else f"{sid}: logged spawns {sess['spawns']} do not match the recorded seed {recorded}"
-    )
-
-
 def replay_sub_game(cfg: dict, sid: str, sess: dict, record: dict, totals: dict) -> tuple[list, dict]:
     """Re-run one logged sub-game from its P7 (possibly escalated) seed; every tick verified."""
     gid = gid_of(sid)
-    env, seed = _seeded_env(cfg, sid, sess, gid)
+    env, seed = seeded_env(cfg, sid, sess, gid)
+    verify_void_attempts(cfg, sid, sess, gid)
+    verify_session_voids(cfg, sid, int(sess.get("voids", 0)), seed)
     frames, terminated, info = [_frame(cfg, env, gid, totals, None, None)], False, {}
     for tick, pair in enumerate(ordered_actions(sid, sess)):
         if terminated:
@@ -126,6 +99,9 @@ def replay_match(
     # missing a sub-game fails BOTH, and "the ids are not 1..6" names the defect while "log
     # sub-games != record ids" only says the two agree on being wrong together.
     verify_record_structure(cfg, records, published.get("groups"), full_match)
+    if full_match:  # a subset body has no meaningful match TOTALS to re-derive
+        verify_body_metadata(published)
+        verify_published_outcome(cfg, published, agreed_group_names(cfg, published.get("groups")))
     if sorted(gid_of(s) for s in sessions) != sorted(records):
         raise ReplayMismatchError(f"log sub-games {sorted(sessions)} != record ids {sorted(records)}")
     replays, totals = [], dict.fromkeys(_ROLES, 0)

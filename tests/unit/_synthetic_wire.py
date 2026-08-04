@@ -133,5 +133,29 @@ def write_match(
     log = tmp_path / "wire_log_synth.jsonl"
     log.write_text("\n".join(lines) + "\n", encoding="utf-8")
     recs = tmp_path / "records_synth.json"
-    recs.write_text(json.dumps({"sub_games": records}), encoding="utf-8")
+    recs.write_text(json.dumps(records_body(cfg, records)), encoding="utf-8")
     return log, recs
+
+
+def records_body(cfg: dict, records: list[dict]) -> dict:
+    """Wrap sub-game records in the §9.4 envelope fields the replay now verifies.
+
+    The `groups` block comes from the frozen agreement in config, and `cop_group`/
+    `thief_group` are DERIVED per §9.1 — the same derivation the verifier re-does. Synthetic
+    bodies carry them so the role-alternation check stays universal instead of being made
+    skippable for subset fixtures, which is how a check quietly becomes optional.
+    """
+    names = [str(cfg["wire_match"]["groups"][k]["name"]) for k in ("group_1", "group_2")]
+    half = int(cfg["game"]["num_games"]) // 2
+    return {
+        "report_type": "bonus_game",
+        "groups": {"group_1": names[0], "group_2": names[1]},
+        "sub_games": [
+            {
+                **rec,
+                "cop_group": names[0] if int(rec["id"]) <= half else names[1],
+                "thief_group": names[1] if int(rec["id"]) <= half else names[0],
+            }
+            for rec in records
+        ],
+    }

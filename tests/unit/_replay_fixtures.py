@@ -51,9 +51,22 @@ def rehearsal_cfg() -> dict:
     The live ``wire_match.seeds`` tracks whatever match is current — after the real §9 match
     against biu-azri it is their frozen list. A test that replays a FIXED artifact must not
     depend on that: the artifact's seeds are a property of the artifact, not of today's config.
+
+    The GROUP NAMES are pinned for the same reason. The replay now binds §9.1 role alternation
+    to ``wire_match.groups.*.name`` — the frozen agreement — instead of trusting the body's own
+    ``groups`` block, and the rehearsal body predates the real partner, so it still carries the
+    ``<PARTNER GROUP CODE>`` placeholder. Pinning the fixture's config to the artifact keeps
+    that check ON for the rehearsal instead of loosening it for everyone.
     """
     cfg = load_config()
-    cfg["wire_match"]["seeds"] = list(REHEARSAL_SEEDS)
+    cfg["wire_match"] = {
+        **cfg["wire_match"],
+        "seeds": list(REHEARSAL_SEEDS),
+        "groups": {
+            "group_1": {**cfg["wire_match"]["groups"]["group_1"], "name": "adrl-001"},
+            "group_2": {**cfg["wire_match"]["groups"]["group_2"], "name": "<PARTNER GROUP CODE>"},
+        },
+    }
     return cfg
 
 

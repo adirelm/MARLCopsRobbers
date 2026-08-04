@@ -7,9 +7,9 @@ decomposition** (QMIX primary, VDN ablation, IQL baseline), each agent runs behi
 **FastMCP server** (localhost → cloud), visualized live in a **Pygame** GUI, with an
 end-of-game **Gmail** report.
 
-> **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
+> **Status: COMPLETE (v1.2.0 — V3 breadth: §9.3 chart variety, §12 seams, §14 exports, §16 blocks; 1.1.1 was the post-audit hardening, 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (1020 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (1030 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (1020 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (1030 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -349,7 +349,9 @@ The row-wise decay left→right is the partial-observability + board-size cost F
 *F6 — capture rate across the curriculum stages. Honest caveat: the stages vary board size AND
 team size together (`num_cops_by_stage = [1, 1, 2, 1]` — the 4×4 point is a 2-cop team), so this
 is a curriculum-stage curve, NOT an isolated board-size scaling experiment. Within that caveat,
-capture falls as the board grows and the view radius tightens (partial observability bites).*
+capture generally falls as the board grows and the view radius tightens (partial observability
+bites) — with QMIX the exception that proves the caveat: it dips at the 2-cop 4×4 stage (0.628) and
+RECOVERS at 1-cop 5×5 (0.716), which is why F9 reads the instability as multi-agent, not board-size.*
 
 ![F2 loss curves](results/figures/loss_curves.png)
 *F2 — §7.3b the two NETWORKS' TD-losses at the **5×5 §5.1 final test** (mean±SE; same stage as F1):
@@ -591,7 +593,7 @@ deliberately outside the frozen list so no real layout was exposed.
 
 **Independent verification, both directions.** We re-derived every tick from the log
 (`scripts/replay_wire_match.py`) and checked all six seeds and both start cells against the
-frozen table. `biu-azri` replayed all 274 moves through *their own* engine under
+frozen table. `biu-azri` replayed all 262 logged moves (274 requests, incl. the 12 hellos) through *their own* engine under
 simultaneous + swap-capture resolution and reached identical winners and move counts. The
 §5 byte-compare was done by exchanging a `sha256` of the canonicalised
 `sub_games`/`totals_by_group`/`bonus_claim` — `1261` bytes, `b15848a2…1dd58` — identical on

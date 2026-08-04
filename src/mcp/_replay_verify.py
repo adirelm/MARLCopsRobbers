@@ -46,21 +46,50 @@ def verify_escalation_budget(cfg: dict, seeds_played: list[int], total_voids: in
             f"consecutive voids each, but the log shows {total_voids} void re-hello(s) "
             f"in total — the escalation was never paid for"
         )
-    # ...and a CEILING, because a floor alone permits unlimited same-seed re-rolls. The live
-    # SeedSchedule FORCES escalation on the n-th consecutive void and zeroes its counter, so
-    # a sub-game can carry at most needed-1 voids without moving to a spare. A log claiming
-    # 8 voids on the base seeds and no escalation describes a match the referee cannot have
-    # played — which is exactly what "replay the same layout until you like the result"
-    # looks like in a log.
-    ceiling = needed * used + (needed - 1) * len(seeds_played)
+    # ...and a match-wide CEILING. Note this bound is GENEROUS on purpose: the real tightening
+    # is per-session (verify_session_voids), and a tight match-wide formula turned out to
+    # false-positive an honest match. Escalation RE-QUEUES an already-played base game, adding
+    # a result-run the naive count misses, and `used` under-counts escalations when one pair
+    # escalates twice — a legal 17-void SeedSchedule trace was rejected by the first version.
+    spares_available = len(cfg["wire_match"]["seeds"]) - pairs
+    ceiling = needed * spares_available + (needed - 1) * (len(seeds_played) + spares_available)
     if total_voids > ceiling:
         raise ReplayMismatchError(
-            f"log shows {total_voids} void re-hello(s) across {len(seeds_played)} sub-game(s) "
-            f"with {used} spare(s) resolved, but P7 forces escalation every {needed} "
-            f"consecutive voids, so at most {ceiling} are reachable — the extra voids "
-            f"describe re-rolls that never escalated"
+            f"log shows {total_voids} void re-hello(s) across {len(seeds_played)} sub-game(s), "
+            f"but with {spares_available} spare(s) available P7 cannot reach more than "
+            f"{ceiling} — the extra voids describe re-rolls that never escalated"
         )
     return used
+
+
+def verify_session_voids(cfg: dict, sid: str, voids: int, seed: int) -> None:
+    """A sub-game still on its BASE seed may carry at most ``max_void_replays - 1`` voids.
+
+    This is the bound that actually stops seed re-rolling, and the match-wide ceiling could
+    not: with no spare resolved, a 6-sub-game match had 12 match-wide voids to spend, so 12
+    re-rolls could be concentrated on the ONE sub-game that decided the match ("replay the
+    layout until we win this one"). Verified: 12 concentrated re-rolls of our only cop win
+    passed the match-wide ceiling.
+
+    Sound because :meth:`SeedSchedule.record_void` FORCES escalation on the n-th consecutive
+    void and zeroes its counter — so a session that ends on its base seed provably never
+    reached n. Sessions on a spare are exempt here (their escalation is what the match-wide
+    budget prices), which also keeps this from re-introducing the per-session FLOOR that
+    wrongly rejected honest mirror halves.
+
+    Raises:
+        ReplayMismatchError: When a base-seed session logs a full escalation's worth of voids.
+    """
+    needed = int(cfg["wire_match"]["max_void_replays"])
+    pairs = int(cfg["game"]["num_games"]) // 2
+    if seed in {int(s) for s in cfg["wire_match"]["seeds"][pairs:]}:
+        return
+    if voids >= needed:
+        raise ReplayMismatchError(
+            f"{sid}: {voids} void re-hello(s) but the sub-game still resolved to its BASE seed "
+            f"{seed} — P7 forces a spare after {needed} consecutive voids, so this describes "
+            f"re-rolling one layout rather than escalating"
+        )
 
 
 def verify_tick(cfg: dict, sid: str, tick: int, sess: dict, state) -> None:

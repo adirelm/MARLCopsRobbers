@@ -16,16 +16,47 @@ from __future__ import annotations
 from src.mcp._replay_log import ReplayMismatchError
 
 
+def agreed_group_names(cfg: dict, groups: dict | None) -> tuple[str, str]:
+    """Return the two group names, bound to CONFIG and cross-checked against the body.
+
+    The names come from ``wire_match.groups.*.name`` — the jointly frozen agreement — not
+    from the body being audited. Reading them from the body made the alternation check
+    self-referential: swapping the ``groups`` block AND every ``cop_group`` together is
+    internally consistent, so §9.1 was satisfied against a mapping the body declared about
+    itself. On a lost match that edit manufactures a win.
+
+    ``groups`` is also REQUIRED. Treating a missing block as "a redacted copy carries no
+    identity" was empirically wrong — redaction strips ``students_*`` and ``github_repo_*``
+    and always keeps ``groups`` — and it handed away the whole role check for one deleted key.
+
+    Raises:
+        ReplayMismatchError: When the block is absent or disagrees with the agreement.
+    """
+    agreed = tuple(str(cfg["wire_match"]["groups"][k]["name"]) for k in ("group_1", "group_2"))
+    if not groups:
+        raise ReplayMismatchError(
+            f"the §9.4 body has no 'groups' block — it is required, and §9.1 role alternation "
+            f"cannot be checked without it (the agreement names are {agreed})"
+        )
+    claimed = tuple(str(groups.get(k, "")) for k in ("group_1", "group_2"))
+    if claimed != agreed:
+        raise ReplayMismatchError(
+            f"the body's groups {claimed} != the jointly frozen agreement {agreed} — "
+            f"group_1/group_2 decide who is cop first, so they are not the body's to declare"
+        )
+    return agreed
+
+
 def verify_record_structure(
     cfg: dict, records: dict[int, dict], groups: dict | None, full_match: bool = True
 ) -> None:
     """Check the §9.1 id set and role alternation before any sub-game is replayed.
 
     Args:
-        cfg: Loaded config (``game.num_games`` fixes both the id set and the midpoint).
+        cfg: Loaded config (``game.num_games`` fixes the id set and the midpoint;
+            ``wire_match.groups.*.name`` fixes who group_1 and group_2 are).
         records: ``{id: record}`` from the §9.4 body.
-        groups: The body's ``groups`` block, or None when it carries no identity (a redacted
-            copy) — the id check still applies, the alternation check needs the names.
+        groups: The body's ``groups`` block. Required — see :func:`_agreed_group_names`.
         full_match: Whether these records claim to BE a complete §9.1 match. True for every
             real artifact. Unit tests that deliberately replay a two-sub-game subset to probe
             seed resolution pass False. Deliberately an explicit argument rather than
@@ -42,15 +73,17 @@ def verify_record_structure(
             f"sub-game ids {sorted(records)} != the §9.1 match of exactly {games} games "
             f"{list(range(1, games + 1))} — a match may not drop or add sub-games"
         )
-    if not groups:
-        return
-    group_1, group_2 = groups["group_1"], groups["group_2"]
+    group_1, group_2 = agreed_group_names(cfg, groups)
     for gid, record in sorted(records.items()):
         # §9.1 alternation: group_1 is cop for the first half, group_2 for the second. The
         # margin is computed entirely from this assignment, so it is derived, never free.
         cop = group_1 if gid <= games // 2 else group_2
         thief = group_2 if cop == group_1 else group_1
-        if record.get("cop_group", cop) != cop or record.get("thief_group", thief) != thief:
+        # Indexed, NEVER .get(field, expected). Defaulting an ABSENT field to the expected
+        # value made the check vacuous: deleting cop_group/thief_group from every sub-game
+        # passed, because absent compared equal to correct. Both are `required` in
+        # bonus.schema.json, so nothing legitimate relies on a default.
+        if record.get("cop_group") != cop or record.get("thief_group") != thief:
             raise ReplayMismatchError(
                 f"sub-game {gid}: §9.1 role alternation violated — record says cop="
                 f"{record.get('cop_group')!r}/thief={record.get('thief_group')!r}, "

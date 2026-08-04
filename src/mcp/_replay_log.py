@@ -26,7 +26,7 @@ def _new_session() -> dict:
     result event reached the file before that session's requests raised KeyError on the
     first void re-hello instead of verifying the match.
     """
-    return {"spawns": {}, "actions": {}, "states": {}, "voids": 0}
+    return {"spawns": {}, "actions": {}, "states": {}, "voids": 0, "void_attempts": []}
 
 
 def gid_of(session_id: str) -> int:
@@ -65,18 +65,21 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
                     # a technical void DURING a sub-game (§3.7); a re-hello with nothing
                     # behind it is the P8 idempotent hello retry, not an escalation.
                     #
-                    # This is the difference between evidence and assertion. Counting every
-                    # re-hello made the escalation budget payable in counterfeit: three bare
-                    # hello lines — no response, no move, no fault — minted three voids and
-                    # unlocked any spare seed (verified before the fix). Requiring a logged
-                    # request_move raises the price to a payload that must survive
-                    # verify_tick against the seeded env. Absence of evidence cannot be the
-                    # evidence, because omitting lines is free.
+                    # The superseded attempt is KEPT, not just counted, because counting is
+                    # not evidence. An earlier version of this comment claimed the logged
+                    # request_move "must survive verify_tick against the seeded env" — it did
+                    # not: the states were discarded on the very next line, so an off-board
+                    # your_pos with no P5 masking fields at all minted a void for three lines
+                    # of text. wire_replay now verifies each retained attempt against a real
+                    # seeded env before it will spend it, which is what makes the price real.
                     #
-                    # Deliberately conservative: under-counting voids only makes a spare
-                    # HARDER to justify, which is the safe direction for a tamper check.
+                    # Under-counting is still the safe direction: it only makes a spare
+                    # HARDER to justify.
                     if sess["states"]:
                         sess["voids"] += 1
+                        sess["void_attempts"].append(
+                            {"spawns": dict(sess["spawns"]), "states": dict(sess["states"])}
+                        )
                     sess["spawns"], sess["actions"], sess["states"] = {}, {}, {}
                 sess["spawns"][role] = pos
             else:

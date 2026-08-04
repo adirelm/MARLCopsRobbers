@@ -126,7 +126,7 @@ stability for a better mean.
 > is too slow to sweep); the one-key-only guarantee is asserted by
 > `tests/unit/test_sensitivity.py::test_make_variant_changes_only_the_one_key`.
 
-## §10 Minimax-Q equilibrium baseline — the L11 §5 self-challenge (the SHIPPED bonus; ex06-§9's inter-group bonus is separate + deferred)
+## §10 Minimax-Q equilibrium baseline — the L11 §5 self-challenge (a SEPARATE bonus from ex06-§9's inter-group match, which was played and won on 2026-08-04 — see README §9)
 
 The deep arms (IQL/VDN/QMIX cops + a self-play Double-DQN thief) play *well* but certify no
 equilibrium (THEORY §3). To close that gap — and the **L11 §5 self-challenge** — `src/marl/baselines/`
@@ -245,7 +245,8 @@ in coordination burden.
 > Reproduce: `uv run python -m src.results.make_figures` (builders:
 > `src/results/plots_extra.py::plot_final_distribution` / `plot_capture_heatmap`); the per-seed
 > numbers above are `aggregate.final_values_by_seed(load_runs("results/runs/history.jsonl"),
-> "capture_rate", algorithm, stage=2)` and the matrix rows are their per-stage means.
+> "capture_rate", algorithm, stage=2, last_k=cfg["results"]["final_window_rounds"])` and the matrix
+> rows are their per-stage means.
 
 ## §12 Exploitability probe — why the greedy §3.5 match is 0–6 while the cop is a ~99% pursuer
 
@@ -290,8 +291,8 @@ superiority.** Injecting small exploration noise into the thief alone recovers c
 monotonically in both committed blocks (8 → 26/25 → 47/45). At ε=0 both policies are bit-identically
 reproducible across runs *and* across RNG seeds (the RNG is consumed every tick but provably
 inert on actions), so each start position replays one fixed greedy escape trajectory — **distinct
-per seed** (the 6 match seeds give 5 distinct sequences — seeds 7 and 8 happen to coincide — and one
-of them is even captured), sharing a
+per seed** (the 6 match seeds give 5 distinct sequences — seeds 7 and 8 happen to coincide, and
+NONE of the six is captured, consistent with the 30-60 match result above), sharing a
 left/right-oscillation motif — that exploits *this specific cop's* deterministic greedy
 responses. One tick-level illustration from the development probe (a session observation, not a
 committed artifact): on actual match seed 7, a single ε=0.10 deviation at tick 14 flipped a

@@ -99,3 +99,84 @@ def test_scores_that_do_not_follow_from_the_winner_are_rejected(real_match, tmp_
     body["sub_games"][0]["scores"] = {"cop": 99, "thief": 0}
     with pytest.raises(ReplayMismatchError):
         replay_match(cfg, log, _write(tmp_path, body))
+
+
+def test_deleting_the_groups_block_does_not_disable_the_role_check(real_match, tmp_path) -> None:
+    """One deleted key used to switch the whole alternation fix off.
+
+    The first version treated a missing ``groups`` as "a redacted copy carries no identity"
+    and returned early. That rationale was empirically wrong — redaction strips the student
+    blocks and repo URLs and always keeps ``groups`` — and it meant deleting one key plus
+    swapping the roles published a 40-60 loss as a 60-40 win, against an untouched log.
+    """
+    cfg, log, body = real_match
+    body.pop("groups")
+    for game in body["sub_games"]:
+        game["cop_group"], game["thief_group"] = game["thief_group"], game["cop_group"]
+    with pytest.raises(ReplayMismatchError, match="no 'groups' block"):
+        replay_match(cfg, log, _write(tmp_path, body))
+
+
+def test_deleting_the_role_fields_does_not_satisfy_the_role_check(real_match, tmp_path) -> None:
+    """``record.get(field, expected)`` made absent compare EQUAL to correct — vacuous."""
+    cfg, log, body = real_match
+    for game in body["sub_games"]:
+        game.pop("cop_group")
+        game.pop("thief_group")
+    with pytest.raises(ReplayMismatchError, match="alternation"):
+        replay_match(cfg, log, _write(tmp_path, body))
+
+
+def test_the_groups_block_is_bound_to_the_agreement_not_to_itself(real_match, tmp_path) -> None:
+    """Swapping ``groups`` AND every role together is internally consistent — and a forgery.
+
+    The names now come from the frozen agreement in config, so §9.1 is checked against what
+    the two groups agreed, not against a mapping the body declares about itself. On a lost
+    match this edit would otherwise manufacture a win.
+    """
+    cfg, log, body = real_match
+    body["groups"] = {"group_1": body["groups"]["group_2"], "group_2": body["groups"]["group_1"]}
+    for game in body["sub_games"]:
+        game["cop_group"], game["thief_group"] = game["thief_group"], game["cop_group"]
+    with pytest.raises(ReplayMismatchError, match="jointly frozen agreement"):
+        replay_match(cfg, log, _write(tmp_path, body))
+
+
+def test_fabricated_totals_are_rejected(real_match, tmp_path) -> None:
+    """``totals_by_group`` is the published margin and was verified by NOTHING here.
+
+    The SEND path re-derived it, but the replay is the command offered to a grader and the
+    opposing group as §9.3 evidence, and it is what runs against a fresh clone's artifact.
+    """
+    cfg, log, body = real_match
+    body["totals_by_group"] = dict.fromkeys(body["totals_by_group"], 0)
+    with pytest.raises(ReplayMismatchError, match="totals_by_group"):
+        replay_match(cfg, log, _write(tmp_path, body))
+
+
+def test_a_claim_that_contradicts_its_own_totals_is_rejected(real_match, tmp_path) -> None:
+    """Publishing the loser's totals with the winner's claim must not survive."""
+    cfg, log, body = real_match
+    ours, theirs = body["groups"]["group_1"], body["groups"]["group_2"]
+    body["totals_by_group"] = {ours: 40, theirs: 60}
+    with pytest.raises(ReplayMismatchError):
+        replay_match(cfg, log, _write(tmp_path, body))
+
+
+def test_a_body_that_is_not_a_bonus_game_is_rejected(real_match, tmp_path) -> None:
+    """Envelope fields that carry meaning but no arithmetic were unchecked on this path."""
+    cfg, log, body = real_match
+    body["report_type"] = "not_a_bonus_game"
+    with pytest.raises(ReplayMismatchError, match="report_type"):
+        replay_match(cfg, log, _write(tmp_path, body))
+
+
+def test_a_sub_game_that_ends_before_it_starts_is_rejected(real_match, tmp_path) -> None:
+    """Its own test, not a second block: the fixture body is ONE object per test, so a
+    second scenario in the same function would inherit the first one's mutation and pass
+    for the wrong reason."""
+    cfg, log, body = real_match
+    body["sub_games"][0]["start"] = "2027-01-01T00:00:00+02:00"
+    body["sub_games"][0]["end"] = "2019-01-01T00:00:00+02:00"
+    with pytest.raises(ReplayMismatchError, match="precedes start"):
+        replay_match(cfg, log, _write(tmp_path, body))
