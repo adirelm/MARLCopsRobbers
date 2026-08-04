@@ -10,6 +10,8 @@ Every test here reproduces an artifact that passed a full ``replay_match`` befor
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from src.mcp._replay_log import ReplayMismatchError
@@ -110,4 +112,70 @@ def test_a_sub_game_that_ends_before_it_starts_is_rejected(real_match, write_bod
     body["sub_games"][0]["start"] = "2027-01-01T00:00:00+02:00"
     body["sub_games"][0]["end"] = "2019-01-01T00:00:00+02:00"
     with pytest.raises(ReplayMismatchError, match="precedes start"):
+        replay_match(cfg, log, write_body(body))
+
+
+def test_duplicate_sub_game_ids_are_rejected(real_match, write_body) -> None:
+    """BLOCKER: the id map collapses duplicates, the totals sum the raw list.
+
+    That split published our 60-40 win as an 80-70 LOSS through the documented grader
+    command, against a completely untouched log. Putting the forged clone FIRST means the
+    id-keyed map keeps the honest record, so every per-record check and the whole
+    move-by-move replay see a pristine six-game match — while the clone still counts in
+    ``totals_by_group``, where nothing looked at its roles, winner or scores.
+
+    Checked as length-vs-length rather than by scanning for repeated literals, because
+    ``int(r["id"])`` also aliases "01", " 1 " and 1.0 onto the same key.
+    """
+    cfg, log, body = real_match
+    clone = json.loads(json.dumps(body["sub_games"][0]))
+    clone["cop_group"], clone["thief_group"] = clone["thief_group"], clone["cop_group"]
+    body["sub_games"] = [clone, json.loads(json.dumps(clone)), *body["sub_games"]]
+    group_1, group_2 = body["groups"]["group_1"], body["groups"]["group_2"]
+    totals = dict.fromkeys((group_1, group_2), 0)
+    for game in body["sub_games"]:
+        totals[game["cop_group"]] += int(game["scores"]["cop"])
+        totals[game["thief_group"]] += int(game["scores"]["thief"])
+    body["totals_by_group"] = totals  # made self-consistent, so only the id split gives it away
+    high, low = (group_1, group_2) if totals[group_1] > totals[group_2] else (group_2, group_1)
+    body["bonus_claim"] = {high: 10, low: 7}
+    with pytest.raises(ReplayMismatchError, match="distinct ids"):
+        replay_match(cfg, log, write_body(body))
+
+
+def test_timestamps_are_compared_as_instants_not_strings(real_match, write_body) -> None:
+    """A comment claimed ISO-8601 sorts lexicographically. It does not across offsets.
+
+    ``10:00+09:00`` sorts AFTER ``09:00+03:00`` while being five hours earlier, so a
+    sub-game that genuinely ended before it started passed the string comparison.
+    """
+    cfg, log, body = real_match
+    body["sub_games"][0]["start"] = "2026-08-04T09:00:00+03:00"  # 06:00Z
+    body["sub_games"][0]["end"] = "2026-08-04T10:00:00+09:00"  # 01:00Z — five hours EARLIER
+    with pytest.raises(ReplayMismatchError, match="precedes start"):
+        replay_match(cfg, log, write_body(body))
+
+
+def test_the_match_may_not_run_backwards(real_match, write_body) -> None:
+    """Per-sub-game order was checked; the sequence across sub-games was not."""
+    cfg, log, body = real_match
+    body["sub_games"][-1]["start"] = "2020-01-01T00:00:00+03:00"
+    body["sub_games"][-1]["end"] = "2020-01-01T00:00:10+03:00"
+    with pytest.raises(ReplayMismatchError, match="cannot run backwards"):
+        replay_match(cfg, log, write_body(body))
+
+
+def test_a_missing_timestamp_is_a_verdict_not_a_crash(real_match, write_body) -> None:
+    """Indexing raised a bare KeyError, escaping the ReplayMismatchError contract."""
+    cfg, log, body = real_match
+    body["sub_games"][0].pop("start")
+    with pytest.raises(ReplayMismatchError, match="no 'start' timestamp"):
+        replay_match(cfg, log, write_body(body))
+
+
+def test_published_scalars_must_already_be_ints(real_match, write_body) -> None:
+    """Coercing first let a body DISPLAY a number it was never checked at ("60", 60.99)."""
+    cfg, log, body = real_match
+    body["totals_by_group"] = {k: str(v) for k, v in body["totals_by_group"].items()}
+    with pytest.raises(ReplayMismatchError, match="not an int"):
         replay_match(cfg, log, write_body(body))

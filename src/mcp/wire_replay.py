@@ -94,6 +94,16 @@ def replay_match(
     sessions = parse_wire_log(log_path)
     published = json.loads(Path(records_path).read_text(encoding="utf-8"))
     records = {int(r["id"]): r for r in published["sub_games"]}
+    # The id map COLLAPSES duplicates; the totals are summed over the raw LIST. That split is
+    # exploitable: put a forged clone FIRST and the map keeps the honest record, so every
+    # per-record check and the whole move replay see a pristine match, while the clone still
+    # counts in totals_by_group. Verified — two role-swapped clones of our only cop win
+    # published a 60-40 win as an 80-70 loss and the replay reported all six verified.
+    if len(records) != len(published["sub_games"]):
+        raise ReplayMismatchError(
+            f"the body lists {len(published['sub_games'])} sub-games but only {len(records)} "
+            f"distinct ids — duplicate ids collapse in the id map yet still count in the totals"
+        )
     # FIRST: the records carry DERIVED fields the move-replay can never see — the id set, who
     # played cop, the Table-1 row. Ordered ahead of the log/records comparison because a match
     # missing a sub-game fails BOTH, and "the ids are not 1..6" names the defect while "log

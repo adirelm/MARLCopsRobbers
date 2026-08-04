@@ -15,8 +15,25 @@ from ``sub_games`` alone and never looks at a student block.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from src.mcp._replay_log import ReplayMismatchError
 from src.reporting.bonus import derive_bonus_claim, derive_totals_by_group
+
+
+def _as_ints(published_map: dict | None, label: str) -> dict:
+    """Return the map with int values, REFUSING anything that is not already an int.
+
+    Coercing first let a body publish "60" or 60.99 and compare equal to 60 — it then
+    displays a number it was never actually checked at. bool is excluded explicitly
+    because it is an int subclass in Python.
+    """
+    out = {}
+    for key, value in (published_map or {}).items():
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ReplayMismatchError(f"{label}[{key!r}] = {value!r} is {type(value).__name__}, not an int")
+        out[str(key)] = value
+    return out
 
 
 def verify_published_outcome(cfg: dict, published: dict, group_names: tuple[str, str]) -> None:
@@ -31,14 +48,14 @@ def verify_published_outcome(cfg: dict, published: dict, group_names: tuple[str,
     """
     group_1, group_2 = group_names
     want_totals = derive_totals_by_group(published["sub_games"], group_1, group_2)
-    got_totals = {str(k): int(v) for k, v in (published.get("totals_by_group") or {}).items()}
+    got_totals = _as_ints(published.get("totals_by_group"), "totals_by_group")
     if got_totals != want_totals:
         raise ReplayMismatchError(
             f"totals_by_group {got_totals} != the totals derived from the sub-games "
             f"{want_totals} — the published margin is not the one the match produced"
         )
     want_claim = derive_bonus_claim(want_totals, cfg["game"]["bonus_claim"])
-    got_claim = {str(k): int(v) for k, v in (published.get("bonus_claim") or {}).items()}
+    got_claim = _as_ints(published.get("bonus_claim"), "bonus_claim")
     if got_claim != want_claim:
         raise ReplayMismatchError(
             f"bonus_claim {got_claim} != the §9.2 claim derived from the totals {want_claim}"
@@ -62,8 +79,30 @@ def verify_body_metadata(published: dict) -> None:
     """
     if (kind := published.get("report_type")) != "bonus_game":
         raise ReplayMismatchError(f"report_type {kind!r} != 'bonus_game' — this is not a §9.4 body")
+    previous_end = None
     for game in published["sub_games"]:
-        if str(game["end"]) < str(game["start"]):  # ISO-8601 with offset sorts lexicographically
+        # Compared as INSTANTS, not strings. The first version said "ISO-8601 with offset sorts
+        # lexicographically" — which is false the moment two offsets differ, and the comment
+        # asserting it was the reason nobody checked. 10:00+09:00 sorts after 09:00+03:00 while
+        # being five hours EARLIER, so an inverted pair passed.
+        moment = {}
+        for field in ("start", "end"):
+            if field not in game:
+                raise ReplayMismatchError(f"sub-game {game.get('id')}: no {field!r} timestamp")
+            try:
+                moment[field] = datetime.fromisoformat(str(game[field]))
+            except ValueError as exc:  # a bare KeyError/ValueError escapes the error contract
+                raise ReplayMismatchError(
+                    f"sub-game {game.get('id')}: {field}={game[field]!r} is not ISO-8601"
+                ) from exc
+        if moment["end"] < moment["start"]:
             raise ReplayMismatchError(
                 f"sub-game {game['id']}: end {game['end']!r} precedes start {game['start']!r}"
             )
+        # Sub-games are played in sequence by one referee, so the match must move forward too.
+        if previous_end is not None and moment["start"] < previous_end:
+            raise ReplayMismatchError(
+                f"sub-game {game['id']} starts at {game['start']!r}, before the previous "
+                f"sub-game ended — a match cannot run backwards"
+            )
+        previous_end = moment["end"]
