@@ -139,12 +139,12 @@ def test_f1_thief_escape_caption_matches_the_plotted_curve() -> None:
 
     endpoints, floor = {}, 1.0
     for algo in ("qmix", "vdn", "iql"):
-        xs, ys, _ = curve(recs, "capture_rate", algo, stage, "thief")
+        _xs, ys, _se = curve(recs, "capture_rate", algo, stage, "thief")
         if not ys:
             continue
         escape = [1.0 - y for y in ys]
         endpoints[algo] = escape[-1]
-        floor = min(floor, min(escape))
+        floor = min(floor, *escape)
 
     caption = _README.read_text(encoding="utf-8")
     claimed = re.search(r"escape rate settles at \*\*([\d.]+) \(QMIX\) / ([\d.]+) \(VDN=IQL\)\*\*", caption)
