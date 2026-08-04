@@ -59,12 +59,24 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
             if entry["url"].endswith("/new_sub_game"):
                 role, pos = payload["your_role"], tuple(payload["your_pos"])
                 retry = sess["spawns"].get(role) == pos and not sess["actions"] and not sess["states"]
-                if role in sess["spawns"] and not retry:  # void re-hello: last run wins
-                    # COUNTED, not just applied: P7 only permits a spare seed after
-                    # max_void_replays consecutive voids, and without a count there is no
-                    # evidence to hold a spare against — a referee could play a favourable
-                    # spare and simply log no voids.
-                    sess["voids"] += 1
+                if role in sess["spawns"] and not retry:  # re-hello: last run wins
+                    # A void is counted ONLY when the superseded attempt actually STARTED —
+                    # i.e. it logged at least one request_move. P7's void amendment is about
+                    # a technical void DURING a sub-game (§3.7); a re-hello with nothing
+                    # behind it is the P8 idempotent hello retry, not an escalation.
+                    #
+                    # This is the difference between evidence and assertion. Counting every
+                    # re-hello made the escalation budget payable in counterfeit: three bare
+                    # hello lines — no response, no move, no fault — minted three voids and
+                    # unlocked any spare seed (verified before the fix). Requiring a logged
+                    # request_move raises the price to a payload that must survive
+                    # verify_tick against the seeded env. Absence of evidence cannot be the
+                    # evidence, because omitting lines is free.
+                    #
+                    # Deliberately conservative: under-counting voids only makes a spare
+                    # HARDER to justify, which is the safe direction for a tamper check.
+                    if sess["states"]:
+                        sess["voids"] += 1
                     sess["spawns"], sess["actions"], sess["states"] = {}, {}, {}
                 sess["spawns"][role] = pos
             else:
@@ -90,6 +102,11 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
             if "session_id" in sub and "seed" in sub:  # the referee's EXACT per-run seed (last wins)
                 sess = sessions.setdefault(sub["session_id"], _new_session())
                 sess["seed"] = int(sub["seed"])
+                # Keep the OUTCOME too, not just the seed. It was read for the seed alone,
+                # so a log could state one winner while the published records stated another
+                # and the replay still reported success — two claims by the same referee
+                # about the same sub-game, never held against each other.
+                sess["result"] = {k: sub[k] for k in ("winner", "moves", "scores") if k in sub}
     return sessions
 
 

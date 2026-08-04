@@ -46,6 +46,20 @@ def verify_escalation_budget(cfg: dict, seeds_played: list[int], total_voids: in
             f"consecutive voids each, but the log shows {total_voids} void re-hello(s) "
             f"in total — the escalation was never paid for"
         )
+    # ...and a CEILING, because a floor alone permits unlimited same-seed re-rolls. The live
+    # SeedSchedule FORCES escalation on the n-th consecutive void and zeroes its counter, so
+    # a sub-game can carry at most needed-1 voids without moving to a spare. A log claiming
+    # 8 voids on the base seeds and no escalation describes a match the referee cannot have
+    # played — which is exactly what "replay the same layout until you like the result"
+    # looks like in a log.
+    ceiling = needed * used + (needed - 1) * len(seeds_played)
+    if total_voids > ceiling:
+        raise ReplayMismatchError(
+            f"log shows {total_voids} void re-hello(s) across {len(seeds_played)} sub-game(s) "
+            f"with {used} spare(s) resolved, but P7 forces escalation every {needed} "
+            f"consecutive voids, so at most {ceiling} are reachable — the extra voids "
+            f"describe re-rolls that never escalated"
+        )
     return used
 
 

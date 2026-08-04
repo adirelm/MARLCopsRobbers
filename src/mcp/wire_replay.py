@@ -21,6 +21,7 @@ from src.marl.env.actions import Action
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.env.scorer import Scorer
 from src.mcp._replay_log import ReplayMismatchError, gid_of, ordered_actions, parse_wire_log
+from src.mcp._replay_records import verify_record_scores, verify_record_structure, verify_result_event
 from src.mcp._replay_verify import verify_escalation_budget, verify_tick
 from src.mcp.wire_screens import mid_frame_index, save_screens  # noqa: F401 — re-export (150-LOC split)
 
@@ -109,15 +110,28 @@ def replay_sub_game(cfg: dict, sid: str, sess: dict, record: dict, totals: dict)
     return frames, {"gid": gid, "seed": seed, **got}
 
 
-def replay_match(cfg: dict, log_path: str | Path, records_path: str | Path) -> list[dict]:
-    """Replay every logged sub-game against the records; return per-game frames + summaries."""
+def replay_match(
+    cfg: dict, log_path: str | Path, records_path: str | Path, full_match: bool = True
+) -> list[dict]:
+    """Replay every logged sub-game against the records; return per-game frames + summaries.
+
+    ``full_match`` asserts these artifacts ARE a complete §9.1 match (all
+    ``game.num_games`` ids). Only unit tests that replay a deliberate subset pass False.
+    """
     sessions = parse_wire_log(log_path)
-    body = json.loads(Path(records_path).read_text(encoding="utf-8"))["sub_games"]
-    records = {int(r["id"]): r for r in body}
+    published = json.loads(Path(records_path).read_text(encoding="utf-8"))
+    records = {int(r["id"]): r for r in published["sub_games"]}
+    # FIRST: the records carry DERIVED fields the move-replay can never see — the id set, who
+    # played cop, the Table-1 row. Ordered ahead of the log/records comparison because a match
+    # missing a sub-game fails BOTH, and "the ids are not 1..6" names the defect while "log
+    # sub-games != record ids" only says the two agree on being wrong together.
+    verify_record_structure(cfg, records, published.get("groups"), full_match)
     if sorted(gid_of(s) for s in sessions) != sorted(records):
         raise ReplayMismatchError(f"log sub-games {sorted(sessions)} != record ids {sorted(records)}")
     replays, totals = [], dict.fromkeys(_ROLES, 0)
     for sid in sorted(sessions, key=gid_of):
+        verify_record_scores(cfg, gid_of(sid), records[gid_of(sid)])
+        verify_result_event(sid, sessions[sid], records[gid_of(sid)])
         frames, summary = replay_sub_game(cfg, sid, sessions[sid], records[gid_of(sid)], totals)
         replays.append({**summary, "frames": frames})
         for role in _ROLES:

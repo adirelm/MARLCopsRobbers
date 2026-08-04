@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (1013 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (1020 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (1013 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (1020 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -596,6 +596,19 @@ simultaneous + swap-capture resolution and reached identical winners and move co
 §5 byte-compare was done by exchanging a `sha256` of the canonicalised
 `sub_games`/`totals_by_group`/`bonus_claim` — `1261` bytes, `b15848a2…1dd58` — identical on
 both sides, so neither group saw the other's file before building its own.
+
+**What a clean replay does and does not prove.** Stated because the two halves above are not
+redundant, and an audit of our own verifier showed why. `replay_wire_match.py` proves that
+*this* log and *these* records describe the same self-consistent match under the frozen
+seeds: every tick's position, every P5-masked payload, the P7 seed each sub-game was played
+on, the §9.1 role alternation, the §3.4 score row, and that the log's own result events
+agree with the published body. It cannot prove the counterparty — nothing cryptographically
+binds a logged reply to the server that sent it, so a wholly fabricated but self-consistent
+match would replay clean by construction. That gap is exactly what the independent
+byte-compare closes: `biu-azri` built their draft from their own logs without seeing ours.
+Neither check is sufficient alone; together they cover both failure modes. An adversarial
+pass built tampered artifacts for each check and confirmed all of them are now rejected
+(`tests/unit/test_replay_records_bind.py`, `tests/unit/test_replay_spare_seed.py`).
 
 **Evidence:** shareable per-request log
 [`results/wire_match/wire_log_20260804T002124.jsonl`](results/wire_match/wire_log_20260804T002124.jsonl);

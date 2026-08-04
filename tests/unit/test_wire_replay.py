@@ -107,13 +107,19 @@ def test_illegal_thief_action_and_gapped_ticks_raise():
 
 
 def test_records_session_count_mismatch_raises(tmp_path):
+    """A records file short of the §9.1 match size is rejected before anything is replayed.
+
+    Now caught by the completeness check rather than the log-vs-records comparison, which is
+    the more specific answer: dropping a record makes the id set wrong, and that is true of
+    the records alone — no log needed to see it.
+    """
     cfg = rehearsal_cfg()
     log, records_path = rehearsal_paths()
     body = json.loads(records_path.read_text(encoding="utf-8"))
     body["sub_games"] = body["sub_games"][:5]  # drop one record: 6 sessions vs 5 records
     short = tmp_path / "short.json"
     short.write_text(json.dumps(body), encoding="utf-8")
-    with pytest.raises(ReplayMismatchError, match="record ids"):
+    with pytest.raises(ReplayMismatchError, match="sub-game ids"):
         replay_match(cfg, log, short)
 
 
