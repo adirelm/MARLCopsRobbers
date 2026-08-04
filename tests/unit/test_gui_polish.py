@@ -75,10 +75,26 @@ def test_board_is_not_flush_with_the_window_bottom() -> None:
 
 
 def test_board_still_clears_the_hud() -> None:
-    """The margin must not be bought by sliding the board up under the HUD text."""
-    top = hud_height(_frame(max_barriers=5))
-    view = GridView(720, 560, 5, 5, top_reserved=top)
-    assert view.cell_rect(0, 0)[1] >= top
+    """The margin must not be bought by sliding the board up under the HUD TEXT.
+
+    Measured against the rendered text, not against hud_height's own return value. The
+    previous version fed hud_height() in as ``top_reserved`` and then asserted the board
+    started below that same number — which GridView guarantees by construction, so it
+    passed for any hud_height at all, including one that under-reserved and let the board
+    paint over the last HUD line.
+    """
+    import pygame  # noqa: PLC0415 - the gui extra; this assertion needs real font metrics
+
+    pygame.init()
+    font = pygame.font.Font(None, palette.FONT_PX + 6)
+    frame = _frame(max_barriers=5)
+    text_bottom = max(
+        op["pos"][1] + font.size(op["text"])[1] for op in build_hud_plan(frame) if op["kind"] == "text"
+    )
+    view = GridView(palette.WINDOW_W, palette.WINDOW_H, 5, 5, top_reserved=hud_height(frame))
+    assert view.cell_rect(0, 0)[1] >= text_bottom, (
+        f"board starts at y={view.cell_rect(0, 0)[1]} but HUD text runs to y={text_bottom}"
+    )
 
 
 def test_window_size_has_a_single_source() -> None:

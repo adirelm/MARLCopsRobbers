@@ -66,3 +66,27 @@ def test_thief_seen_by_any_cop() -> None:
     """One cop in range is enough — the team shares observations at execution boundaries."""
     frame = _frame(cop_positions=((4, 4), (0, 1)), thief_position=(0, 0))
     assert thief_is_seen(frame)
+
+
+def test_thief_is_seen_agrees_with_the_halo_it_is_drawn_against() -> None:
+    """The ghosting predicate and the lit halo must never disagree.
+
+    They are computed by two different functions over the same frame. If they drift, the
+    board shows a thief standing INSIDE the lit knowledge disk while rendered as unseen —
+    the agent view then asserts the opposite of what it depicts, and nothing caught it
+    because neither function was tested against the other.
+    """
+    for cop in ((0, 0), (2, 2), (4, 4)):
+        for tr in range(5):
+            for tc in range(5):
+                frame = _frame(cop_positions=(cop,), thief_position=(tr, tc))
+                assert thief_is_seen(frame) == ((tr, tc) in set(halo_cells(frame))), (
+                    f"cop={cop} thief=({tr},{tc}): seen={thief_is_seen(frame)} "
+                    f"but in-halo={(tr, tc) in set(halo_cells(frame))}"
+                )
+
+
+def test_the_agreement_holds_for_a_multi_cop_team() -> None:
+    """Both sides take the UNION over cops — check they take the same union."""
+    frame = _frame(cop_positions=((0, 0), (4, 4)), thief_position=(1, 1))
+    assert thief_is_seen(frame) is ((1, 1) in set(halo_cells(frame)))

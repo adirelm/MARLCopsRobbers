@@ -77,3 +77,21 @@ def test_no_launcher_hardcodes_the_cop_count():
         source = (root / rel).read_text(encoding="utf-8")
         assert "num_cops=1" not in source, f"{rel} hardcodes the cop count"
         assert 'cfg["env"]["num_cops"]' in source, f"{rel} does not read env.num_cops"
+
+
+def test_the_two_view_radius_config_sources_agree():
+    """The referee masks with ``mcp.observation.view_radius``; its replay verifier reads
+    ``env.view_radius_by_grid``. One value, two keys — if they ever diverge the verifier
+    checks a DIFFERENT mask than the referee produced, so an honest log would be rejected
+    (or a wider-radius leak accepted) with no other symptom.
+    """
+    from src.marl.env.observation import view_radius  # noqa: PLC0415
+    from src.utils.config_loader import load_config  # noqa: PLC0415
+
+    cfg = load_config()
+    grid = int(cfg["game"]["grid_size"])
+    referee = int(cfg["mcp"]["observation"]["view_radius"])
+    verifier = int(view_radius(grid, grid, cfg))
+    assert referee == verifier, (
+        f"mcp.observation.view_radius={referee} but env.view_radius_by_grid[{grid}]={verifier}"
+    )
