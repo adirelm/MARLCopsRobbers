@@ -70,9 +70,21 @@ def run_sensitivity(  # noqa: PLR0913 — factory + cfg + swept values + seeds +
 
 
 def aggregate_sensitivity(records: list[dict]) -> dict[int, tuple[float, float]]:
-    """Cross-seed mean±SE of the final capture rate per swept value (for the figure)."""
-    by_value: dict[int, list[float]] = defaultdict(list)
+    """Cross-seed mean±SE of the final capture rate per swept value (for the figure).
+
+    De-duplicated by the semantic key ``(param, value, algorithm, seed, stage)`` keeping
+    the LAST record — the same convention :func:`src.results.aggregate.load_runs` already
+    applies to the run history, and for the same reason. The sweep script APPENDS, so
+    re-running the documented reproduce command silently doubled every arm and pulled the
+    aggregate toward a mixture of two code revisions: exactly the drift the "Reproduce:"
+    line is supposed to let a reader detect.
+    """
+    latest: dict[tuple, dict] = {}
     for rec in records:
+        key = (rec.get("param"), rec["value"], rec.get("algorithm"), rec.get("seed"), rec.get("stage"))
+        latest[key] = rec
+    by_value: dict[int, list[float]] = defaultdict(list)
+    for rec in latest.values():
         by_value[rec["value"]].append(rec["final_capture_rate"])
     out = {}
     for value, caps in by_value.items():

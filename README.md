@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (988 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (990 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (988 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (990 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -359,8 +359,10 @@ IQL), while the thief's loss rises late as the cop stops being easy to predict.*
 
 ![Sensitivity](results/figures/sensitivity_view_radius.png)
 *V3-§9 sensitivity — final capture vs the 4×4 execution view radius (1 vs 2) with everything else
-pinned: more observability did **not** clearly help at this budget (means close, ~4× the SE) —
-see [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §9.*
+pinned. Radius 2 wins the mean (**0.83 vs 0.75**) and pays ~**4×** the SE (±0.168 vs ±0.042):
+two of its three seeds essentially solve the board, the third stalls. "See more" is not free —
+it buys performance with stability. See [`docs/ANALYSIS.md`](docs/ANALYSIS.md) §9, which also
+records why an earlier revision of this table concluded the opposite.*
 
 ![F7 Minimax-Q](results/figures/minimax_q.png)
 *F7 (L11 §5 bonus) — tabular Minimax-Q on the 3×3 zero-sum pursuit: the certified game value

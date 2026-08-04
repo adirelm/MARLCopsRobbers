@@ -96,18 +96,31 @@ from the IQL/VDN/QMIX ablation (which swaps the *algorithm*). `scripts/sensitivi
 
 | 4×4 view radius | final capture (mean ± SE, 3 seeds) |
 |---|---|
-| 1 (3×3 window — partial) | **0.713 ± 0.073** |
-| 2 (5×5 window — covers the 4×4 board) | 0.670 ± 0.315 |
+| 1 (3×3 window — partial) | 0.750 ± 0.042 |
+| 2 (5×5 window — covers the 4×4 board) | **0.827 ± 0.168** |
 
-**Finding (honest, possibly counterintuitive).** Capture is genuinely *sensitive* to the
-view radius — but **more observability did NOT clearly help** at the 50-round budget: the
-means are close (0.71 vs 0.67) yet radius 2's SE is **~4× larger** (±0.32 vs ±0.07).
-The wider window is mostly out-of-bounds padding on a 4×4 board and enlarges the encoder's
-effective input, so it is harder to learn *stably* within budget (the high SE = some seeds
-converge, some stall) — the same monotonic-mixer instability story as F5, now driven by
-observation size rather than mixer richness. With only 3 seeds this is a directional
-result, not a tight estimate; the takeaway is that the model is view-radius-sensitive and
-that "see more" is **not free** — it trades a marginal mean for markedly worse stability.
+**Finding: more observability buys mean performance and pays for it in variance.**
+Radius 2 leads on the mean (0.83 vs 0.75, +0.08) but its SE is **~4× larger**
+(±0.168 vs ±0.042) — the individual seeds are 0.99 / 0.49 / 1.00 against a tight
+0.69 / 0.73 / 0.83. Two of three radius-2 seeds essentially solve the board while the
+third stalls near chance; every radius-1 seed lands in a narrow band. The wider window is
+largely out-of-bounds padding on a 4×4 board and enlarges the encoder's effective input,
+so it is harder to learn *stably* within a 50-round budget — the same instability story as
+F5, driven by observation size rather than mixer richness. With 3 seeds this is a
+directional result, not a tight estimate; the durable takeaway is that the model is
+view-radius-**sensitive** and that "see more" is **not free** — it trades markedly worse
+stability for a better mean.
+
+> **Provenance correction (2026-08-04).** An earlier version of this table read
+> 0.713 ± 0.073 / 0.670 ± 0.315 and concluded that more observability did *not* help. Those
+> numbers were generated before commit `165cd7a` made `PLACE_BARRIER` illegal while the cop
+> already stands on a barrier. That change was annotated "behaviour-neutral on the SHIPPED
+> nets" — true for the greedy served policy, but **not** for ε-greedy training, where the
+> altered mask shifts ~16% of cop action-legality decisions and therefore every trajectory.
+> The arm has been re-run at HEAD and the table above is the reproduced result; the mean
+> ORDERING reverses, while the ~4× SE gap survives unchanged. Flagged rather than quietly
+> swapped, because a reader of the earlier revision drew the opposite conclusion from
+> honestly-produced numbers.
 
 > Reproduce: `uv run python scripts/sensitivity_sweep.py` (4×4 used because 5×5 training
 > is too slow to sweep); the one-key-only guarantee is asserted by
