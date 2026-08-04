@@ -14,7 +14,6 @@ import json
 import pytest
 
 from src.mcp._replay_log import ReplayMismatchError, parse_wire_log
-from src.mcp._replay_verify import verify_escalation_budget, verify_session_voids
 from src.mcp.wire_replay import replay_match
 from src.utils.config_loader import load_config
 from tests.unit._synthetic_wire import records_body, synth_session
@@ -147,31 +146,31 @@ def test_a_garbage_request_move_cannot_mint_a_void(tmp_path) -> None:
         replay_match(cfg, log, recs, full_match=False)
 
 
-def test_a_base_seed_sub_game_may_not_be_re_rolled(tmp_path) -> None:
-    """The match-wide ceiling could not stop CONCENTRATED re-rolls of one sub-game.
+def test_a_void_attempt_with_a_wrong_tick_zero_payload_is_rejected(tmp_path) -> None:
+    """Correct spawns are not enough — the attempt's tick 0 must verify against the env.
 
-    With no spare resolved a 6-game match had 12 match-wide voids to spend, and all 12 could
-    land on the single sub-game that decided the match — "replay this layout until we win
-    it". SeedSchedule forces a spare on the n-th consecutive void, so a sub-game that still
-    resolves to its BASE seed provably never reached n.
+    Found by mutation testing: neutering the ``verify_tick`` call inside the void path left
+    every test green, because the spawn match alone already rejected the garbage payload.
+    So the deeper check was live code with nothing behind it. Here the spawns are GENUINE
+    (copied from a real seeded opening) and only the P5 masking is wrong — which is what an
+    attacker who bothered to read the config would produce.
     """
     cfg = load_config()
-    pair, _spares, needed = _seeds(cfg)
-    assert verify_session_voids(cfg, "sg-0", needed - 1, pair[0]) is None  # legal, still allowed
-    for voids in (needed, needed + 5, 4 * needed):
-        with pytest.raises(ReplayMismatchError, match="BASE seed"):
-            verify_session_voids(cfg, "sg-0", voids, pair[0])
-
-
-def test_an_honest_seed_schedule_trace_is_not_rejected() -> None:
-    """REGRESSION: the first ceiling FALSE-POSITIVED a legal match, which is worse than a hole.
-
-    Driving the real SeedSchedule through 2 voids on each of six sub-games plus one genuine
-    3-void escalation yields 17 voids — legal at every step — and the first formula allowed
-    only 15. It missed that escalation RE-QUEUES an already-played base game, adding a
-    result-run it never counted. The bound is now derived from the spares actually available.
-    """
-    cfg = load_config()
-    pair, spares, _needed = _seeds(cfg)
-    played = [spares[0], pair[1], pair[2], pair[0], pair[1], pair[2]]
-    assert verify_escalation_budget(cfg, played, 17) == 1
+    _pair, spares, needed = _seeds(cfg)
+    lines, records = [], []
+    for sid in ("sg-0", "sg-3"):
+        game_lines, record = synth_session(cfg, sid, spares[0], result_event=True, voids=needed)
+        lines += game_lines
+        records.append(record)
+    # Corrupt the P5 masking on the FIRST voided attempt's tick 0 only: opponent_pos is
+    # disclosed when radius-2 masking says it must be withheld.
+    for index, line in enumerate(lines):
+        if '"request_move"' in line or "request_move" in line:
+            entry = json.loads(line)
+            if entry.get("url", "").endswith("/request_move"):
+                entry["payload"]["opponent_pos"] = [0, 0]
+                lines[index] = json.dumps(entry)
+                break
+    log, recs = _write(tmp_path, "voidmask", lines, records)
+    with pytest.raises(ReplayMismatchError, match="void#0"):
+        replay_match(cfg, log, recs, full_match=False)

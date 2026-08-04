@@ -16,7 +16,7 @@ import json
 import pytest
 
 from src.mcp._replay_log import ReplayMismatchError, parse_wire_log
-from src.mcp._replay_verify import verify_escalation_budget
+from src.mcp._replay_verify import verify_escalation_budget, verify_session_voids
 from src.mcp.wire_replay import replay_match
 from src.utils.config_loader import load_config
 from tests.unit._synthetic_wire import records_body, synth_session
@@ -109,3 +109,33 @@ def test_the_parser_counts_void_re_hellos(tmp_path) -> None:
     log = tmp_path / "wire_log_voids.jsonl"
     log.write_text("\n".join(lines) + "\n", encoding="utf-8")
     assert parse_wire_log(log)["sg-0"]["voids"] == needed
+
+
+def test_a_base_seed_sub_game_may_not_be_re_rolled(tmp_path) -> None:
+    """The match-wide ceiling could not stop CONCENTRATED re-rolls of one sub-game.
+
+    With no spare resolved a 6-game match had 12 match-wide voids to spend, and all 12 could
+    land on the single sub-game that decided the match — "replay this layout until we win
+    it". SeedSchedule forces a spare on the n-th consecutive void, so a sub-game that still
+    resolves to its BASE seed provably never reached n.
+    """
+    cfg = load_config()
+    pair, _spares, needed = _seeds(cfg)
+    assert verify_session_voids(cfg, "sg-0", needed - 1, pair[0]) is None  # legal, still allowed
+    for voids in (needed, needed + 5, 4 * needed):
+        with pytest.raises(ReplayMismatchError, match="BASE seed"):
+            verify_session_voids(cfg, "sg-0", voids, pair[0])
+
+
+def test_an_honest_seed_schedule_trace_is_not_rejected() -> None:
+    """REGRESSION: the first ceiling FALSE-POSITIVED a legal match, which is worse than a hole.
+
+    Driving the real SeedSchedule through 2 voids on each of six sub-games plus one genuine
+    3-void escalation yields 17 voids — legal at every step — and the first formula allowed
+    only 15. It missed that escalation RE-QUEUES an already-played base game, adding a
+    result-run it never counted. The bound is now derived from the spares actually available.
+    """
+    cfg = load_config()
+    pair, spares, _needed = _seeds(cfg)
+    played = [spares[0], pair[1], pair[2], pair[0], pair[1], pair[2]]
+    assert verify_escalation_budget(cfg, played, 17) == 1
