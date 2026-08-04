@@ -115,3 +115,44 @@ def test_documented_test_count_matches_the_suite() -> None:
                 if int(claimed) != actual:
                     stale.append(f"{rel}:{number} says {claimed}")
     assert not stale, f"docs advertise a stale test count (suite collects {actual}): " + "; ".join(stale)
+
+
+def test_f1_thief_escape_caption_matches_the_plotted_curve() -> None:
+    """The F1 caption's thief-escape endpoints must come from the curve the panel plots.
+
+    It read "falls back to ~0.25-0.40" while the plotted tail was 0.37 (QMIX) and 0.51
+    (VDN=IQL), with a global minimum of 0.352 — wrong at BOTH ends, and unreachable at the
+    low one. Every neighbouring number in that caption verified exactly, so a reader had no
+    signal this one did not.
+    """
+    from pathlib import Path  # noqa: PLC0415
+
+    from src.results._figure_stages import final_stage  # noqa: PLC0415
+    from src.results.aggregate import curve, load_runs  # noqa: PLC0415
+    from src.utils.config_loader import load_config  # noqa: PLC0415
+
+    cfg = load_config()
+    recs = load_runs(Path(cfg["paths"]["runs_dir"]) / "history.jsonl")
+    if not recs:
+        pytest.skip("run log absent")
+    stage = final_stage(recs)
+
+    endpoints, floor = {}, 1.0
+    for algo in ("qmix", "vdn", "iql"):
+        xs, ys, _ = curve(recs, "capture_rate", algo, stage, "thief")
+        if not ys:
+            continue
+        escape = [1.0 - y for y in ys]
+        endpoints[algo] = escape[-1]
+        floor = min(floor, min(escape))
+
+    caption = _README.read_text(encoding="utf-8")
+    claimed = re.search(r"escape rate settles at \*\*([\d.]+) \(QMIX\) / ([\d.]+) \(VDN=IQL\)\*\*", caption)
+    assert claimed, "F1 caption no longer states per-arm thief-escape endpoints"
+    assert abs(float(claimed.group(1)) - endpoints["qmix"]) < 0.01
+    assert abs(float(claimed.group(2)) - endpoints["vdn"]) < 0.01
+
+    below = re.search(r"never\s*\ndrops below ([\d.]+)", caption) or re.search(
+        r"drops below ([\d.]+)", caption
+    )
+    assert below and float(below.group(1)) <= floor + 0.005, f"claimed floor above the real {floor:.3f}"

@@ -9,7 +9,7 @@ end-of-game **Gmail** report.
 
 > **Status: COMPLETE (v1.2.0 — post-audit hardening; 1.1.0 shipped the Minimax-Q bonus).** All phases P0→P11 are implemented — plus a tabular Minimax-Q
 > equilibrium baseline (the L11 §5 self-challenge bonus; see §7.2 + ANALYSIS §10) — tested
-> (987 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
+> (988 tests, ≥98% coverage, ruff clean, CI green), and the §7 analysis below is fully authored
 > from a real training run. This README is the submission report (brief §7). Design docs:
 > [`docs/PRD.md`](docs/PRD.md), [`docs/PLAN.md`](docs/PLAN.md), [`docs/TODO.md`](docs/TODO.md).
 
@@ -30,7 +30,7 @@ end-of-game **Gmail** report.
 ```bash
 uv sync --extra gui --group dev --group mcp   # uv-only (no pip/conda) — the SAME line CI runs;
                                               #   add --group mail only for the live report send
-uv run pytest tests/ --cov=src   # quality gates (987 tests, ≥85% coverage)
+uv run pytest tests/ --cov=src   # quality gates (988 tests, ≥85% coverage)
 uv run ruff check src/ tests/ scripts/
 uv run ruff format --check src/ tests/ scripts/
 uv run python scripts/check_file_sizes.py   # every .py ≤150 LOC
@@ -289,7 +289,8 @@ together — they are mirror images, and that IS §7.2's non-stationarity made v
 even (~0.51 capture / ~0.42 escape). The thief improves first, peaking at ~0.90 escape around rounds
 11–13 — exactly where the cop's capture rate bottoms out (~0.16–0.29 at rounds 14–16). The cop then
 learns to counter that thief and climbs steadily to **0.82 (QMIX) / 0.70 (VDN=IQL)** by round 48
-while the thief's escape rate falls back to ~0.25–0.40. Neither curve converges monotonically,
+while the thief's escape rate settles at **0.37 (QMIX) / 0.51 (VDN=IQL)** by round 49 — it never
+drops below 0.35 on any arm, so the cop never fully solves the evader. Neither curve converges monotonically,
 because each side's target keeps moving: that alternating best-response oscillation is the point.
 At this 5×5 one-cop final test QMIX is in fact the tightest+highest arm (0.72±0.05) with VDN=IQL (0.61±0.06); the monotonic-mixer instability (R1) is the 4×4 two-cop story (F5/F8), not this one. Train reads global `s`, exec local `o_i`.*
 
