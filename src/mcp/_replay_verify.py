@@ -45,8 +45,18 @@ def _verify_masking(cfg, sid, tick, role, logged, state, env_pos) -> None:  # no
     visibility — verified perfectly clean, which is exactly the cheat the shared log is
     supposed to make impossible.
     """
-    if logged.get("opponent_pos") is None and logged.get("barriers") is None:
-        return  # log predates masking capture; positions are still verified above
+    # The masking fields are REQUIRED, not optional. An earlier version skipped the check
+    # when both were absent, as back-compat for logs predating masking capture — but every
+    # committed log carries them on 100% of payloads, so the hatch protected nothing while
+    # handing a cheater a one-line bypass: strip the two keys on exactly the ticks you are
+    # lying about and the check disappears for those ticks only. Verified exploitable before
+    # removal: stripping them from all 262 request_move payloads made a leaked-position log
+    # verify clean.
+    if "opponent_pos" not in logged or "barriers" not in logged:
+        raise ReplayMismatchError(
+            f"{sid} tick {tick} {role}: request payload is missing the P5 masking fields "
+            "(opponent_pos / barriers) — the log cannot be verified against §9's fairness rule"
+        )
     other = "thief" if role == "cop" else "cop"
     expect = mask_payload(
         sid,

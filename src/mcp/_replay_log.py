@@ -61,8 +61,10 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
                     # withheld what it was supposed to withhold, not merely that positions
                     # advanced legally. Without these a log in which the referee fed its own
                     # agent full board visibility replays perfectly clean.
-                    "opponent_pos": payload.get("opponent_pos"),
-                    "barriers": payload.get("barriers"),
+                    # Copied only when PRESENT: the verifier now treats absence as a
+                    # malformed log, so turning a missing key into None here would silently
+                    # re-open the bypass it closes.
+                    **{k: payload[k] for k in ("opponent_pos", "barriers") if k in payload},
                 }
                 pending[label] = (payload["session_id"], tick, role)
         elif direction == "response" and label in pending:
