@@ -38,7 +38,7 @@ class AgentClient:
     def __init__(  # noqa: PLR0913 — client + retry/label/backoff/timeout/gatekeeper are distinct
         self,
         client: Client,
-        max_retries: int = 3,
+        max_retries: int,
         label: str = "peer",
         backoff_s: float = 0.0,
         timeout_s: float | None = None,

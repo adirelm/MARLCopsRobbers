@@ -74,7 +74,7 @@ def _return_curves(cfg: dict, fig_dir: Path) -> list[str]:
     ]
 
 
-def _variety_figures(records: list[dict], stage: int, fig_dir: Path) -> list[str]:
+def _variety_figures(records: list[dict], stage: int, fig_dir: Path, last_k: int) -> list[str]:
     """V3 §9.3 chart variety: the BOX (per-seed spread) + HEATMAP (algorithm x stage) figures.
 
     Each is SKIPPED — never faked — when the log lacks its data: the box plot needs at least
@@ -82,11 +82,12 @@ def _variety_figures(records: list[dict], stage: int, fig_dir: Path) -> list[str
     """
     algos = {rec["algorithm"] for rec in records}
     saved = []
-    if any(final_values_by_seed(records, "capture_rate", a, stage) for a in algos):
-        out = plot_final_distribution(records, "capture_rate", stage, fig_dir / "final_distribution.png")
-        saved.append(str(out))
+    if any(final_values_by_seed(records, "capture_rate", a, stage, last_k) for a in algos):
+        dist = fig_dir / "final_distribution.png"
+        saved.append(str(plot_final_distribution(records, "capture_rate", stage, dist, last_k)))
     if any(rec["stage"] is not None for rec in records):
-        saved.append(str(plot_capture_heatmap(records, "capture_rate", fig_dir / "capture_heatmap.png")))
+        heat = fig_dir / "capture_heatmap.png"
+        saved.append(str(plot_capture_heatmap(records, "capture_rate", heat, last_k)))
     return saved
 
 
@@ -99,6 +100,7 @@ def main(cfg: dict | None = None) -> list[str]:
         raise SystemExit("no runs in results/runs/history.jsonl — run scripts/run_results.py first")
     final = final_stage(records)  # §5.1 5x5 'final test' → the F1/F2 learning + loss curves
     cmp_stage = comparison_stage(cfg, records)  # the multi-cop stage where algos separate (F5/F8)
+    last_k = int(cfg["results"]["final_window_rounds"])  # the §9 averaging window (was a literal)
     fgrid = next(rec["grid"] for rec in records if rec["stage"] == final)
     saved = [
         str(
@@ -132,10 +134,10 @@ def main(cfg: dict | None = None) -> list[str]:
                 fig_dir / "loss_curves.png",
             )
         ),
-        str(plot_comparison(records, "capture_rate", cmp_stage, fig_dir / "baseline_comparison.png")),
-        str(plot_scaling(records, "capture_rate", fig_dir / "scaling.png")),
+        str(plot_comparison(records, "capture_rate", cmp_stage, fig_dir / "baseline_comparison.png", last_k)),
+        str(plot_scaling(records, "capture_rate", fig_dir / "scaling.png", last_k)),
     ]
-    saved += _variety_figures(records, cmp_stage, fig_dir)  # V3 §9.3: BOX + HEATMAP (2-cop focus)
+    saved += _variety_figures(records, cmp_stage, fig_dir, last_k)  # V3 §9.3: BOX + HEATMAP
     saved += _return_curves(cfg, fig_dir)
     manifest_path = Path(cfg["paths"]["experiment_manifest"])  # config-driven (no hardcoded path)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

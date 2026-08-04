@@ -42,6 +42,13 @@ game:
     thief_win: 10                 # §3.4 Thief wins (evades 25 moves)
     cop_loss: 5                   # §3.4 Cop loses (timeout)
     thief_loss: 5                 # §3.4 Thief loses (captured)
+  bonus_claim:                    # §9.2 the INTER-GROUP scoreboard, sibling of `scoring`
+                                  # above. Configured for the same reason: it is the one
+                                  # number the opposing group can dispute, so it must be
+                                  # readable without opening source.
+    winner: 10                    # §9.2 higher match total
+    loser: 7                      # §9.2 lower match total
+    tie: 5                        # §9.2 equal totals -> both sides
 
 # ============================================================================
 # ENVIRONMENT (BRIEF §2.1 Dec-POMDP/POSG, §5.1 dynamic grid, §5.1 Table 2)
@@ -182,6 +189,10 @@ bc:
   n_pairs: 40000                  # generated (o, a*) supervised pairs (seeded)
   val_fraction: 0.2               # held-out fraction for the episode-level BC train/val split
   split_seed: 7                   # deterministic seed for the BC episode-level split
+  finetune_stages: [1, 2, 3]      # curriculum rungs the BC->OLoRA pipeline finetunes on:
+                                  # skip the 2x2 warmup, train 3x3 -> 4x4 -> 5x5. Indexes
+                                  # env.curriculum.stages, so it is a results-changing
+                                  # schedule choice, not an implementation detail.
   # Per-grid held-out heuristic-label accuracy required to attach OLoRA (keyed by
   # min(H,W)). User-signed-off realistic gates (ADR-D4): random floors cop 0.20 /
   # thief 0.25; Bayes ceilings cop ~0.635 @2x2, ~0.823 @3x3 (privileged-expert vs
@@ -464,6 +475,18 @@ matchup_eval:
   n_games: 60                     # sub-games per arm (per 60-seed block)
   base_seed: 1000                 # seed-block start — DISJOINT from the match seeds 7-12
   thief_eps_grid: [0.0, 0.10, 0.25]  # thief exploration noise per net arm (cop stays greedy)
+
+# ============================================================================
+# RESULTS AGGREGATION (§9) — the ANALYSIS CHOICES behind every published number.
+# Not plot styling (that stays local to src/results/, per CLAUDE.md §4): these two
+# keys move the headline figures, so a grader must be able to change them without
+# editing source and re-derive the README's numbers.
+# ============================================================================
+results:
+  final_window_rounds: 5          # a seed's "final" score = mean of its last N rounds.
+                                  # The seed is the independent replication unit, so this
+                                  # window sets what every mean±SE in §7.2/§7.3 reports.
+  sensitivity_grid: 4             # §9 sweeps the 4x4 focus stage (5x5 is too slow to sweep)
 
 paths:
   runs_dir: "results/runs"               # append-only per-episode JSONL run records

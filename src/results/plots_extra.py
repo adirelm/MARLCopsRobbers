@@ -45,7 +45,9 @@ def _algorithms(records: list[dict]) -> list[str]:
     return sorted({rec["algorithm"] for rec in records})
 
 
-def plot_final_distribution(records: list[dict], metric: str, stage: int, out_path: str | Path) -> Path:
+def plot_final_distribution(
+    records: list[dict], metric: str, stage: int, out_path: str | Path, last_k: int
+) -> Path:
     """BOX plot of the per-seed final capture rate — one box per algorithm at ``stage``.
 
     WHY a box plot: the F5 bar chart collapses the whole seed population into mean±SE, which
@@ -54,10 +56,8 @@ def plot_final_distribution(records: list[dict], metric: str, stage: int, out_pa
     that separates a stable CTDE learner from a high-variance independent one — is visible.
     Individual seed points are overlaid on each box so small-N spread is not misread.
     """
-    algos = [
-        a for a in _algorithms(records) if final_values_by_seed(records, metric, algorithm=a, stage=stage)
-    ]
-    data = [final_values_by_seed(records, metric, a, stage) for a in algos]
+    algos = [a for a in _algorithms(records) if final_values_by_seed(records, metric, a, stage, last_k)]
+    data = [final_values_by_seed(records, metric, a, stage, last_k) for a in algos]
     grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
     fig, ax = plt.subplots(figsize=_FIGSIZE)
     ax.boxplot(data, tick_labels=[a.upper() for a in algos], showmeans=True, meanprops=_MEAN_PROPS)
@@ -73,13 +73,13 @@ def plot_final_distribution(records: list[dict], metric: str, stage: int, out_pa
 
 
 def _heatmap_matrix(
-    records: list[dict], metric: str, algos: list[str], stages: list[int]
+    records: list[dict], metric: str, algos: list[str], stages: list[int], last_k: int
 ) -> list[list[float]]:
     """Mean final ``metric`` per (algorithm, stage); missing combinations become ``nan``."""
     return [
         [
             statistics.fmean(values)
-            if (values := final_values_by_seed(records, metric, a, s))
+            if (values := final_values_by_seed(records, metric, a, s, last_k))
             else float("nan")
             for s in stages
         ]
@@ -87,7 +87,7 @@ def _heatmap_matrix(
     ]
 
 
-def plot_capture_heatmap(records: list[dict], metric: str, out_path: str | Path) -> Path:
+def plot_capture_heatmap(records: list[dict], metric: str, out_path: str | Path, last_k: int) -> Path:
     """HEATMAP of mean final capture rate: algorithms (rows) x curriculum stage / grid (columns).
 
     WHY a heatmap: the result is a two-factor matrix (which algorithm x how big the board),
@@ -99,7 +99,7 @@ def plot_capture_heatmap(records: list[dict], metric: str, out_path: str | Path)
     algos = _algorithms(records)
     stages = sorted({rec["stage"] for rec in records})
     grids = {s: next(rec["grid"] for rec in records if rec["stage"] == s) for s in stages}
-    matrix = _heatmap_matrix(records, metric, algos, stages)
+    matrix = _heatmap_matrix(records, metric, algos, stages, last_k)
     fig, ax = plt.subplots(figsize=_FIGSIZE)
     image = ax.imshow(matrix, cmap=_CMAP, aspect="auto", vmin=0.0, vmax=1.0)
     ax.set_xticks(range(len(stages)), [f"stage {s}\n{grids[s]}x{grids[s]}" for s in stages])

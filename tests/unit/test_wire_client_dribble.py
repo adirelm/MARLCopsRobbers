@@ -50,7 +50,9 @@ def test_dribbling_peer_faults_within_the_wall_clock_budget():
     sock = socket.create_server(("127.0.0.1", 0))
     threading.Thread(target=_accept_loop, args=(sock,), daemon=True).start()
     budget = 0.2  # dribbling the full body would take ~1.8s — 9x the budget
-    client = WireClient(f"http://127.0.0.1:{sock.getsockname()[1]}", "tok", timeout_s=budget, retries=0)
+    client = WireClient(
+        f"http://127.0.0.1:{sock.getsockname()[1]}", "tok", timeout_s=budget, retries=0, max_inflight=8
+    )
     started = time.monotonic()
     try:
         with pytest.raises(VoidSubGame, match="wall clock"):
@@ -89,7 +91,9 @@ def test_health_probe_is_bounded_by_the_wall_clock():
     def hanging_get(url, token, timeout):
         hang.wait(30)  # ignore the scalar timeout, like a dribbling/hung /health
 
-    client = WireClient("http://stub.test", "tok", timeout_s=0.05, retries=0, get_fn=hanging_get)
+    client = WireClient(
+        "http://stub.test", "tok", timeout_s=0.05, retries=0, get_fn=hanging_get, max_inflight=8
+    )
     started = time.monotonic()
     try:
         assert client.health() is False  # an expiry just reads as "not healthy"

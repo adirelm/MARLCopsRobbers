@@ -31,6 +31,7 @@ def _report(mutual_agreement: bool = True) -> dict:
         ),
         timezone="Asia/Jerusalem",
         results=[result] * 6,
+        game=load_config()["game"],
         mutual_agreement=mutual_agreement,
     )
 
@@ -111,7 +112,10 @@ def test_send_bonus_report_rejects_non_table1_scores_at_send(tmp_path):
     report = _report()
     report["sub_games"][0]["scores"] = {"cop": 0, "thief": 999}
     totals = derive_totals_by_group(report["sub_games"], _G1, _G2)
-    report["totals_by_group"], report["bonus_claim"] = totals, derive_bonus_claim(totals)
+    report["totals_by_group"], report["bonus_claim"] = (
+        totals,
+        derive_bonus_claim(totals, load_config()["game"]["bonus_claim"]),
+    )
     try:
         send_bonus_report(cfg, report, sender)
         raise AssertionError("expected ValueError")

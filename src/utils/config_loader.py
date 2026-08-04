@@ -19,7 +19,7 @@ EXPECTED_VERSION = "1.2.0"
 # `version` is a scalar string; every other required section is a YAML mapping.
 VERSION_KEY = "version"
 
-# The 20 frozen top-level sections (P1 spec line 19 + the P4d `compute` governance
+# The 21 frozen top-level sections (P1 spec line 19 + the P4d `compute` governance
 # block + the L11-bonus `minimax_q` baseline block; the P3 `p3_smoke` block was removed
 # with the throwaway smoke in P4d). Order is documentation-only.
 REQUIRED_SECTIONS: tuple[str, ...] = (
@@ -41,6 +41,7 @@ REQUIRED_SECTIONS: tuple[str, ...] = (
     "cloud",
     "gmail",
     "gui",
+    "results",
     "paths",
     "logging",
 )

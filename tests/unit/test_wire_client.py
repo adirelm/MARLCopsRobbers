@@ -22,6 +22,7 @@ def _client(post_fn=None, get_fn=None, **kw) -> WireClient:
         fns["post_fn"] = post_fn
     if get_fn is not None:
         fns["get_fn"] = get_fn
+    kw.setdefault("max_inflight", 8)  # explicit: WireClient no longer carries a default cap
     return WireClient("http://partner.test", "tok-abc", **fns, **kw)
 
 

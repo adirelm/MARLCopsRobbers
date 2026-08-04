@@ -24,7 +24,6 @@ from src.reporting.players import load_players
 _ROOT = Path(__file__).resolve().parents[2]
 _THIEF_ACTIONS = {"up": Action.UP, "down": Action.DOWN, "left": Action.LEFT, "right": Action.RIGHT}
 _COP_ACTIONS = {**_THIEF_ACTIONS, "place_barrier": Action.PLACE_BARRIER}
-_PAIRS = 3  # §9.1: ids 1-3 mirror 4-6, so the match runs on 3 seed pairs (k, k+3)
 
 
 def _l1(a, b) -> int:
@@ -55,6 +54,7 @@ class WireReferee:
         self._grid = int(cfg["game"]["grid_size"])
         self._radius = int(cfg["mcp"]["observation"]["view_radius"])
         self._retries = int(cfg["wire_match"]["retries"])
+        self._pairs = int(cfg["game"]["num_games"]) // 2  # §9.1: ids 1..k mirror k+1..2k
         self._names = {k: cfg["wire_match"]["groups"][k]["name"] for k in ("group_1", "group_2")}
         self._tz = ZoneInfo(cfg["project"]["timezone"])
         self._env = CopsRobbersEnv(cfg, h=self._grid, w=self._grid, num_cops=1)
@@ -88,7 +88,7 @@ class WireReferee:
 
     def _play_sub_game(self, clients: dict, gid: int, seed: int) -> dict:
         """Play sub-game ``gid`` (1..6) from ``seed``; return its §9.4 record (or void)."""
-        cop_key = "group_1" if gid <= _PAIRS else "group_2"
+        cop_key = "group_1" if gid <= self._pairs else "group_2"
         thief_key = "group_2" if cop_key == "group_1" else "group_1"
         side = {"cop": clients[cop_key]["cop"], "thief": clients[thief_key]["thief"]}
         start = self._now()
@@ -166,7 +166,8 @@ def build_draft_report(cfg: dict, sub_games: list[dict]) -> dict:
         students=(ours["students"], partner["students"]),
         timezone=cfg["project"]["timezone"],
         results=sub_games,
+        game=cfg["game"],
         mutual_agreement=False,
     )
-    validate_bonus(report)
+    validate_bonus(report, cfg["game"])
     return report

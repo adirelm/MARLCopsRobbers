@@ -83,6 +83,7 @@ def test_end_to_end_one_sub_game_through_wire_clients(tmp_path):
             "tok",
             timeout_s=10.0,
             retries=1,
+            max_inflight=8,
             label=label,
             post_fn=make_post_fn(),
             on_event=referee.log_event,

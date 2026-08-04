@@ -106,6 +106,7 @@ Every top-level key of `config/config.yaml` and what it controls:
 | `cloud` | Stage-2 deploy record: platform and the public cop/thief URLs |
 | `gmail` | §3.5 report: recipient, SMTP host/port, subject templates, output dir, idempotency sentinel (sender + App Password come from `.env`) |
 | `gui` | spectator screenshot sizes and output dir (colors/fonts/FPS are local to `src/gui/palette.py` by design) |
+| `results` | the ANALYSIS choices behind every published number — `final_window_rounds` (how many trailing rounds make a seed's "final" score, so it sets every mean±SE in §7.2/§7.3) and `sensitivity_grid` (which curriculum board the §9 sweep varies). Not plot styling: these move the headline figures, so they are config, not source literals |
 | `paths` | `runs_dir`, `figures_dir`, experiment manifest, checkpoint dirs |
 | `logging` | log level for the `marl.*` loggers (PII/secret redaction is unconditional, never a flag) |
 | `wire_match` | the §9 inter-group match over the neutral wire protocol: per-move `timeout_s`/`retries`, `max_void_replays`, the jointly-frozen P7 `seeds`, and each group's endpoint URLs + token env-var NAMES |

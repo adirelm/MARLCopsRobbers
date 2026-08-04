@@ -66,7 +66,7 @@ def send_bonus_report(cfg: dict, report: dict, sender: object, gatekeeper: objec
             forbids emailing before both groups byte-compared identical drafts. Nothing
             is sent in either case.
     """
-    validate_bonus(report, scoring=cfg["game"]["scoring"])
+    validate_bonus(report, cfg["game"])
     if report["mutual_agreement"] is not True:
         raise ValueError(
             "§9.3: refusing to send the bonus report — mutual_agreement must be EXACTLY True, "

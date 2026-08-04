@@ -105,7 +105,7 @@ def test_peer_side_channel_is_gated_but_the_game_loop_is_not():
     gate = _RecordingGate()
 
     async def _run():
-        async with AgentClient(_StubClient(), label="cop", gatekeeper=gate) as client:
+        async with AgentClient(_StubClient(), max_retries=1, label="cop", gatekeeper=gate) as client:
             await client.health()  # game loop — NOT throttled
             await client.new_sub_game("sg-0", (5, 5), (0, 0))  # game loop — NOT throttled
             await client.request_move("sg-0", 0, [[0.0]], [0.0], [True])  # game loop — NOT throttled

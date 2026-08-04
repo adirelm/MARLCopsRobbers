@@ -79,7 +79,7 @@ def test_reveal_location_round_trips_radius_gated(cfg):
     server = make_cop_server(cfg, RecurrentQNet(cfg, "cop", 2), token="dev-cop")
 
     async def _run():
-        async with AgentClient(Client(server)) as client:
+        async with AgentClient(Client(server), max_retries=1) as client:
             await client.new_sub_game("s", (5, 5), (0, 0))
             return await client.reveal_location("s", "thief", (0, 1))
 

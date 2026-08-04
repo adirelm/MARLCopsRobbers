@@ -39,6 +39,7 @@ def build_clients(cfg: dict, on_event) -> dict:
                 retries=int(wire["retries"]),
                 label=f"{key}-{role}",
                 on_event=on_event,
+                max_inflight=int(cfg["wire_agent"]["max_sessions"]),
             )
             for role in _ROLES
         }

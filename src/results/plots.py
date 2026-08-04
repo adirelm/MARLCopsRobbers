@@ -77,9 +77,12 @@ def plot_two_agent_panels(  # noqa: PLR0913 — records + metric + stage + 2 pan
     return _save(fig, out_path)
 
 
-def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str | Path) -> Path:
-    """F5: final-rounds capture rate per algorithm (bar + SE whisker)."""
-    stats = final_by_algorithm(records, metric, stage)
+def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str | Path, last_k: int) -> Path:
+    """F5: final-rounds capture rate per algorithm (bar + SE whisker).
+
+    ``last_k`` is ``results.final_window_rounds`` — the averaging window behind the bars.
+    """
+    stats = final_by_algorithm(records, metric, stage, last_k)
     algos = list(stats)
     grid = next(rec["grid"] for rec in records if rec["stage"] == stage)
     fig, ax = plt.subplots(figsize=_FIGSIZE)
@@ -94,7 +97,7 @@ def plot_comparison(records: list[dict], metric: str, stage: int, out_path: str 
     return _save(fig, out_path)
 
 
-def plot_scaling(records: list[dict], metric: str, out_path: str | Path) -> Path:
+def plot_scaling(records: list[dict], metric: str, out_path: str | Path, last_k: int) -> Path:
     """F6: final capture rate across curriculum stages, one line per algorithm.
 
     Honest labeling (codex W2 R3): the curriculum stages vary board size AND team
@@ -103,7 +106,7 @@ def plot_scaling(records: list[dict], metric: str, out_path: str | Path) -> Path
     """
     fig, ax = plt.subplots(figsize=_FIGSIZE)
     for algorithm in _algorithms(records):
-        by_grid = final_by_grid(records, metric, algorithm)
+        by_grid = final_by_grid(records, metric, algorithm, last_k)
         grids = sorted(by_grid)
         ax.errorbar(
             grids,

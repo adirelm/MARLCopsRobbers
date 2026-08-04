@@ -19,13 +19,21 @@ from src.results.run_log import append_records
 from src.services.finetune import stage_params
 
 _SWEPT_KEY = "view_radius_by_grid"
-_SWEPT_GRID = 4  # sweep the 4x4 focus-stage view radius (5x5 training is too slow to sweep)
+
+
+def _swept_grid(cfg: dict) -> int:
+    """The curriculum board the §9 sweep varies — ``results.sensitivity_grid``.
+
+    Config, not a literal: it names WHICH board every §9 sensitivity number describes, so a
+    reader re-running the sweep on 5x5 must not have to edit source to do it.
+    """
+    return int(cfg["results"]["sensitivity_grid"])
 
 
 def make_variant(cfg: dict, radius: int) -> dict:
-    """Deep-copy ``cfg`` with ONLY ``env.view_radius_by_grid[4]`` set to ``radius``."""
+    """Deep-copy ``cfg`` with ONLY ``env.view_radius_by_grid[sensitivity_grid]`` set."""
     variant = copy.deepcopy(cfg)
-    variant["env"][_SWEPT_KEY][_SWEPT_GRID] = radius
+    variant["env"][_SWEPT_KEY][_swept_grid(cfg)] = radius
     return variant
 
 
@@ -35,7 +43,7 @@ def sensitivity_records(  # noqa: PLR0913 — cfg + swept value + run keys + his
     """Tag one training history with the swept param/value (final-round capture only)."""
     return [
         {
-            "param": f"view_radius_{_SWEPT_GRID}",
+            "param": f"view_radius_{_swept_grid(cfg)}",
             "value": int(radius),
             "algorithm": algorithm,
             "seed": int(seed),

@@ -60,8 +60,8 @@ def test_referee_plays_a_full_sub_game_to_a_winner(cfg):
         ref = Referee(cfg, 5, 5, num_cops=1)
         gate = _AdmitAll()
         async with (
-            AgentClient(Client(cop_srv), gatekeeper=gate) as cop,
-            AgentClient(Client(thief_srv), gatekeeper=gate) as thief,
+            AgentClient(Client(cop_srv), max_retries=1, gatekeeper=gate) as cop,
+            AgentClient(Client(thief_srv), max_retries=1, gatekeeper=gate) as thief,
         ):
             return await ref.play_sub_game(cop, thief, seed=SEED)
 
@@ -79,8 +79,8 @@ def test_match_runner_plays_n_valid_sub_games_with_totals(cfg):
         runner = MatchRunner(Referee(cfg, 5, 5, num_cops=1), num_games=2, base_seed=SEED)
         gate = _AdmitAll()
         async with (
-            AgentClient(Client(cop_srv), gatekeeper=gate) as cop,
-            AgentClient(Client(thief_srv), gatekeeper=gate) as thief,
+            AgentClient(Client(cop_srv), max_retries=1, gatekeeper=gate) as cop,
+            AgentClient(Client(thief_srv), max_retries=1, gatekeeper=gate) as thief,
         ):
             return await runner.play_match(cop, thief)
 

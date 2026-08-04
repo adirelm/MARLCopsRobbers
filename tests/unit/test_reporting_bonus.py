@@ -18,11 +18,13 @@ from src.reporting.bonus import (
     derive_totals_by_group,
     validate_bonus,
 )
+from src.utils.config_loader import load_config
 
 _G1, _G2 = "adrl-001", "team-beta"
 _STUDENTS_1 = [{"role": "A", "full_name": "Placeholder One", "id": "12345"}]
 _STUDENTS_2 = [{"role": "A", "full_name": "Placeholder Two", "id": "67890"}]
 _REPOS = ("https://github.com/example/ours", "https://github.com/example/theirs")
+_GAME = load_config()["game"]  # §9.1 num_games + §3.4 scoring + §9.2 bonus_claim, from config
 
 
 def _result(winner: str) -> dict:
@@ -43,6 +45,7 @@ def _report(winners: list[str], mutual_agreement: bool = True) -> dict:
         students=(_STUDENTS_1, _STUDENTS_2),
         timezone="Asia/Jerusalem",
         results=[_result(w) for w in winners],
+        game=_GAME,
         mutual_agreement=mutual_agreement,
     )
 
@@ -89,15 +92,22 @@ def test_validate_bonus_rejects_wrong_alternation():
 
 
 def test_validate_bonus_rejects_tampered_totals_and_claim():
-    """totals_by_group and bonus_claim are DERIVED, never trusted."""
+    """totals_by_group and bonus_claim are DERIVED, never trusted.
+
+    totals are re-derived from the body alone, so the structural pass catches them with no
+    config. The CLAIM needs ``game.bonus_claim`` to re-derive — the §9.2 numbers must come
+    from config, not a literal — so that half is checked only when the section is supplied,
+    exactly as the Table-1 score check already was. The SEND path always supplies it.
+    """
     report = _report(["cop"] * 6)
     report["totals_by_group"][_G1] += 5
     with pytest.raises(ValueError, match="totals_by_group"):
         validate_bonus(report)
     report = _report(["cop"] * 6)
     report["bonus_claim"] = {_G1: 10, _G2: 10}
+    validate_bonus(report)  # structural pass alone cannot re-derive §9.2 -> tamper invisible
     with pytest.raises(ValueError, match="bonus_claim"):
-        validate_bonus(report)
+        validate_bonus(report, _GAME)
 
 
 def test_validate_bonus_requires_six_games_and_schema_shape():
@@ -124,13 +134,16 @@ _SCORING = {"cop_win": 20, "thief_win": 10, "cop_loss": 5, "thief_loss": 5}  # �
 def test_validate_bonus_rejects_scores_not_matching_table1():
     """With `scoring`, a winner-cop sub-game carrying non-Table-1 scores is fraud -> raises."""
     report = _report(["cop"] * 6)
-    validate_bonus(report, scoring=_SCORING)  # honest Table-1 scores pass
+    validate_bonus(report, _GAME)  # honest Table-1 scores pass
     report["sub_games"][0]["scores"] = {"cop": 0, "thief": 999}
     totals = derive_totals_by_group(report["sub_games"], _G1, _G2)  # keep totals/claim consistent
-    report["totals_by_group"], report["bonus_claim"] = totals, derive_bonus_claim(totals)
+    report["totals_by_group"], report["bonus_claim"] = (
+        totals,
+        derive_bonus_claim(totals, _GAME["bonus_claim"]),
+    )
     validate_bonus(report)  # without scoring the fraud is invisible (draft-stage structural check)
     with pytest.raises(ValueError, match="Table-1"):
-        validate_bonus(report, scoring=_SCORING)
+        validate_bonus(report, _GAME)
 
 
 def test_bonus_schema_bounds_reject_out_of_range_moves_and_bad_timestamps():

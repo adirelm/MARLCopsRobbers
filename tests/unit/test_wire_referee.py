@@ -117,9 +117,10 @@ def test_records_feed_the_real_validate_bonus(tmp_path):
         students=(STUDENTS, STUDENTS),
         timezone=cfg["project"]["timezone"],
         results=result["sub_games"],
+        game=cfg["game"],
         mutual_agreement=True,
     )
-    validate_bonus(report)  # the REAL §9 validator accepts the assembled body
+    validate_bonus(report, cfg["game"])  # the REAL §9 validator accepts the assembled body
     assert report["totals_by_group"] == result["totals_by_group"]
 
 

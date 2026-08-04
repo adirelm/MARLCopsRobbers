@@ -76,13 +76,17 @@ def curve(
 
 
 def final_values_by_seed(
-    records: list[dict], metric: str, algorithm: str, stage: int, last_k: int = 5
+    records: list[dict], metric: str, algorithm: str, stage: int, last_k: int
 ) -> list[float]:
     """ONE final value per seed: that seed's mean of ``metric`` over its last ``last_k`` rounds.
 
     The seed is the independent replication unit — successive rounds of one seed are
     autocorrelated, so every final mean±SE is computed OVER these per-seed values,
     never over the pooled rounds (which would shrink the SE by ~``sqrt(last_k)``).
+
+    ``last_k`` is REQUIRED (``results.final_window_rounds``). It used to default to 5, and
+    since no caller ever passed it, that literal silently set the averaging window behind
+    every published mean±SE — an analysis choice, not plot styling, so it belongs in config.
     """
     by_seed: dict[int, list[tuple[int, float]]] = defaultdict(list)
     for rec in records:
@@ -95,7 +99,7 @@ def final_values_by_seed(
     return values
 
 
-def final_by_algorithm(records: list[dict], metric: str, stage: int, last_k: int = 5) -> dict:
+def final_by_algorithm(records: list[dict], metric: str, stage: int, last_k: int) -> dict:
     """Final cross-SEED mean±SE per algorithm at one stage (F5 comparison)."""
     algos = sorted({r["algorithm"] for r in records if r["stage"] == stage})
     out = {
@@ -104,7 +108,7 @@ def final_by_algorithm(records: list[dict], metric: str, stage: int, last_k: int
     return out
 
 
-def final_by_grid(records: list[dict], metric: str, algorithm: str, last_k: int = 5) -> dict:
+def final_by_grid(records: list[dict], metric: str, algorithm: str, last_k: int) -> dict:
     """Final cross-SEED mean±SE per CURRICULUM-STAGE grid for one algorithm (F6).
 
     Keys are the stage grid sizes, but the curriculum stages vary board size AND

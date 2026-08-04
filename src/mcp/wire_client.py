@@ -30,7 +30,6 @@ from src.mcp.wire_schedule import SeedSchedule  # noqa: F401 — public re-expor
 # Safety cap on concurrently-alive egress workers per client. A live call joins within the
 # budget (inflight ~1); only ABANDONED orphans keep it elevated, so this bounds the orphans
 # that repeated dribbling voids can leave behind. Injectable for deterministic tests.
-_DEFAULT_MAX_INFLIGHT = 8
 
 
 class VoidSubGame(Exception):  # noqa: N818 — named for the §3.7 OUTCOME (a void), not an error kind
@@ -51,11 +50,11 @@ class WireClient:
         token: str,
         timeout_s: float,
         retries: int,
+        max_inflight: int,
         label: str = "",
         on_event: Callable[[dict], None] | None = None,
         post_fn: Callable = bearer_post,
         get_fn: Callable = bearer_get,
-        max_inflight: int = _DEFAULT_MAX_INFLIGHT,
     ) -> None:
         """Bind the endpoint, bearer token, and P8 timeout/retry budget.
 

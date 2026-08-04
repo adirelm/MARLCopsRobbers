@@ -32,6 +32,7 @@ EXPECTED_SECTIONS = {
     "cloud",
     "gmail",
     "gui",
+    "results",
     "paths",
     "logging",
 }

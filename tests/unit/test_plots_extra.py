@@ -9,6 +9,9 @@ from src.results.plots_extra import (
     plot_capture_heatmap,
     plot_final_distribution,
 )
+from src.utils.config_loader import load_config
+
+_LAST_K = int(load_config()["results"]["final_window_rounds"])  # the published averaging window
 
 
 def _records() -> list[dict]:
@@ -34,18 +37,18 @@ def _records() -> list[dict]:
 
 
 def test_final_values_by_seed_returns_one_value_per_seed():
-    values = final_values_by_seed(_records(), "capture_rate", "iql", 0)
+    values = final_values_by_seed(_records(), "capture_rate", "iql", 0, _LAST_K)
     assert len(values) == 2  # one aggregated final value per seed
     assert all(isinstance(v, float) for v in values)
 
 
 def test_plot_final_distribution_writes_figure(tmp_path):
-    out = plot_final_distribution(_records(), "capture_rate", 1, tmp_path / "final_distribution.png")
+    out = plot_final_distribution(_records(), "capture_rate", 1, tmp_path / "final_distribution.png", _LAST_K)
     assert Path(out).exists() and Path(out).stat().st_size > 0
 
 
 def test_plot_capture_heatmap_writes_figure(tmp_path):
-    out = plot_capture_heatmap(_records(), "capture_rate", tmp_path / "capture_heatmap.png")
+    out = plot_capture_heatmap(_records(), "capture_rate", tmp_path / "capture_heatmap.png", _LAST_K)
     assert Path(out).exists() and Path(out).stat().st_size > 0
 
 
@@ -63,6 +66,6 @@ def test_final_distribution_skips_algorithm_absent_from_stage(tmp_path):
             "capture_rate": 0.1,
         },
     ]
-    assert final_values_by_seed(records, "capture_rate", "ghost", 1) == []
-    out = plot_final_distribution(records, "capture_rate", 1, tmp_path / "d.png")
+    assert final_values_by_seed(records, "capture_rate", "ghost", 1, _LAST_K) == []
+    out = plot_final_distribution(records, "capture_rate", 1, tmp_path / "d.png", _LAST_K)
     assert Path(out).exists() and Path(out).stat().st_size > 0

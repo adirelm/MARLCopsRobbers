@@ -33,7 +33,7 @@ async def run_local_match(  # noqa: PLR0913 — cfg + 2 nets + players + seed + 
     thief_net: object,
     players: dict,
     seed: int,
-    stage: tuple[int, int, int] = (5, 5, 1),
+    stage: tuple[int, int, int] | None = None,
     num_games: int | None = None,
 ) -> dict:
     """Play a full local match, assemble+validate the §3.5 report, dry-run send it.
@@ -44,13 +44,17 @@ async def run_local_match(  # noqa: PLR0913 — cfg + 2 nets + players + seed + 
         thief_net: The trained thief net served by the thief server.
         players: ``{"group": str, "students": [{"full_name","id"}, ...]}`` (placeholders).
         seed: Base seed for the match (per-sub-game seeds derive from it).
-        stage: ``(h, w, num_cops)`` the match is played on.
+        stage: ``(h, w, num_cops)`` the match is played on. Default None resolves to
+            ``(game.grid_size, game.grid_size, env.num_cops)`` — the GRADED board must
+            come from config, not from a signature default: every production caller omits
+            this argument, so a literal here meant editing config changed nothing.
         num_games: Valid sub-games to play (default ``game.num_games`` = 6).
 
     Returns:
         ``{"report": <§3.5 body>, "num_games": int, "ack": <ReportAck dry-run>}``.
     """
-    h, w, num_cops = stage
+    grid = int(cfg["game"]["grid_size"])
+    h, w, num_cops = stage if stage is not None else (grid, grid, int(cfg["env"]["num_cops"]))
     games = int(num_games if num_games is not None else cfg["game"]["num_games"])
     cop_srv = make_cop_server(cfg, cop_net, token=_token("cop"))
     thief_srv = make_thief_server(cfg, thief_net, token=_token("thief"))
@@ -63,7 +67,7 @@ async def run_local_match(  # noqa: PLR0913 — cfg + 2 nets + players + seed + 
         AgentClient(Client(thief_srv), max_retries=rt, label="thief", backoff_s=bo, timeout_s=to) as thief,
     ):
         if cc["prewarm_ping"]:  # honor mcp.client.prewarm_ping — warm BOTH connections (cold-start)
-            deadline = float(cc.get("prewarm_deadline_s", 180))
+            deadline = float(cc["prewarm_deadline_s"])
             for client in (cop, thief):  # a sleeping free-tier container needs ~90 s to wake
                 await client.prewarm(deadline)
         match = await runner.play_match(cop, thief)

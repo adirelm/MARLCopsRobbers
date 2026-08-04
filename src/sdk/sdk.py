@@ -150,7 +150,7 @@ class MarlSDK:
         """Rebuild a dense role net from an exported ``state_dict`` (inverse of export_weights)."""
         return load_agent_weights(path, self._cfg, role, n_agents)
 
-    def run_local_match(self, cop_net, thief_net, players, seed, stage=(5, 5, 1), num_games=None) -> dict:  # noqa: PLR0913
+    def run_local_match(self, cop_net, thief_net, players, seed, stage=None, num_games=None) -> dict:  # noqa: PLR0913
         """Play a full local match over MCP; assemble + validate the §3.5 report (no send).
 
         The single entry the orchestrator script uses: both servers play the

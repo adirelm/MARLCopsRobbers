@@ -20,8 +20,6 @@ from src.marl.olora_bundle import base_sha, save_bundle
 from src.services.checkpoints import save_full_checkpoint
 from src.services.sweep import run_sweep
 
-_FINETUNE_STAGES = [1, 2, 3]  # skip the 2x2 warmup: finetune 3x3 -> 4x4 -> 5x5
-
 
 def _bc_base(cfg: dict, grid: tuple[int, int], role: str, seed: int) -> object:
     """BC-pretrain one role's base net on ``grid``; return the trained net."""
@@ -51,7 +49,8 @@ def bc_olora_pipeline(sdk: object, cfg: dict) -> dict:
     thief_base = _bc_base(cfg, grid, "thief", seed)
     shas = {"cop": base_sha(cop_base), "thief": base_sha(thief_base)}
     save_full_checkpoint(base_dir / "bc_base.pt", {"cop": cop_base, "thief": thief_base})
-    out = sdk.finetune(seed, _FINETUNE_STAGES, cop_base, thief_base, olora=True)
+    stages = [int(s) for s in cfg["bc"]["finetune_stages"]]  # which curriculum rungs to train
+    out = sdk.finetune(seed, stages, cop_base, thief_base, olora=True)
     save_bundle(bundle_dir / "cop.bundle.pt", out["cop_net"], shas["cop"])
     save_bundle(bundle_dir / "thief.bundle.pt", out["thief_net"], shas["thief"])
     print(f"[finetune] stages={[s['stage'] for s in out['history']]} -> {bundle_dir}")
