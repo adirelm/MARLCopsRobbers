@@ -55,10 +55,13 @@ def test_recorded_seed_beats_a_colliding_decoy_spare(cfg, tmp_path):
     # in the spare order, so spawn-matching alone silently mis-replays under 1073 ...
     cfg["wire_match"]["seeds"] = [101, 202, 303, 1073, 505, 606]
     games = [("sg-0", 505), ("sg-3", 505)]
-    log, records = write_match(tmp_path, cfg, games)
+    # 505 is a SPARE, so the log must carry P7's escalation or the replay rejects it before
+    # the seed-resolution ambiguity this test exists to probe.
+    voids = int(cfg["wire_match"]["max_void_replays"])
+    log, records = write_match(tmp_path, cfg, games, voids=voids)
     assert [g["seed"] for g in replay_match(cfg, log, records)] == [1073, 1073]  # the ambiguity trap
     # ... but with the referee's result events the RECORDED seed wins, spawn-verified:
-    log, records = write_match(tmp_path, cfg, games, result_events=True)
+    log, records = write_match(tmp_path, cfg, games, result_events=True, voids=voids)
     assert [g["seed"] for g in replay_match(cfg, log, records)] == [505, 505]
 
 
@@ -71,7 +74,9 @@ def test_recorded_seed_outside_the_schedule_raises(cfg, tmp_path):
 
 def test_recorded_seed_whose_spawns_mismatch_raises(cfg, tmp_path):
     cfg["wire_match"]["seeds"] = list(_SEEDS)
-    log, records = write_match(tmp_path, cfg, [("sg-0", 505)], result_events=True)
+    log, records = write_match(
+        tmp_path, cfg, [("sg-0", 505)], result_events=True, voids=int(cfg["wire_match"]["max_void_replays"])
+    )
     tampered = log.read_text(encoding="utf-8").replace('"seed": 505', '"seed": 404')
     log.write_text(tampered, encoding="utf-8")  # the result event now LIES about the seed
     with pytest.raises(ReplayMismatchError, match="recorded seed 404"):

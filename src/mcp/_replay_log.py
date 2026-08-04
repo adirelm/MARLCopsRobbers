@@ -45,11 +45,18 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
         direction, label = entry.get("direction"), entry.get("label")
         if direction == "request":
             payload = entry["payload"]
-            sess = sessions.setdefault(payload["session_id"], {"spawns": {}, "actions": {}, "states": {}})
+            sess = sessions.setdefault(
+                payload["session_id"], {"spawns": {}, "actions": {}, "states": {}, "voids": 0}
+            )
             if entry["url"].endswith("/new_sub_game"):
                 role, pos = payload["your_role"], tuple(payload["your_pos"])
                 retry = sess["spawns"].get(role) == pos and not sess["actions"] and not sess["states"]
                 if role in sess["spawns"] and not retry:  # void re-hello: last run wins
+                    # COUNTED, not just applied: P7 only permits a spare seed after
+                    # max_void_replays consecutive voids, and without a count there is no
+                    # evidence to hold a spare against — a referee could play a favourable
+                    # spare and simply log no voids.
+                    sess["voids"] += 1
                     sess["spawns"], sess["actions"], sess["states"] = {}, {}, {}
                 sess["spawns"][role] = pos
             else:

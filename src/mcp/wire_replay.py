@@ -71,6 +71,17 @@ def _seeded_env(cfg: dict, sid: str, sess: dict, gid: int) -> tuple[CopsRobbersE
         raise ReplayMismatchError(
             f"{sid}: recorded result seed {recorded} is neither s_k nor a spare in {seeds}"
         )
+    # A spare is only reachable through P7's escalation, so it must be PAID FOR in the log.
+    # Accepting an unjustified spare let a referee shop for a favourable layout and simply
+    # log no voids; spawn-matching does not catch that, because the spawns legitimately
+    # belong to the spare it played.
+    if recorded is not None and recorded != seeds[(gid - 1) % pairs]:
+        needed = int(cfg["wire_match"]["max_void_replays"])
+        if sess.get("voids", 0) < needed:
+            raise ReplayMismatchError(
+                f"{sid}: played on SPARE seed {recorded} but the log shows "
+                f"{sess.get('voids', 0)} void re-hello(s); P7 requires {needed} before a spare"
+            )
     for seed in allowed if recorded is None else (recorded,):
         env = CopsRobbersEnv(cfg, h=grid, w=grid, num_cops=1)
         env.reset(seed=seed)

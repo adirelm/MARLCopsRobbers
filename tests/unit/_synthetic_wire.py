@@ -24,18 +24,54 @@ def _line(direction: str, label: str, **fields) -> str:
     return json.dumps({"direction": direction, "label": label, **fields})
 
 
-def synth_session(cfg: dict, sid: str, seed: int, result_event: bool = False) -> tuple[list[str], dict]:
+def synth_session(
+    cfg: dict, sid: str, seed: int, result_event: bool = False, voids: int = 0
+) -> tuple[list[str], dict]:
     """Play one full scripted sub-game under ``seed``; return (jsonl lines, §9.4 record).
 
     With ``result_event`` the referee's ``result`` JSONL event (carrying the EXACT
     ``seed`` + ``session_id``, like :meth:`WireReferee.play_match` logs) is appended —
     the replay's PRIMARY seed source; without it the log mimics a pre-seed-event log.
+
+    ``voids`` prepends that many VOIDED attempts (hello pairs with no moves after them),
+    which is what P7 requires before a spare seed becomes legal. Tests that resolve a
+    spare need it: the replay now refuses an unjustified spare, so a synthetic log that
+    jumps straight to one no longer reaches the seed-resolution logic under test.
     """
     grid, gid = int(cfg["game"]["grid_size"]), int(sid.rsplit("-", 1)[1]) + 1
     env = CopsRobbersEnv(cfg, h=grid, w=grid, num_cops=1)
     _obs, info = env.reset(seed=seed)
     state, lines = env.state(), []
     shared = {"session_id": sid, "grid": [grid, grid], "max_moves": int(cfg["game"]["max_moves"])}
+    radius = int(cfg["mcp"]["observation"]["view_radius"])
+    left = int(cfg["game"]["max_barriers"])
+    for _ in range(voids):
+        # A voided attempt = hello pair, at least one attempted MOVE, then a re-hello.
+        # The move matters: the parser (correctly) reads an identical re-hello with no moves
+        # since as an idempotent P8 TRANSPORT RETRY, not a void, so a move-less repeat would
+        # not count and this fixture would not model P7 escalation at all.
+        pos_of = {"cop": tuple(state.cop_pos[0]), "thief": tuple(state.thief_pos)}
+        for role in ("cop", "thief"):
+            pos = pos_of[role]
+            lines += [
+                _line(
+                    "request",
+                    f"g-{role}",
+                    url="http://x/new_sub_game",
+                    payload={**shared, "your_role": role, "your_pos": [pos[0], pos[1]]},
+                ),
+                _line("response", f"g-{role}", response={"ok": True}),
+            ]
+        for role in ("cop", "thief"):
+            other = "thief" if role == "cop" else "cop"
+            lines.append(
+                _line(
+                    "request",
+                    f"g-{role}",
+                    url="http://x/request_move",
+                    payload=mask_payload(sid, 0, pos_of[role], pos_of[other], state.barriers, left, radius),
+                )
+            )
     for role, pos in (("cop", state.cop_pos[0]), ("thief", state.thief_pos)):
         hello = {**shared, "your_role": role, "your_pos": [pos[0], pos[1]]}
         lines += [
@@ -82,12 +118,16 @@ def synth_session(cfg: dict, sid: str, seed: int, result_event: bool = False) ->
 
 
 def write_match(
-    tmp_path, cfg: dict, games: list[tuple[str, int]], result_events: bool = False
+    tmp_path, cfg: dict, games: list[tuple[str, int]], result_events: bool = False, voids: int = 0
 ) -> tuple[object, object]:
-    """Write a synthetic (log.jsonl, records.json) for ``[(sid, seed), ...]``; return paths."""
+    """Write a synthetic (log.jsonl, records.json) for ``[(sid, seed), ...]``; return paths.
+
+    ``voids`` is forwarded to every session — pass ``max_void_replays`` when the games use
+    a SPARE seed, or the replay rejects the log before the property under test is reached.
+    """
     lines, records = [], []
     for sid, seed in games:
-        game_lines, record = synth_session(cfg, sid, seed, result_event=result_events)
+        game_lines, record = synth_session(cfg, sid, seed, result_event=result_events, voids=voids)
         lines += game_lines
         records.append(record)
     log = tmp_path / "wire_log_synth.jsonl"
