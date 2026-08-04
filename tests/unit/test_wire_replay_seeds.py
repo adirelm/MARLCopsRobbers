@@ -21,8 +21,11 @@ _SEEDS = [101, 202, 303, 404, 505, 606]  # first 3 = pair seeds, rest = spares (
 
 def test_escalated_pair_replays_under_the_matching_spare_seed(cfg, tmp_path):
     cfg["wire_match"]["seeds"] = list(_SEEDS)
-    # the pair (1, 4) escalated: both mirror games were ultimately played under spare 404
-    log, records = write_match(tmp_path, cfg, [("sg-0", 404), ("sg-3", 404)])
+    # the pair (1, 4) escalated: both mirror games were ultimately played under spare 404,
+    # so the log must also CARRY the escalation that bought 404 (P7 charges for spares)
+    log, records = write_match(
+        tmp_path, cfg, [("sg-0", 404), ("sg-3", 404)], voids=int(cfg["wire_match"]["max_void_replays"])
+    )
     replays = replay_match(cfg, log, records)
     assert [g["gid"] for g in replays] == [1, 4]
     assert [g["seed"] for g in replays] == [404, 404]  # the SPARE, reported in the summary

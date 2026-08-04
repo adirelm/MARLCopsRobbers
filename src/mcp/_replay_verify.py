@@ -14,6 +14,41 @@ from src.mcp.wire_referee import mask_payload
 _ROLES = ("cop", "thief")
 
 
+def verify_escalation_budget(cfg: dict, seeds_played: list[int], total_voids: int) -> int:
+    """Every SPARE seed the match resolved must be PAID FOR by logged void re-hellos.
+
+    P7 hands out a spare only after ``max_void_replays`` CONSECUTIVE voids, and each
+    escalation consumes its own run of them, so an honest log always carries at least
+    ``needed * spares_used`` voids in total. Without this the spare list was free money:
+    a referee could shop the seeds for a favourable layout, play the spare for real and
+    log no escalation at all. Spawn-matching cannot see that — the spare it played IS the
+    spare it logged, so the spawns agree; only the missing voids give it away.
+
+    Deliberately a MATCH-wide budget rather than a per-session one. Per-session looks
+    tighter and is wrong: escalation re-seeds the whole pair k/k+3 and re-queues an
+    already-played base game under the new seed, so THAT session shows a spare with a
+    single re-hello of its own while the voids that bought it sit in its sibling. Billing
+    it locally rejects a match no honest referee could have played differently.
+
+    Returns:
+        The number of distinct spare seeds the match resolved.
+
+    Raises:
+        ReplayMismatchError: When the log cannot afford the spares it claims to have used.
+    """
+    pairs = int(cfg["game"]["num_games"]) // 2
+    spares = {int(s) for s in cfg["wire_match"]["seeds"][pairs:]}
+    needed = int(cfg["wire_match"]["max_void_replays"])
+    used = len({int(s) for s in seeds_played if int(s) in spares})
+    if total_voids < needed * used:
+        raise ReplayMismatchError(
+            f"match resolved {used} SPARE seed(s), which P7 grants only after {needed} "
+            f"consecutive voids each, but the log shows {total_voids} void re-hello(s) "
+            f"in total — the escalation was never paid for"
+        )
+    return used
+
+
 def verify_tick(cfg: dict, sid: str, tick: int, sess: dict, state) -> None:
     """Check the replayed PRE-MOVE state against the tick's logged request payloads.
 

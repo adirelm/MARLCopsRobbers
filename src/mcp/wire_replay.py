@@ -21,7 +21,7 @@ from src.marl.env.actions import Action
 from src.marl.env.cops_robbers_env import CopsRobbersEnv
 from src.marl.env.scorer import Scorer
 from src.mcp._replay_log import ReplayMismatchError, gid_of, ordered_actions, parse_wire_log
-from src.mcp._replay_verify import verify_tick
+from src.mcp._replay_verify import verify_escalation_budget, verify_tick
 from src.mcp.wire_screens import mid_frame_index, save_screens  # noqa: F401 — re-export (150-LOC split)
 
 _MOVES = {a.name.lower(): a for a in (Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT)}
@@ -71,17 +71,9 @@ def _seeded_env(cfg: dict, sid: str, sess: dict, gid: int) -> tuple[CopsRobbersE
         raise ReplayMismatchError(
             f"{sid}: recorded result seed {recorded} is neither s_k nor a spare in {seeds}"
         )
-    # A spare is only reachable through P7's escalation, so it must be PAID FOR in the log.
-    # Accepting an unjustified spare let a referee shop for a favourable layout and simply
-    # log no voids; spawn-matching does not catch that, because the spawns legitimately
-    # belong to the spare it played.
-    if recorded is not None and recorded != seeds[(gid - 1) % pairs]:
-        needed = int(cfg["wire_match"]["max_void_replays"])
-        if sess.get("voids", 0) < needed:
-            raise ReplayMismatchError(
-                f"{sid}: played on SPARE seed {recorded} but the log shows "
-                f"{sess.get('voids', 0)} void re-hello(s); P7 requires {needed} before a spare"
-            )
+    # A spare must be PAID FOR by logged voids — but that bill is settled MATCH-wide in
+    # replay_match (verify_escalation_budget), not here: escalation re-seeds the pair
+    # k/k+3, so one half can legitimately show a spare with no voids of its own.
     for seed in allowed if recorded is None else (recorded,):
         env = CopsRobbersEnv(cfg, h=grid, w=grid, num_cops=1)
         env.reset(seed=seed)
@@ -144,4 +136,7 @@ def replay_match(cfg: dict, log_path: str | Path, records_path: str | Path) -> l
                 f"spare seed {seed} resolved for pairs {owner[seed]} and {k} — "
                 f"the P7 schedule consumes each spare at most once"
             )
+    # LAST, so a structurally impossible schedule is reported as such rather than as an
+    # accounting shortfall: only a schedule that could exist is worth billing for.
+    verify_escalation_budget(cfg, list(seed_of.values()), sum(s["voids"] for s in sessions.values()))
     return replays

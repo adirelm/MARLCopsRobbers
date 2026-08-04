@@ -19,6 +19,16 @@ class ReplayMismatchError(RuntimeError):
     """The deterministic replay diverged from the log/records — the evidence is invalid."""
 
 
+def _new_session() -> dict:
+    """The per-session accumulator shape — ONE definition so the two call sites cannot drift.
+
+    They had already drifted: the ``result`` branch omitted ``voids``, so any log whose
+    result event reached the file before that session's requests raised KeyError on the
+    first void re-hello instead of verifying the match.
+    """
+    return {"spawns": {}, "actions": {}, "states": {}, "voids": 0}
+
+
 def gid_of(session_id: str) -> int:
     """Return the 1-based sub-game id for a referee session id (``sg-0`` -> 1)."""
     return int(session_id.rsplit("-", 1)[1]) + 1
@@ -45,9 +55,7 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
         direction, label = entry.get("direction"), entry.get("label")
         if direction == "request":
             payload = entry["payload"]
-            sess = sessions.setdefault(
-                payload["session_id"], {"spawns": {}, "actions": {}, "states": {}, "voids": 0}
-            )
+            sess = sessions.setdefault(payload["session_id"], _new_session())
             if entry["url"].endswith("/new_sub_game"):
                 role, pos = payload["your_role"], tuple(payload["your_pos"])
                 retry = sess["spawns"].get(role) == pos and not sess["actions"] and not sess["states"]
@@ -80,7 +88,7 @@ def parse_wire_log(path: str | Path) -> dict[str, dict]:
                 sessions[sid]["actions"].setdefault(tick, {})[role] = reply["action"]
         elif direction == "result" and isinstance(sub := entry.get("sub_game"), dict):
             if "session_id" in sub and "seed" in sub:  # the referee's EXACT per-run seed (last wins)
-                sess = sessions.setdefault(sub["session_id"], {"spawns": {}, "actions": {}, "states": {}})
+                sess = sessions.setdefault(sub["session_id"], _new_session())
                 sess["seed"] = int(sub["seed"])
     return sessions
 
