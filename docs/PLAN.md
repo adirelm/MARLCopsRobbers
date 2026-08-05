@@ -106,7 +106,81 @@ the single `MarlSDK` facade — never `src/env` or `src/marl` directly** (V3 sin
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 Level 3 — Component view (inside the boxes)
+### 2.3 UML — class diagram (the two inheritance spines)
+
+C4 above answers *which boxes exist*; this answers *how the types relate*. Both spines were
+previously described only in prose (§3 tree comments), which an audit correctly flagged: PRD
+§0 and TODO T0 both advertise "C4 + UML", so the UML has to actually be here. Verified against
+the source, not the tree comments — `ThiefLearner` extends `IqlLearner`, **not** `QmixLearner`
+(the thief is a single agent, so it has no mixer to inherit).
+
+```mermaid
+classDiagram
+    class BaseMixer {
+        <<abstract>>
+        +forward(q_agents, state) Tensor
+    }
+    class VdnMixer { +forward() sum over the cop team, eq 6 }
+    class QmixMixer { +forward() monotonic hypernetwork, softplus(w)>=0, eq 7 }
+    BaseMixer <|-- VdnMixer
+    BaseMixer <|-- QmixMixer
+
+    class QmixLearner {
+        -mixer: BaseMixer
+        +update(batch) dict
+        +_compute_target(batch) Tensor
+        +_sync() void
+        +save(path) void
+        +load(path) void
+    }
+    class CopLearner { +num_cops: int  +A = 5 }
+    class IqlLearner { +_compute_target() eq 4 — NO mixer }
+    class ThiefLearner { +num_agents = 1  +A = 4 }
+    QmixLearner <|-- CopLearner
+    QmixLearner <|-- IqlLearner
+    IqlLearner  <|-- ThiefLearner
+    QmixLearner o-- BaseMixer : composes (absent for IQL)
+
+    class MarlSDK {
+        <<facade>>
+        +build_env() CopsRobbersEnv
+        +train(algorithm, seed, stage_idx) list
+        +build_policy(role, net, n_agents) Policy
+        +serving_net(role, n_agents) Module
+        +run_local_match(...) dict
+        +spectator_session(...) SpectatorSession
+        +send_final_report(report, sender) dict
+    }
+    MarlSDK ..> QmixLearner : creates
+    MarlSDK ..> CopsRobbersEnv : creates
+```
+
+### 2.4 UML — sequence diagram (one decentralized move, exec-time)
+
+The §5.2 data-flow below shows the same exchange as a pipeline; this shows it as a UML
+sequence, which is what makes the *ordering* and the *return payloads* explicit — and those
+are the load-bearing CTDE claim: the referee holds `s`, the server never receives it, and the
+reply carries no `q_values`/`hidden`/`s`.
+
+```mermaid
+sequenceDiagram
+    participant R as Referee (sole holder of s)
+    participant C as Cop MCP server
+    participant T as Thief MCP server
+    participant G as Spectator GUI
+
+    R->>R: O(s, i) = bounded-Manhattan crop
+    R->>+C: request_move(Observation) [HTTP, Bearer JWT]
+    C->>C: a = argmax_a mask(a) · Q(o, a; θ)
+    C-->>-R: MoveResponse{action, policy_version}
+    R->>+T: request_move(Observation) [HTTP, Bearer JWT]
+    T-->>-R: MoveResponse{action, policy_version}
+    R->>R: apply(a_cop, a_thief) — simultaneous, swap=capture (ADR-0004)
+    R->>G: SpectatorFrame (full ground truth, god-view only)
+    Note over R,T: s is NEVER sent to a server; the reply carries no q_values / hidden / s
+```
+
+### 2.5 Level 3 — Component view (inside the boxes)
 
 ```
 src/sdk/sdk.py :: MarlSDK  ── SINGLE business-logic entry; every UI/server/script depends on it
@@ -318,7 +392,7 @@ Assignment6-MARLCopsRobbers/
 │   └── experiment_manifest.json    # seeds, config hashes, git commit, run IDs
 ├── players.local.yaml              # GIT-IGNORED (real names/ids — repo root AS BUILT, not a secrets/ dir)
 ├── instructions/                   # GIT-IGNORED: brief PDFs, lecturer feedback, audit, cover sheet
-└── notebooks/analysis.ipynb        # consumes MarlSDK ONLY; LaTeX equations
+└── notebooks/analysis.ipynb        # MarlSDK seam + config loader + results reader
 ```
 
 ---

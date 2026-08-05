@@ -78,3 +78,32 @@ def test_prd_cited_test_files_resolve():
     actual = {p.name for p in (_ROOT / "tests").rglob("test_*.py")}
     missing = sorted(c for c in cited if c.split("/")[-1] not in actual)
     assert not missing, f"PRD.md cites nonexistent test file(s): {missing}"
+
+
+def test_the_plan_really_contains_the_uml_that_prd_and_todo_advertise() -> None:
+    """PRD and TODO both promise the PLAN has "C4 + UML". It had C4 and no UML at all.
+
+    A cross-model audit caught it: 9 fenced blocks in PLAN.md — C4 views, a directory tree, a
+    config sample, data-flows, deployment views — and not one UML artifact, while PRD.md and
+    TODO.md asserted the PLAN contained UML. Two docs describing a third doc's contents drift
+    silently, because nothing reads all three together. This does.
+
+    Checks SUBSTANCE, not the word "UML": a class diagram needs an inheritance edge, a
+    sequence diagram needs a participant and a message arrow. Prose saying "X inherits Y" is
+    what the PLAN already had, and is exactly what did NOT satisfy the claim.
+    """
+    plan = (_ROOT / "docs" / "PLAN.md").read_text(encoding="utf-8")
+    claimants = {
+        rel: text
+        for rel in ("docs/PRD.md", "docs/TODO.md")
+        if "UML" in (text := (_ROOT / rel).read_text(encoding="utf-8"))
+    }
+    assert claimants, "no doc claims UML any more — drop this gate or restore the claim"
+    assert "classDiagram" in plan and "<|--" in plan, (
+        f"{sorted(claimants)} advertise UML, but docs/PLAN.md has no class diagram with an "
+        f"inheritance edge (`classDiagram` + `<|--`)"
+    )
+    assert "sequenceDiagram" in plan and "->>" in plan, (
+        f"{sorted(claimants)} advertise UML, but docs/PLAN.md has no sequence diagram with a "
+        f"message arrow (`sequenceDiagram` + `->>`)"
+    )
